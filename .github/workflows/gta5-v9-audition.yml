@@ -1,0 +1,33 @@
+name: GTA V editorial V9 source audition
+on:
+  pull_request:
+    paths:
+      - 'tools/gta5_v9_source_audition.py'
+      - '.github/workflows/gta5-v9-audition.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audition:
+    runs-on: ubuntu-latest
+    timeout-minutes: 17
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install source verification tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          python -m pip install --quiet 'yt-dlp>=2025.10.01'
+      - name: Get real GTA V clips and verify media
+        run: python tools/gta5_v9_source_audition.py
+      - name: Keep source footage temporary for editorial QA
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gta5-v9-source-review
+          path: review-gta5-v9/
+          if-no-files-found: error
+          retention-days: 1
