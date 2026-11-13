@@ -136,6 +136,15 @@ class ActivityLog:
                 if twitch.get("last_error"):
                     stage["state"] = "failed"
                     stage["message"] = "Última consulta Twitch apresentou erro"
+                elif event and event["state"] == "running":
+                    try:
+                        updated = datetime.fromisoformat(event["at"])
+                        seconds = (datetime.now(timezone.utc) - updated).total_seconds()
+                        if 0 <= seconds <= 180:
+                            stage["state"] = "running"
+                            stage["message"] = "Consulta à Twitch em execução"
+                    except ValueError:
+                        pass
             elif key == "legendas" and clip:
                 if caption_state in {"queued", "processing"}:
                     stage["state"] = "queued" if caption_state == "queued" else "running"
