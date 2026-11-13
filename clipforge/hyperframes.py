@@ -203,9 +203,15 @@ def render_composition(directory: Path, *, timeout: int = 1200) -> Path:
     directory = directory.resolve()
     if not (directory / "index.html").is_file() or not (directory / "source.mp4").is_file():
         raise ValueError("Incomplete HyperFrames composition")
-    if shutil.which("node") is None or shutil.which("npx") is None:
-        raise RuntimeError("Install Node.js 22+ and HyperFrames CLI before rendering")
-    command = ["npx", "--no-install", "hyperframes"]
+    if shutil.which("node") is None:
+        raise RuntimeError("Install Node.js 22+ before HyperFrames rendering")
+    cli_path = shutil.which("hyperframes")
+    if cli_path:
+        command = [cli_path]
+    elif shutil.which("npx"):
+        command = ["npx", "--no-install", "hyperframes"]
+    else:
+        raise RuntimeError("Install the HyperFrames CLI before rendering")
     env = dict(os.environ, npm_config_offline="true", HYPERFRAMES_NO_UPDATE_CHECK="1")
     for args in (["lint", "."], ["render", "-o", "final.mp4"]):
         try:
