@@ -16,6 +16,8 @@
 
 - clipforge/core.py: ingestão, direitos, ffprobe, banco, FFmpeg e workers.
 - clipforge/web.py: HTTP API e autenticação simples.
+- clipforge/telemetry.py: histórico durável de eventos reais, 9 módulos visuais; não fabricar status.
+- clipforge/demo.py: teste sintético próprio, opt-in e limitado a 3 entradas por volume; sem conteúdo de streamers.
 - clipforge/smart.py: seleção visual opcional e compatível com fallback áudio.
 - clipforge/captions.py: SRT de fala real, jobs limitados, cache e proteção de direitos.
 - clipforge/hyperframes.py: pós-produção opcional, exportação HTML/CSS + SRT, empacotamento, CLI local.
