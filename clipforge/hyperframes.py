@@ -14,6 +14,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import zipfile
 from pathlib import Path
 
 from .core import ClipStore, duration_of, probe
@@ -142,9 +143,10 @@ def export_composition(store: ClipStore, clip_id: str, *, title: str = "",
     if not video or (video.get("width"), video.get("height")) != (1080, 1920):
         raise ValueError("HyperFrames requires 1080x1920 source from FFmpeg pipeline")
     duration = duration_of(info)
-    if duration < 1 or duration > 60:
+    if duration < 1 or duration > 60.5:
         raise ValueError("Unexpected source duration")
 
+    duration = min(duration, 60.0)
     captions = []
     if captions_file is not None:
         if captions_file.is_symlink() or captions_file.suffix.lower() != ".srt":
@@ -188,6 +190,11 @@ def export_composition(store: ClipStore, clip_id: str, *, title: str = "",
     (final_dir / "manifest.json").write_text(
         json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
+    # A portable, offline-editable package. MP4 is already compressed.
+    archive = final_dir / "hyperframes-project.zip"
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_STORED) as bundle:
+        for name in ("index.html", "style.css", "source.mp4", "manifest.json"):
+            bundle.write(final_dir / name, arcname=name)
     return final_dir
 
 
