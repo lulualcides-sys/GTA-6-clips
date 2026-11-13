@@ -17,6 +17,10 @@
 
 Até o lançamento, para cortes de humor visual de quaisquer games, consultar **docs/nexus-clips-br-editorial.md** antes da revisão: título curto em PT-BR, sem rótulo de replay, replay lento opcional, crédito pequeno ao criador, marca-d'água compacta Nexus Clips BR e final com corte seco. Para cenas cujo humor dependa da fala, a legenda PT-BR deve traduzir fielmente o áudio de verdade; não inventar diálogo. Aprovação editorial e direitos de publicação são gates distintos. A implementação automática do preset no aplicativo e o PNG no instalador ainda dependem de integração e testes; este documento não os configura por si só.
 
+## Perfis narrativos por tipo de evento (planejamento, ainda não render automático)
+
+A V8 de CS é uma referência de **acabamento aprovado**, não um recorte universal. Antes de editar outros jogos, consultar **docs/EDITORIAL_PRESETS.md** e usar `clipforge/editorial_profiles.py` / `python -m tools.editorial_plan` para sugerir contexto, desenrolar, clímax, reação e replay. **Evento prevalece sobre jogo:** GTA RP pode ser diálogo; GTA VI pode ser ação ou humor; Minecraft pode ser sobrevivência ou zoeira. Esses perfis dependem de tempos identificados e validados manualmente e **não** detectam jogadas, piadas, falas ou o rosto de um streamer. Não alegar que a implementação destes planejadores já automatizou a edição ou está instalada no Windows. Preservar os vídeos e padrões aprovados.
+
 ## Mapa dos arquivos
 
 - clipforge/core.py: ingestão, direitos, ffprobe, banco, FFmpeg e workers.
