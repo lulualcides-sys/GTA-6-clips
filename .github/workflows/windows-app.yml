@@ -63,25 +63,30 @@ jobs:
         shell: pwsh
         run: |
           $json = Join-Path $env:RUNNER_TEMP "gta6-desktop-selftest.json"
+          $env:GTA6_SELFTEST_PATH = $json
           $exe = (Resolve-Path "./dist/GTA6Clips/GTA6Clips.exe").Path
-          $process = Start-Process -FilePath $exe -ArgumentList @("--self-test", $json) -PassThru
-          # Start-Process -Wait can hang on GUI process trees. Wait for the
-          # concrete JSON report, with a hard time bound, then inspect exit.
-          $deadline = (Get-Date).AddSeconds(65)
-          while (-not (Test-Path $json) -and (Get-Date) -lt $deadline) {
+          $process = Start-Process -FilePath $exe -ArgumentList @("--self-test") -PassThru
+          $deadline = (Get-Date).AddSeconds(45)
+          $result = $null
+          while ((Get-Date) -lt $deadline) {
+            if (Test-Path $json) {
+              try { $result = Get-Content $json -Raw | ConvertFrom-Json } catch {}
+              if ($result -and $result.phase -in @("complete","exception")) { break }
+            }
+            if ($process.HasExited) { break }
             Start-Sleep -Milliseconds 500
           }
-          if (-not (Test-Path $json)) {
+          if (-not $result) { $result = [pscustomobject]@{ phase="no_report"; status="fail" } }
+          $result | ConvertTo-Json
+          if ($result.phase -ne "complete") {
             if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
-            throw "Frozen executable did not write a self-test report within 65 seconds"
+            throw "Frozen executable did not complete. Last phase: $($result.phase)"
           }
           if (-not $process.WaitForExit(5000)) {
             Stop-Process -Id $process.Id -Force
             throw "Frozen executable did not exit cleanly after self-test"
           }
           if ($process.ExitCode -ne 0) { throw "Packaged EXE returned $($process.ExitCode)" }
-          $result = Get-Content $json -Raw | ConvertFrom-Json
-          $result | ConvertTo-Json
           if ($result.status -ne "pass") { throw "Packaged EXE self-test failed" }
           if (-not $result.ffmpeg -or -not $result.ffprobe -or -not $result.protected_api) {
             throw "Required native tools or protected API missing"
