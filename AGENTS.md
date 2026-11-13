@@ -16,7 +16,8 @@
 
 - clipforge/core.py: ingestão, direitos, ffprobe, banco, FFmpeg e workers.
 - clipforge/web.py: HTTP API e autenticação simples.
-- clipforge/smart.py: seleção visual opcional e compatível com fallback áudio.\n- clipforge/captions.py: SRT de fala real, jobs limitados, cache e proteção de direitos.
+- clipforge/smart.py: seleção visual opcional e compatível com fallback áudio.
+- clipforge/captions.py: SRT de fala real, jobs limitados, cache e proteção de direitos.
 - clipforge/hyperframes.py: pós-produção opcional, exportação HTML/CSS + SRT, empacotamento, CLI local.
 - clipforge/templates/: presets de composição 9:16 próprios e sem dependência CDN.
 - clipforge/twitch.py: OAuth app, consulta de **metadados** de clipes e ranking heurístico; não faz download.
@@ -43,7 +44,8 @@
 
 - python -m unittest discover -s tests -v
 - python -m compileall -q clipforge tests tools
-- python tools/smoke.py (com ffmpeg/ffprobe)
+- python -m tools.smoke (com ffmpeg/ffprobe)
+- python -m tools.scene_smoke (CI isolado com PySceneDetect instalado, usando cenas sintéticas)
 - Confirmar dashboard e prévia em mobile quando possível.
 - Relatar commit, testes realmente executados, falhas e limitações remanescentes.
 
