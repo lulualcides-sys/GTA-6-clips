@@ -66,6 +66,62 @@ function mountDesktopControls() {
       }catch(error){toast("Windows: "+error.message);}
     });
   }
+  const updateButton=byId("desktop-update");
+  const updateStatus=byId("desktop-update-status");
+  let available=false;
+  let busy=false;
+  async function checkUpdates(){
+    if(busy) return;
+    busy=true;
+    updateButton.disabled=true;
+    updateStatus.textContent="Conferindo GitHub...";
+    try{
+      const info=await bridge.check_updates();
+      available=Boolean(info?.ok&&info.available);
+      if(!info?.ok){
+        updateStatus.textContent="GitHub indisponível";
+        updateButton.textContent="Verificar novamente";
+      }else if(available){
+        updateStatus.textContent="Nova versão: "+info.latest;
+        updateButton.textContent="Atualizar";
+      }else{
+        updateStatus.textContent="v"+info.version+" · Atualizado";
+        updateButton.textContent="Verificar novamente";
+      }
+    }catch(error){
+      available=false;
+      updateStatus.textContent="Atualização indisponível";
+      updateButton.textContent="Tentar novamente";
+    }finally{
+      busy=false;
+      updateButton.disabled=false;
+    }
+  }
+  updateButton.addEventListener("click",async()=>{
+    if(busy) return;
+    if(!available) return checkUpdates();
+    busy=true;
+    updateButton.disabled=true;
+    updateStatus.textContent="Baixando, conferindo SHA-256 e testando...";
+    try{
+      const result=await bridge.install_update();
+      if(!result?.ok){
+        updateStatus.textContent="Instalação atual preservada";
+        toast(result?.error||"Falha ao verificar atualização");
+        busy=false;
+        updateButton.disabled=false;
+      }else{
+        updateStatus.textContent="Reiniciando para "+result.latest;
+      }
+    }catch(error){
+      updateStatus.textContent="Instalação atual preservada";
+      toast("Atualização: "+error.message);
+      busy=false;
+      updateButton.disabled=false;
+    }
+  });
+  checkUpdates();
+  setInterval(checkUpdates,3*60*60*1000);
 }
 window.addEventListener("pywebviewready",mountDesktopControls);
 mountDesktopControls();
