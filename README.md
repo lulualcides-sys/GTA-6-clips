@@ -2,7 +2,7 @@
 
 Projeto independente de **GTA 6**: ingestão de vídeos autorizados, seleção inicial de cortes por áudio, render vertical (9:16) e painel web de revisão. Organizado para manutenção por múltiplos agentes de IA.
 
-> **Estado real:** MVP local-first. Ainda **não** coleta lives ou clipes da Twitch automaticamente, **não** transcreve falas, **não** publica nas redes e **não** está hospedado em domínio público.
+> **Estado real:** MVP local-first. Ainda **não** baixa lives ou clipes da Twitch, **não** transcreve automaticamente sem ativação dos recursos opcionais, **não** publica nas redes e **não** está hospedado em domínio público.
 
 ## Iniciar (Python)
 
@@ -86,5 +86,11 @@ python -m clipforge.hyperframes abcdef123456 --title "DESTAQUE DO STREAMER" --re
 ```
 
 O render final fica separado em `data/hyperframes/<id>/final.mp4`, e **nunca sobrescreve o MP4-base aprovado**. O Docker de produção não instala HyperFrames/Chromium por padrão. No painel, **Exportar não significa renderizar nem publicar**: para render final use uma máquina com CLI instalada. Veja [docs/HYPERFRAMES.md](docs/HYPERFRAMES.md).
+
+## Análise visual e legendas com IA (novidade)
+
+Agora existem módulos **opcionais** de análise de cenas por PySceneDetect e de transcrição real via faster-whisper. O botão **Gerar legendas IA** cria SRT com os tempos das palavras, quando houver fala detectada; o HyperFrames reaproveita automaticamente esse SRT na exportação. A seleção por cena considera cortes visuais mais próximos do trecho com atividade de áudio, **mas não compreende semântica, humor ou acontecimentos do jogo**.
+
+Os pacotes estão em `requirements-ai.txt` e **não são instalados no Docker básico**. `SMART_SCENES=0` e `AUTO_TRANSCRIBE=0` por padrão; ative apenas em máquina com CPU/memória adequadas. O primeiro uso do faster-whisper pode baixar pesos de modelos. Veja [docs/AI_PIPELINE.md](docs/AI_PIPELINE.md).
 
 Leia **AGENTS.md** primeiro. Arquitetura em docs/ARCHITECTURE.md; inventário filtrado em docs/ARSENAL.md; prioridades em docs/ROADMAP.md; operações em docs/RUNBOOK.md.
