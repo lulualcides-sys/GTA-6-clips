@@ -51,7 +51,7 @@ def validate_paths(home: Path, staged: Path, installed: Path):
         raise ValueError("Current app folder not found")
     if installed == home or home in installed.parents:
         raise ValueError("Refusing to update the persistent application data directory")
-    if len(installed.parts) <= 2:
+    if len(installed.parts) < 2:
         raise ValueError("Application installation path is unsafe")
     return home, staged, installed
 
