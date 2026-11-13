@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import traceback
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -175,11 +176,14 @@ def self_test(destination: Path | None = None) -> dict:
         report({**result, "phase": "native_tools"})
         token = secrets.token_urlsafe(32)
         server, runtime, thread = start_backend(home / "data", token)
+        errors = []
+        server.handle_error = lambda request, address: errors.append(traceback.format_exc())
         report({**result, "phase": "server_started"})
         try:
             base = f"http://127.0.0.1:{server.server_port}"
             with urllib.request.urlopen(base + "/api/health", timeout=10) as resp:
                 result["health"] = resp.status == 200
+            report({**result, "phase": "health_checked"})
             request = urllib.request.Request(
                 base + "/api/agents",
                 headers={"Authorization": f"Bearer {token}"},
@@ -189,13 +193,21 @@ def self_test(destination: Path | None = None) -> dict:
                 result["protected_api"] = (
                     resp.status == 200 and len(data.get("stages", [])) == 9
                 )
+            report({**result, "phase": "agents_checked"})
             try:
                 urllib.request.urlopen(base + "/api/agents", timeout=10)
                 result["protected_api"] = False
             except urllib.error.HTTPError as exc:
                 result["protected_api"] &= exc.code == 401
+            report({**result, "phase": "unauthorized_checked"})
+        except Exception as exc:
+            report({**result, "phase": "http_failure",
+                    "error": f"{type(exc).__name__}: {str(exc)[:300]}",
+                    "handler_error": errors[-1][-2800:] if errors else ""})
+            raise
         finally:
-            report({**result, "phase": "stopping_server"})
+            report({**result, "phase": "stopping_server",
+                    "handler_error": errors[-1][-2800:] if errors else ""})
             shutdown_backend(server, runtime, thread)
             report({**result, "phase": "server_stopped"})
         result["status"] = ("pass" if
@@ -244,10 +256,18 @@ def main() -> int:
         except Exception as exc:
             if destination:
                 destination.parent.mkdir(parents=True, exist_ok=True)
+                previous = {}
+                if destination.is_file():
+                    try:
+                        previous = json.loads(destination.read_text(encoding="utf-8"))
+                    except ValueError:
+                        pass
                 destination.write_text(
                     json.dumps({"phase": "exception", "status": "fail",
+                                "last_phase": previous.get("phase"),
+                                "server_trace": previous.get("handler_error", ""),
                                 "type": type(exc).__name__,
-                                "message": str(exc)[:350]}, indent=2),
+                                "message": str(exc)[:700]}, indent=2),
                     encoding="utf-8",
                 )
             return 3
