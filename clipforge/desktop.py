@@ -30,6 +30,7 @@ CONFIG_KEYS = frozenset({
     "AUTO_RENDER", "AUTO_SCAN", "AUTO_TRANSCRIBE", "ENABLE_SYNTHETIC_DEMO",
     "SMART_SCENES", "POLL_SECONDS", "TWITCH_ENABLED", "TWITCH_POLL_SECONDS",
     "TWITCH_CLIENT_ID", "TWITCH_CLIENT_SECRET", "TWITCH_GAME_ID",
+    "TWITCH_GTA6_LAUNCH_AT",
     "WHISPER_MODEL", "WHISPER_LANGUAGE", "MAX_SOURCE_SECONDS",
 })
 DEFAULT_CONFIG = """# GTA VI Clips - configuracoes locais. Reinicie o app apos editar.
@@ -43,10 +44,12 @@ WHISPER_MODEL=base
 WHISPER_LANGUAGE=pt
 
 # Crie um app em https://dev.twitch.tv/console/apps para usar descoberta real.
-TWITCH_ENABLED=0
+TWITCH_ENABLED=1
 TWITCH_CLIENT_ID=
 TWITCH_CLIENT_SECRET=
 TWITCH_POLL_SECONDS=900
+# Até o lançamento, categorias populares; depois, apenas GTA VI:
+TWITCH_GTA6_LAUNCH_AT=2026-11-19T03:00:00+00:00
 """
 
 
