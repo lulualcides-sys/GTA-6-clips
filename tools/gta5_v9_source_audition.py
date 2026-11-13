@@ -7,12 +7,11 @@ import json, subprocess
 from pathlib import Path
 OUT=Path("review-gta5-v9"); OUT.mkdir(exist_ok=True)
 SOURCES=[
-("cotonete_malandro","Cotonete","BraveRelatedCobraJebaited-NIqBWDRIjtJgG9zi","GTA V RP","malandro demais se engana","dialogo"),
-("mungo_chase","Mungo","DaintyShinyClamSMOrc-M_WuDYEie_m_QSCG","GTA V RP","when chase ends with a bang","perseguicao"),
-("nakkida_scare","Nakkida","ThirstyStrongBobaSquadGoals-3cec78fl0q86yQvi","GTA V RP","Tessa Scares JP","humor"),
-("xqc_driving","xQc","DeadOnerousWallabyMoreCowbell-4T3ZlNLPxxnFgrX_","GTA V RP","becoming a jet","perseguicao"),
-("jenny_driving","Jennybeartv","TameGlamorousCurlewWholeWheat-OWOnpzhluySLFusB","GTA V RP","Ratty driving has consequences","humor"),
-("xqc_splat","xQc","ProudEphemeralScorpionTheTarFu-gElb_ERdab-xW0E8","GTA V RP","unexpected moment","humor")
+("bicycle_collision","Xiceman","FancyWrongGarageChocolateRain-fpBTAe1Qh1ySFH8R","GTA V RP","Bicycle vs Car - Car Wins","humor"),
+("ziggy_flop","Ziggy","ThoughtfulCoweringBatDeIlluminati-igMSsHdENoyzs02v","GTA V RP","Flop jump","humor"),
+("alvis_fall","Harmless","SquarePrettyWaspMrDestructoid-2wM5dz0beWM48oNo","GTA V RP","alvis falls 10000 feet","humor"),
+("test_drive","pasty","BlitheSpotlessSpindleTooSpicy-ZUDkVYCF8D0zjxrM","GTA V RP","Joe and Roxy go on a quick test drive","perseguicao"),
+("monkey_shot","Burn","GlamorousDeadFishLitFam-eeOd038AcvQsQzrQ","GTA V RP","Burn as a Monkey gets oneshot","humor")
 ]
 manifest=[]
 for slug,creator,clip_id,game,title,style in SOURCES:
