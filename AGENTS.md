@@ -6,6 +6,7 @@
 
 - MVP implementado: scanner de vídeos LOCAIS com manifesto de direitos, SHA-256, seleção heurística por intensidade de áudio, FFmpeg 1080x1920/30fps, SQLite, API, fila local e dashboard.
 - Implementado agora: descoberta de **metadados de clipes da Twitch** por OAuth de aplicativo, ranking heurístico de visualizações/recência/duração, marcação declarativa de permissão e painel de candidatos. Sem credenciais, retorna claramente que está desconfigurado.
+- Adicionado: `clipforge/hyperframes.py` e `clipforge/templates/shorts.css` para exportar composição HTML/CSS HyperFrames, manifesto sem evidências privadas e ZIP protegido pelo token. O MP4-base permanece inalterado. `--render` é **opcional** e precisa de CLI/Chrome em máquina local; botão web apenas exporta.
 - NÃO implementado: **baixar** lives/clipes Twitch, detecção SEMÂNTICA de melhores momentos, legendas automáticas, face tracking, Metricool conectado ao runtime, publicação social, Cloudflare hospedado. Nunca afirmar que funcionam.
 - Aprovar no painel NÃO publica nas redes.
 - Não inventar resultados, streams, vídeos, direitos, alcance ou testes.
@@ -14,9 +15,11 @@
 
 - clipforge/core.py: ingestão, direitos, ffprobe, banco, FFmpeg e workers.
 - clipforge/web.py: HTTP API e autenticação simples.
+- clipforge/hyperframes.py: pós-produção opcional, exportação HTML/CSS + SRT, empacotamento, CLI local.
+- clipforge/templates/: presets de composição 9:16 próprios e sem dependência CDN.
 - clipforge/twitch.py: OAuth app, consulta de **metadados** de clipes e ranking heurístico; não faz download.
 - clipforge/static/: interface HTML/CSS/JS sem framework.
-- tests/: testes e ferramentas de QA; tools/smoke.py: teste fim-a-fim sintético.
+- tests/: testes de API, segurança e exportação HyperFrames; tools/smoke.py: render FFmpeg; tools/hyperframes_smoke.py: piloto HyperFrames.
 - docs/: arquitetura, arsenal, roadmap, operação e fontes Twitch. Atualize sempre que alterar contratos.
 - examples/: exemplos públicos sem IDs reais e sem segredos.
 - data/: mídias e banco, nunca comitar.
@@ -44,4 +47,4 @@
 
 ## Sequência P1
 
-Transcrição opcional faster-whisper, score de cena e áudio, modelos de edição e legendas; depois Twitch OAuth autorizado e Metricool. Não instalar o Arsenal completo em massa.
+Transcrição opcional faster-whisper, score de cena e áudio, aproveitar o compositor HyperFrames já exportável e validar render CLI no workflow dedicado; depois Twitch OAuth autorizado e Metricool. Não instalar o Arsenal completo em massa.
