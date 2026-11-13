@@ -105,6 +105,34 @@ class LocalDesktopTests(unittest.TestCase):
         finally:
             shutdown_backend(server, runtime, thread)
 
+    def test_private_twitch_onboarding_checks_oauth_before_local_save(self):
+        from clipforge.desktop import DesktopBridge
+        bridge = DesktopBridge(self.home)
+        client_id, secret = "a"*30, "b"*30
+        with patch("clipforge.twitch.TwitchClient.get_top_categories",
+                   return_value=[{"id":"1","name":"Just Chatting"}]) as query:
+            response = bridge.save_twitch_credentials(client_id, secret)
+        self.assertTrue(response["ok"])
+        self.assertTrue(response["restart_required"])
+        query.assert_called_once_with(limit=1)
+        config = (self.home/"config.env").read_text(encoding="utf-8")
+        self.assertIn("TWITCH_ENABLED=1",config)
+        self.assertIn("TWITCH_CLIENT_ID="+client_id,config)
+        self.assertIn("TWITCH_CLIENT_SECRET="+secret,config)
+        self.assertIn("TWITCH_GTA6_LAUNCH_AT=2026-11-19",config)
+        self.assertNotIn(secret,str(response))
+
+    def test_invalid_or_unreachable_twitch_credentials_are_not_saved(self):
+        from clipforge.desktop import DesktopBridge
+        from clipforge.twitch import TwitchError
+        bridge = DesktopBridge(self.home)
+        self.assertFalse(bridge.save_twitch_credentials("x\\nTWITCH_ENABLED=1","bad")["ok"])
+        with patch("clipforge.twitch.TwitchClient.get_top_categories",
+                   side_effect=TwitchError("OAuth 401")):
+            outcome = bridge.save_twitch_credentials("a"*30, "b"*30)
+        self.assertFalse(outcome["ok"])
+        self.assertFalse((self.home/"config.env").exists())
+
     def test_initialize_settings_cannot_overwrite_existing_user_data(self):
         settings = initialize_settings(self.home)
         settings.write_text("AUTO_SCAN=0\n", encoding="utf-8")
