@@ -1,8 +1,10 @@
 # GTA-6-clips
 
+**Windows sem hospedagem paga:** há um aplicativo desktop portátil em construção, que aproveita o painel visual existente. Veja [Como instalar o app Windows](docs/DESKTOP_WINDOWS.md) e o workflow [Windows app — build](.github/workflows/windows-app.yml). O `.exe` é distribuído como artefato de GitHub Actions somente após os testes de build. O app fica no PC; não existe instalação remota automática.
+
 Projeto independente de **GTA 6**: ingestão de vídeos autorizados, seleção inicial de cortes por áudio, render vertical (9:16) e painel web de revisão. Organizado para manutenção por múltiplos agentes de IA.
 
-> **Estado real:** MVP local-first. Ainda **não** baixa lives ou clipes da Twitch, **não** transcreve automaticamente sem ativação dos recursos opcionais, **não** publica nas redes e **não** está hospedado em domínio público.
+> **Estado real:** MVP local-first para web local e aplicativo Windows (empacotamento em validação). Ainda **não** baixa lives ou clipes da Twitch, **não** transcreve automaticamente sem ativação dos recursos opcionais, **não** publica nas redes e **não** está hospedado em domínio público.
 
 ## Iniciar (Python)
 
