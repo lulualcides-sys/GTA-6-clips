@@ -47,4 +47,4 @@ Saída: perfil, trechos de contexto/desenvolvimento/clímax/reação, replay exp
 
 Produzir **três provas com eventos diferentes** (ex.: GTA RP diálogo, Minecraft sobrevivência e Fortnite clutch), cada uma com contexto, desenvolvimento e desfecho. O controle A/B deve comparar V8 como referência de acabamento, **não** copiar os cortes do CS. Só tornar presets permanentes após avaliação de cada tipo.
 
-**Radar vigente:** até 18/11/2026, qualquer jogo/streamer em alta; a partir de 19/11/2026 à meia-noite em São Paulo, somente GTA VI, mantendo estilos diferentes para ação, humor e diálogo dentro do jogo.
+**Radar vigente:** até 18/11/2026 somente GTA V, incluindo GTA RP e streamers variados; a partir de 19/11/2026, 00h em São Paulo, somente GTA VI. **O tipo de cena continua sendo mais importante que o jogo**: ação, humor visual, perseguição e diálogo dentro de GTA precisam de montagens diferentes. V8 de CS é referência de acabamento, não motivo para buscar CS.
