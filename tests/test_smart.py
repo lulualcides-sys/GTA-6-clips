@@ -1,6 +1,9 @@
 import os
+import sys
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -38,6 +41,21 @@ class SmartSelectionTests(unittest.TestCase):
         self.assertEqual(details["method"],"audio+scene-boundaries")
         self.assertEqual(details["cuts"],2)
         self.assertEqual(finder.call_args.kwargs["limit_seconds"],120)
+
+    def test_scene_window_integer_input_converted_to_seconds(self):
+        manager = MagicMock()
+        manager.get_cut_list.return_value = [SimpleNamespace(get_seconds=lambda: 2.0)]
+        module = SimpleNamespace(
+            open_video=lambda name: object(),
+            ContentDetector=lambda **kw: object(),
+            SceneManager=lambda: manager
+        )
+        with patch.dict(sys.modules, {"scenedetect":module}):
+            cuts = find_cuts(Path("dummy.mp4"),limit_seconds=6)
+        self.assertEqual(cuts,[2.0])
+        end_time = manager.detect_scenes.call_args.kwargs["end_time"]
+        self.assertEqual(end_time,6.0)
+        self.assertIsInstance(end_time,float)
 
     def test_missing_package_or_decode_does_not_crash(self):
         with patch("builtins.__import__", side_effect=ImportError):
