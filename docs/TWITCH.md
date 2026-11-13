@@ -14,9 +14,9 @@ A data foi definida a partir da informação oficial da Rockstar em https://www.
 ## Ativação no aplicativo Windows
 
 1. Abra o **GTA VI Clips** no PC.
-2. Clique em **Configurar Twitch e IA**. Isso abre `%LOCALAPPDATA%\GTA6Clips\config.env`.
-3. Crie um app de desenvolvedor no [Twitch Developer Console](https://dev.twitch.tv/console/apps) e obtenha **Client ID** e **Client Secret**.
-4. Preencha o arquivo **no seu computador**, sem colar segredos no chat nem no GitHub:
+2. Crie um app de desenvolvedor no [Twitch Developer Console](https://dev.twitch.tv/console/apps) e obtenha **Client ID** e **Client Secret**.
+3. Clique em **Conectar Twitch** no aplicativo. Digite os dois valores na janela local. O programa **testa a autenticação na API oficial antes de salvar** e não exibe o segredo após isso.
+4. Alternativamente, clique em **Configurações** e edite o arquivo `%LOCALAPPDATA%\GTA6Clips\config.env` diretamente:
 
 ```dotenv
 TWITCH_ENABLED=1
