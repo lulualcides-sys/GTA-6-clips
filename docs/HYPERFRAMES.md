@@ -19,7 +19,7 @@ Preparar uma composição: python -m clipforge.hyperframes abcdef123456 --title 
 
 Com SRT real: python -m clipforge.hyperframes abcdef123456 --srt ./legendas.srt
 
-Renderização: npm install -g hyperframes ; hyperframes browser --install ; python -m clipforge.hyperframes abcdef123456 --render
+Renderização: npm install -g hyperframes ; hyperframes browser ensure ; python -m clipforge.hyperframes abcdef123456 --render
 
 Testar: python -m unittest discover -s tests -v ; python -m tools.hyperframes_smoke --render
 
