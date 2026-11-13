@@ -1,6 +1,7 @@
 """No real Twitch tokens or network calls are needed for this suite."""
 import json
 import os
+import sqlite3
 import tempfile
 import threading
 import unittest
@@ -110,6 +111,34 @@ class TwitchDiscoveryTests(unittest.TestCase):
         forged=dict(clip(),url="https://attack.example/malware.mp4")
         discovery=TwitchDiscovery(self.db,self.lock,self.root,DummyClient([forged]))
         self.assertEqual(discovery.refresh()["processed"],0)
+        self.assertEqual(discovery.list_candidates(),[])
+
+    def test_upgrade_preserves_legacy_gta_only_database(self):
+        with sqlite3.connect(self.db) as db:
+            db.execute("""CREATE TABLE twitch_candidates (
+                id TEXT PRIMARY KEY, broadcaster_id TEXT NOT NULL,
+                creator_name TEXT, title TEXT, url TEXT,
+                view_count INTEGER NOT NULL, duration REAL NOT NULL,
+                created_at TEXT, score INTEGER NOT NULL,
+                consent_flag TEXT NOT NULL, seen_at TEXT NOT NULL
+            )""")
+            db.execute("""CREATE TABLE twitch_sync (
+                id INTEGER PRIMARY KEY CHECK(id=1), last_at TEXT,
+                last_error TEXT, game_id TEXT
+            )""")
+            db.execute("""INSERT INTO twitch_candidates VALUES (
+                'legacy','123','Previous streamer','Old clip',
+                'https://clips.twitch.tv/FunnyClip123',1,30,'2026-11-12',
+                20,'unverified','2026-11-12'
+            )""")
+            db.commit()
+        discovery=TwitchDiscovery(self.db,self.lock,self.root,DummyClient([]))
+        with sqlite3.connect(self.db) as db:
+            fields={col[1] for col in db.execute("PRAGMA table_info(twitch_candidates)")}
+            self.assertIn("game_id",fields)
+            self.assertIn("game_name",fields)
+            self.assertEqual(db.execute("SELECT count(*) FROM twitch_candidates").fetchone()[0],1)
+        self.assertEqual(discovery.status()["count"],0)
         self.assertEqual(discovery.list_candidates(),[])
 
     def test_profile_switches_exactly_at_rockstar_launch(self):
