@@ -220,5 +220,6 @@ class ActivityLog:
             "auto_transcribe": runtime.auto_transcribe,
             "transcription_available": runtime.captions.available(),
             "publishing_connected": False,
+            "demo_enabled": runtime.demo.enabled,
             "mode": "real_activity_only",
         }
