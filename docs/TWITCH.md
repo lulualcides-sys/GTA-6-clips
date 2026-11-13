@@ -26,7 +26,7 @@ TWITCH_POLL_SECONDS=900
 TWITCH_GTA6_LAUNCH_AT=2026-11-19T03:00:00+00:00
 ```
 
-5. Salve e reinicie o aplicativo. O monitor começa a consultar **metadados** automaticamente. O botão **Buscar clipes** permite uma consulta manual.
+5. Salve (ou use **Salvar no PC** na janela de conexão) e reinicie o aplicativo. O monitor começa a consultar **metadados** automaticamente. O botão **Buscar clipes** permite uma consulta manual.
 6. No painel, confira se aparece "Monitoramento ativo", qual o modo atual e as categorias de fato encontradas.
 
 **Importante para quem já tinha o programa:** a atualização **não sobrescreve** `config.env`. Se a sua cópia antiga diz `TWITCH_ENABLED=0`, troque manualmente para `1`. Sem Client ID e Client Secret não é possível fazer uma consulta real à API Twitch. Não é necessário login de espectadores: o OAuth de aplicação usa `client_credentials`.
