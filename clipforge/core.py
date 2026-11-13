@@ -263,7 +263,8 @@ class Runtime:
         self.store = ClipStore(root)
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="clip-render")
         from .twitch import TwitchDiscovery
-        self.twitch = TwitchDiscovery(self.store.database, self.store.lock, self.store.root)
+        self.twitch = TwitchDiscovery(self.store.database, self.store.lock, self.store.root,
+                                      activity=self.store.activity)
         from .captions import CaptionService
         self.captions = CaptionService(self.store)
         self.auto_transcribe = os.getenv("AUTO_TRANSCRIBE", "0") == "1"
