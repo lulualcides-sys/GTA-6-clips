@@ -9,6 +9,15 @@
 - [ ] Confirmar CI verde e revisão visual do MP4 sintético.
 - [ ] Hospedar painel com segurança e armazenamento persistente.
 
+## Painel Mission Control
+
+- [x] Central visual com nove módulos conectados, feed SQLite e estados reais, responsiva e com controles de revisão preservados.
+- [x] Teste com mídia sintética própria, opt-in, com limite por volume, para observar automações reais.
+- [x] Testes de backend e endpoints; workflow Playwright para capturar screenshots em desktop e mobile.
+- [ ] Publicar dashboard num servidor com HTTPS, armazenamento persistente, backup, autenticação forte e orçamento definido.
+- [ ] Testar com gameplay de streamer autorizado antes de afirmar qualidade editorial.
+- [ ] Integrar redes GTA separadas do WildVox.
+
 ## Etapa 1 — Qualidade de edição
 
 - [x] Exportador HyperFrames com HTML/CSS original, créditos, legenda SRT opcional, ZIP protegido e botão no painel.
