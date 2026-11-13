@@ -60,6 +60,41 @@ try {
   assert.match(animationCheck.running,/studio-live-card/,"Only active modules should pulse");
   assert.match(animationCheck.ring,/studio-live-ring/,"Active modules need a pulse halo");
   assert.equal(animationCheck.idle,"none","Inactive stages must remain still");
+  // Render the real stage DOM, then inspect a detached off-screen copy.
+  // This never reports invented execution in the dashboard or its snapshots.
+  assert.equal(await page.locator(".agent-unit .agent-worker").count(),9);
+  const operatorCheck=await page.evaluate(()=>{
+    const original=document.querySelector(".agent-unit");
+    const cloned=original.cloneNode(true);
+    cloned.style.cssText="position:absolute;top:-9999px;left:0";
+    document.body.append(cloned);
+    const worker=cloned.querySelector(".agent-worker");
+    const head=cloned.querySelector(".worker-head");
+    const idle=getComputedStyle(worker).animationName;
+    cloned.dataset.state="running";
+    const running=getComputedStyle(worker).animationName;
+    const headRunning=getComputedStyle(head).animationName;
+    cloned.dataset.state="complete";
+    const completed=getComputedStyle(worker).animationName;
+    cloned.remove();
+    return {idle,running,headRunning,completed};
+  });
+  assert.equal(operatorCheck.idle,"none","Idle operator must be still");
+  assert.match(operatorCheck.running,/operator-bob/,"Real running state should animate its character");
+  assert.match(operatorCheck.headRunning,/operator-nod/,"Working character must visibly act");
+  assert.equal(operatorCheck.completed,"none","Completed operator must stop moving");
+  await page.emulateMedia({reducedMotion:"reduce"});
+  const reducedMotionCheck=await page.evaluate(()=>{
+    const copy=document.querySelector(".agent-unit").cloneNode(true);
+    copy.style.cssText="position:absolute;top:-9999px;left:0";
+    copy.dataset.state="running";
+    document.body.append(copy);
+    const name=getComputedStyle(copy.querySelector(".agent-worker")).animationName;
+    copy.remove();
+    return name;
+  });
+  assert.equal(reducedMotionCheck,"none","Reduced-motion users must see a static character");
+  await page.emulateMedia({reducedMotion:"no-preference"});
   await page.screenshot({path:out+"/mission-desktop.png",fullPage:true});
 
   await page.setViewportSize({width:768,height:1024});
@@ -76,7 +111,7 @@ try {
   assert(overflow<=2,"Mobile horizontal overflow: "+overflow+"px");
   assert.equal(await page.locator(".agent-unit").count(),9);
   await page.screenshot({path:out+"/mission-mobile.png",fullPage:true});
-  console.log("MISSION BROWSER PASS: actual Studio V2 theme, real idle/blocked states, 9 cards, tablet/mobile layout, 2 screenshots");
+  console.log("MISSION BROWSER PASS: actual Studio V2 theme, real idle/blocked states, 9 animated-when-running operators, tablet/mobile layout, 2 screenshots");
 } finally {
   await browser.close();
 }
