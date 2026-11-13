@@ -53,8 +53,8 @@ class TwitchDiscoveryTests(unittest.TestCase):
             "TWITCH_TRENDING_CATEGORIES": "30",
             "TWITCH_CLIPS_PER_CATEGORY": "15",
             "TWITCH_LOOKBACK_HOURS": "72",
-            # Old forced GTA VI date must no longer matter.
-            "TWITCH_GTA6_LAUNCH_AT": "2026-01-01T00:00:00+00:00",
+            # Official launch is midnight Nov 19 in São Paulo.
+            "TWITCH_GTA6_LAUNCH_AT": "2026-11-19T03:00:00+00:00",
         })
         self.env.start()
         self.addCleanup(self.env.stop)
@@ -155,15 +155,26 @@ class TwitchDiscoveryTests(unittest.TestCase):
         self.assertEqual(discovery.status()["count"],1)
         self.assertEqual(discovery.list_candidates()[0]["id"],"legacy")
 
-    def test_global_profile_never_switches_on_gta_launch_date(self):
+    def test_global_until_midnight_sao_paulo_then_gta6_only(self):
         discovery = TwitchDiscovery(self.db,self.lock,self.root)
-        for when in (
-            datetime(2026,11,13,tzinfo=timezone.utc),
-            datetime(2026,11,19,3,tzinfo=timezone.utc),
-            datetime(2027,1,1,tzinfo=timezone.utc),
-        ):
+        before = datetime(2026,11,19,2,59,59,tzinfo=timezone.utc)
+        start = datetime(2026,11,19,3,tzinfo=timezone.utc)
+        for when in (datetime(2026,11,13,tzinfo=timezone.utc), before):
             self.assertEqual(discovery.profile(when)["profile"],"global_trending")
             self.assertIsNone(discovery.profile(when)["focus_game"])
+        for when in (start, datetime(2027,1,1,tzinfo=timezone.utc)):
+            self.assertEqual(discovery.profile(when)["profile"],"gta6_only")
+            self.assertEqual(discovery.profile(when)["focus_game"],"Grand Theft Auto VI")
+
+    def test_invalid_launch_override_still_switches_on_official_day(self):
+        with patch.dict(os.environ, {"TWITCH_GTA6_LAUNCH_AT":"not-a-date"}):
+            discovery = TwitchDiscovery(self.db,self.lock,self.root)
+            self.assertEqual(discovery.profile(
+                datetime(2026,11,19,3,tzinfo=timezone.utc))["profile"],"gta6_only")
+        with patch.dict(os.environ, {"TWITCH_GTA6_LAUNCH_AT":"2027-01-01T03:00:00+00:00"}):
+            discovery = TwitchDiscovery(self.db,self.lock,self.root)
+            self.assertEqual(discovery.profile(
+                datetime(2026,11,19,3,tzinfo=timezone.utc))["profile"],"global_trending")
 
     def test_multiple_categories_and_streamers_are_not_filtered(self):
         class MixedClient(DummyClient):
@@ -186,6 +197,43 @@ class TwitchDiscoveryTests(unittest.TestCase):
         self.assertEqual({x["game_name"] for x in discovery.list_candidates()},set(result["categories"]))
         self.assertEqual(discovery.status()["count"],4)
         self.assertIn("language",discovery.list_candidates()[0])
+
+    def test_switch_hides_old_games_and_queries_only_gta6(self):
+        class MixedClient(DummyClient):
+            def find_gta6_game(self):
+                return "777"
+            def get_top_categories(self,limit=30):
+                return [{"id":"11","name":"Just Chatting"},
+                        {"id":"22","name":"League of Legends"}]
+            def get_clips(self,game_id,lookback_hours=72,first=15):
+                return [clip("clip-"+game_id, broadcaster_id=game_id)]
+        fake = MixedClient([])
+        discovery = TwitchDiscovery(self.db,self.lock,self.root,fake)
+        discovery.refresh()
+        self.assertEqual(discovery.status()["count"],2)
+        self.assertEqual(len(discovery.list_candidates()),2)
+        with patch.dict(os.environ,{"TWITCH_GTA6_LAUNCH_AT":"2026-01-01T00:00:00+00:00"}):
+            self.assertEqual(discovery.status()["count"],0)
+            self.assertEqual(discovery.list_candidates(),[])
+            result = discovery.refresh()
+            self.assertEqual(result["profile"],"gta6_only")
+            self.assertEqual(result["game_id"],"777")
+            self.assertEqual(result["categories"],["Grand Theft Auto VI"])
+            self.assertEqual(fake.requested_game,"777")
+            self.assertEqual(discovery.status()["count"],1)
+            self.assertEqual({x["game_name"] for x in discovery.list_candidates()},
+                             {"Grand Theft Auto VI"})
+
+    def test_lookup_gta6_category_exact_only(self):
+        client = TwitchClient("id","secret")
+        with patch.object(client,"_get",return_value={"data":[
+            {"id":"11","name":"Grand Theft Auto V"},
+            {"id":"12","name":"Grand Theft Auto VI"}]}):
+            self.assertEqual(client.find_gta6_game(),"12")
+        with patch.object(client,"_get",return_value={"data":[
+            {"id":"11","name":"Grand Theft Auto V"}]}):
+            with self.assertRaisesRegex(TwitchError,"not yet available"):
+                client.find_gta6_game()
 
     def test_top_categories_are_bounded_not_whitelisted(self):
         client = TwitchClient("id","secret")
