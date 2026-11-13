@@ -15,9 +15,13 @@ from clipforge.updater import (
     _extract_verified, check_latest, parse_version, validate_release
 )
 from desktop_update_helper import validate_paths
+from clipforge.version import VERSION
 
 
-def sample_release(version="v0.3.0"):
+def sample_release(version=None):
+    if version is None:
+        major,minor,patch = map(int, VERSION.split("."))
+        version = f"v{major}.{minor}.{patch+1}"
     size = 5_000_000
     return {
         "tag_name": version, "draft": False, "prerelease": False,
@@ -136,7 +140,7 @@ class ArchiveAndStageTests(unittest.TestCase):
              patch("clipforge.updater._download",side_effect=fake_download),\
              patch("clipforge.updater.subprocess.run",side_effect=fake_run):
             release, staged = service.stage()
-        self.assertEqual(release["latest"],"v0.3.0")
+        self.assertEqual(release["latest"], info["tag_name"])
         self.assertTrue((staged/"GTA6Clips.exe").exists())
         self.assertEqual((self.home/"data"/"clips.sqlite3").read_bytes(),b"existing-user-database")
         self.assertIn("keep-private",(self.home/"config.env").read_text())
