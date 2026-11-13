@@ -103,7 +103,7 @@ def composition_html(duration: float, creator: str, title: str,
      data-fps="30" data-no-timeline="true">
   <video id="gameplay" class="clip" src="./source.mp4"
          data-start="0" data-duration="{safe_duration}"
-         data-track-index="0" playsinline preload="auto"></video>
+         data-track-index="0" data-has-audio="true" playsinline preload="auto"></video>
   <section id="header" class="clip headline" data-start="0"
            data-duration="{title_length}" data-track-index="1">
     <div class="kicker">GTA VI <span class="kicker-bullet">/</span> CLIP</div>
