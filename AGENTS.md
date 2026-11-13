@@ -25,7 +25,9 @@
 - clipforge/twitch.py: OAuth app, consulta de **metadados** de clipes e ranking heurístico; não faz download.
 - clipforge/static/: interface HTML/CSS/JS sem framework.
 - tests/: testes de API, segurança e exportação HyperFrames; tools/smoke.py: render FFmpeg; tools/hyperframes_smoke.py: piloto HyperFrames.
-- docs/: arquitetura, arsenal, roadmap, operação, análise de cenas, legendas e fontes Twitch. Atualize sempre que alterar contratos.
+- docs/: arquitetura, arsenal, roadmap, operação, análise de cenas, legendas, fontes Twitch e Mission Control.
+- clipforge/static/agents.js e agents.css: dashboard de etapas ligado ao GET /api/agents, sem dados fictícios.
+- tools/browser_smoke.mjs: QA visual Playwright PC/mobile; workflow mission-ui.yml. Atualize sempre que alterar contratos.
 - examples/: exemplos públicos sem IDs reais e sem segredos.
 - data/: mídias e banco, nunca comitar.
 
