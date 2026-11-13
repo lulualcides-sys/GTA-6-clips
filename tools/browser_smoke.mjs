@@ -18,6 +18,11 @@ try {
     const label=document.querySelector("#mission-connection");
     return label && label.textContent.includes("DADOS REAIS");
   },null,{timeout:20000});
+  await page.waitForFunction(()=>{
+    const label=document.querySelector("#twitch-state");
+    return label && label.textContent.includes("OAuth não configurado");
+  },null,{timeout:20000});
+  assert(!((await page.locator("#twitch-last").textContent())||"").includes("Informe o token"));
   assert.equal(await page.locator(".agent-unit").count(),9);
   const states=await page.locator(".agent-unit").evaluateAll(nodes=>
     nodes.map(x=>({name:x.querySelector(".agent-name")?.textContent,state:x.dataset.state}))
