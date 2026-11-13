@@ -1,4 +1,5 @@
 # Optional local AI worker. NOT installed in the default API Docker image.
 # Install only after assessing storage, CPU/RAM and license permissions.
 faster-whisper>=1.2,<2
-scenedetect[opencv]>=0.6,<1
+scenedetect>=0.7,<1
+opencv-python-headless>=4.8,<5
