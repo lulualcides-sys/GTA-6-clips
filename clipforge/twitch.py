@@ -19,6 +19,11 @@ from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 
 ALLOWED_CATEGORY_NAMES = {"grand theft auto vi", "grand theft auto 6"}
+# Rockstar currently confirms November 19, 2026 at 00:00 in São Paulo (UTC-03).
+# Operator may adjust this value if the publisher changes the launch schedule.
+DEFAULT_GTA6_LAUNCH = "2026-11-19T03:00:00+00:00"
+PRELAUNCH_CATEGORY_LIMIT = 12
+PRELAUNCH_CLIPS_PER_CATEGORY = 15
 TWITCH_BASE = "https://api.twitch.tv/helix"
 OAUTH_URL = "https://id.twitch.tv/oauth2/token"
 
@@ -107,16 +112,26 @@ class TwitchClient:
                 return str(game["id"])
         raise TwitchError("GTA VI category not yet available on Twitch; configure TWITCH_GAME_ID")
 
-    def get_clips(self, game_id: str, lookback_hours: int = 72) -> list[dict]:
+    def get_top_categories(self, limit: int = PRELAUNCH_CATEGORY_LIMIT) -> list[dict]:
+        """The official Twitch top games/categories endpoint (includes IRL)."""
+        records = self._get("games/top", {"first": max(1, min(20, limit))}).get("data", [])
+        return [
+            {"id": str(item["id"]), "name": str(item["name"])[:100]}
+            for item in records if str(item.get("id", "")).isdigit()
+            and str(item.get("name", "")).strip()
+        ][:limit]
+
+    def get_clips(self, game_id: str, lookback_hours: int = 72,
+                  first: int = 100) -> list[dict]:
         now = datetime.now(timezone.utc)
         since = now - timedelta(hours=lookback_hours)
         params = {
-            "game_id": game_id, "first": 100,
+            "game_id": game_id, "first": max(1, min(100, first)),
             "started_at": since.isoformat(timespec="seconds").replace("+00:00", "Z"),
             "ended_at": now.isoformat(timespec="seconds").replace("+00:00", "Z"),
         }
         # One page is intentional: predictable quotas and bounded dashboard processing.
-        return list(self._get("clips", params).get("data", []))[:100]
+        return list(self._get("clips", params).get("data", []))[:first]
 
 
 class TwitchDiscovery:
@@ -143,6 +158,16 @@ class TwitchDiscovery:
                 id INTEGER PRIMARY KEY CHECK(id = 1), last_at TEXT,
                 last_error TEXT, game_id TEXT
             )""")
+            # Safe additive migrations preserve existing GTA-only clip history.
+            for table, name, declaration in (
+                ("twitch_candidates", "game_id", "TEXT NOT NULL DEFAULT ''"),
+                ("twitch_candidates", "game_name", "TEXT NOT NULL DEFAULT ''"),
+                ("twitch_sync", "profile", "TEXT NOT NULL DEFAULT ''"),
+                ("twitch_sync", "categories_json", "TEXT NOT NULL DEFAULT '[]'"),
+            ):
+                columns = {row["name"] for row in db.execute(f"PRAGMA table_info({table})")}
+                if name not in columns:
+                    db.execute(f"ALTER TABLE {table} ADD COLUMN {name} {declaration}")
             db.commit()
 
     def _db(self):
@@ -171,25 +196,66 @@ class TwitchDiscovery:
         except (ValueError, TypeError, KeyError) as exc:
             raise TwitchError("Invalid Twitch sources JSON") from exc
 
+    def profile(self, now: datetime | None = None) -> dict:
+        """Automatic broad discovery until GTA VI launch, then strict GTA VI focus."""
+        now = now or datetime.now(timezone.utc)
+        launch_raw = os.getenv("TWITCH_GTA6_LAUNCH_AT", DEFAULT_GTA6_LAUNCH).strip()
+        try:
+            launch = datetime.fromisoformat(launch_raw.replace("Z", "+00:00"))
+            if launch.tzinfo is None:
+                raise ValueError("Timezone required")
+            launch = launch.astimezone(timezone.utc)
+        except ValueError:
+            # Fail safe: don't unexpectedly hunt different games if a local
+            # date was malformed; official default remains authoritative.
+            launch = datetime.fromisoformat(DEFAULT_GTA6_LAUNCH)
+        return {
+            "profile": "gta6_only" if now >= launch else "prelaunch_multi",
+            "launch_at": launch.isoformat(timespec="seconds"),
+            "focus_game": "Grand Theft Auto VI",
+        }
+
     def status(self) -> dict:
+        profile = self.profile()
         with self._db() as db:
-            sync = db.execute("SELECT last_at,last_error,game_id FROM twitch_sync WHERE id=1").fetchone()
-            count = db.execute("SELECT COUNT(*) FROM twitch_candidates").fetchone()[0]
+            sync = db.execute(
+                "SELECT last_at,last_error,game_id,profile,categories_json "
+                "FROM twitch_sync WHERE id=1"
+            ).fetchone()
+            if profile["profile"] == "gta6_only":
+                count = db.execute(
+                    "SELECT COUNT(*) FROM twitch_candidates "
+                    "WHERE lower(game_name) IN ('grand theft auto vi','grand theft auto 6')"
+                ).fetchone()[0]
+            else:
+                count = db.execute("SELECT COUNT(*) FROM twitch_candidates").fetchone()[0]
+        raw_categories = sync["categories_json"] if sync else "[]"
+        try:
+            categories = json.loads(raw_categories or "[]")
+        except ValueError:
+            categories = []
         return {
             "configured": bool(self.client or (self.client_id and self.secret)),
-            "auto_monitoring": self.enabled,
+            "auto_monitoring": self.enabled and bool(self.client or (self.client_id and self.secret)),
             "last_sync": sync["last_at"] if sync else None,
             "last_error": sync["last_error"] if sync else None,
-            "game_id": sync["game_id"] if sync else None,
+            "game_id": sync["game_id"] if sync and profile["profile"] == "gta6_only" else None,
             "count": count,
             "mode": "metadata_only",
+            **profile,
+            "last_profile": sync["profile"] if sync else None,
+            "categories": categories if sync and sync["profile"] == profile["profile"] else [],
         }
 
     def list_candidates(self) -> list[dict]:
+        focus = self.profile()["profile"] == "gta6_only"
         with self._db() as db:
-            rows = db.execute(
-                "SELECT * FROM twitch_candidates ORDER BY score DESC, view_count DESC LIMIT 100"
-            ).fetchall()
+            query = "SELECT * FROM twitch_candidates "
+            if focus:
+                query += ("WHERE lower(game_name) IN "
+                          "('grand theft auto vi','grand theft auto 6') ")
+            query += "ORDER BY score DESC, view_count DESC LIMIT 100"
+            rows = db.execute(query).fetchall()
         return [dict(r) for r in rows]
 
     def refresh(self) -> dict:
@@ -197,56 +263,89 @@ class TwitchDiscovery:
             raise TwitchError("Configure TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET first")
         client = self.client or TwitchClient(self.client_id, self.secret)
         self.client = client
+        profile = self.profile()
+        mode = profile["profile"]
         if self.activity:
             self.activity.append(None, "radar", "running",
                                  "Consultando metadados oficiais da Twitch")
         try:
-            game_id = os.getenv("TWITCH_GAME_ID", "").strip() or client.find_gta6_game()
-            if not game_id.isdigit():
-                raise TwitchError("Invalid Twitch game ID")
-            records = client.get_clips(game_id)
+            if mode == "gta6_only":
+                game_id = os.getenv("TWITCH_GAME_ID", "").strip() or client.find_gta6_game()
+                if not game_id.isdigit():
+                    raise TwitchError("Invalid Twitch game ID")
+                categories = [{"id": game_id, "name": "Grand Theft Auto VI"}]
+                records_by_category = [(categories[0], client.get_clips(game_id))]
+            else:
+                # Official top categories include gaming and non-gaming streams.
+                # Avoid thousands of game-specific queries: 12 categories x 15 clips.
+                categories = client.get_top_categories(PRELAUNCH_CATEGORY_LIMIT)
+                if not categories:
+                    raise TwitchError("Twitch returned no discoverable categories")
+                records_by_category = [
+                    (category, client.get_clips(category["id"],
+                                                first=PRELAUNCH_CLIPS_PER_CATEGORY))
+                    for category in categories
+                ]
+                game_id = None
             allowlist = self.sources()
             now = datetime.now(timezone.utc).isoformat(timespec="seconds")
             inserted = 0
+            received = sum(len(records) for _, records in records_by_category)
             with self.lock, self._db() as db:
-                for item in records:
-                    clip_id = str(item.get("id", "")).strip()[:180]
-                    url = str(item.get("url", ""))[:1024]
-                    if not clip_id or not twitch_clip_url(url):
-                        continue
-                    broadcaster_id = str(item.get("broadcaster_id", ""))[:100]
-                    flag = allowlist.get(broadcaster_id, "unverified")
-                    row = (
-                        clip_id, broadcaster_id, str(item.get("broadcaster_name", ""))[:180],
-                        str(item.get("title", ""))[:300], url,
-                        max(0, int(item.get("view_count", 0) or 0)),
-                        max(0.0, float(item.get("duration", 0) or 0)),
-                        str(item.get("created_at", ""))[:80], clip_score(item),
-                        flag, now,
-                    )
-                    db.execute("""INSERT INTO twitch_candidates
-                        (id,broadcaster_id,creator_name,title,url,view_count,
-                        duration,created_at,score,consent_flag,seen_at)
-                        VALUES (?,?,?,?,?,?,?,?,?,?,?)
-                        ON CONFLICT(id) DO UPDATE SET
-                        view_count=excluded.view_count,
-                        score=excluded.score,
-                        title=excluded.title,
-                        consent_flag=excluded.consent_flag,
-                        seen_at=excluded.seen_at
-                    """, row)
-                    inserted += 1
-                db.execute("""INSERT INTO twitch_sync (id,last_at,last_error,game_id)
-                              VALUES (1,?,?,?)
-                              ON CONFLICT(id) DO UPDATE SET
-                              last_at=excluded.last_at,last_error=NULL,
-                              game_id=excluded.game_id""", (now, None, game_id))
+                for category, records in records_by_category:
+                    for item in records:
+                        clip_id = str(item.get("id", "")).strip()[:180]
+                        url = str(item.get("url", ""))[:1024]
+                        if not clip_id or not twitch_clip_url(url):
+                            continue
+                        broadcaster_id = str(item.get("broadcaster_id", ""))[:100]
+                        flag = allowlist.get(broadcaster_id, "unverified")
+                        row = (
+                            clip_id, broadcaster_id,
+                            str(item.get("broadcaster_name", ""))[:180],
+                            str(item.get("title", ""))[:300], url,
+                            max(0, int(item.get("view_count", 0) or 0)),
+                            max(0.0, float(item.get("duration", 0) or 0)),
+                            str(item.get("created_at", ""))[:80], clip_score(item),
+                            flag, now, category["id"], category["name"],
+                        )
+                        db.execute("""INSERT INTO twitch_candidates
+                            (id,broadcaster_id,creator_name,title,url,view_count,
+                             duration,created_at,score,consent_flag,seen_at,
+                             game_id,game_name)
+                            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                            ON CONFLICT(id) DO UPDATE SET
+                            view_count=excluded.view_count,
+                            score=excluded.score, title=excluded.title,
+                            consent_flag=excluded.consent_flag,
+                            seen_at=excluded.seen_at,
+                            game_id=excluded.game_id,
+                            game_name=excluded.game_name
+                        """, row)
+                        inserted += 1
+                db.execute("""INSERT INTO twitch_sync
+                    (id,last_at,last_error,game_id,profile,categories_json)
+                    VALUES (1,?,?,?,?,?)
+                    ON CONFLICT(id) DO UPDATE SET
+                    last_at=excluded.last_at,last_error=NULL,
+                    game_id=excluded.game_id,profile=excluded.profile,
+                    categories_json=excluded.categories_json""",
+                    (now, None, game_id, mode,
+                     json.dumps([c["name"] for c in categories], ensure_ascii=False)))
+                # Keep newest records only to bound SQLite storage. Focus
+                # filtering applies even before this cleanup runs.
+                db.execute("""DELETE FROM twitch_candidates WHERE id NOT IN
+                    (SELECT id FROM twitch_candidates ORDER BY seen_at DESC LIMIT 5000)""")
                 db.commit()
             if self.activity:
                 self.activity.append(None, "radar", "complete",
                                      f"Consulta Twitch concluída: {inserted} registros de metadados")
-            return {"ok": True, "received": len(records), "processed": inserted, "game_id": game_id}
-        except (TwitchError, TypeError, ValueError, sqlite3.Error) as exc:
+            return {
+                "ok": True, "received": received, "processed": inserted,
+                "game_id": game_id, "profile": mode,
+                "categories": [c["name"] for c in categories],
+            }
+        except (TwitchError, TypeError, ValueError, KeyError, sqlite3.Error) as exc:
             message = str(exc)[:240]
             with self.lock, self._db() as db:
                 db.execute("""INSERT INTO twitch_sync (id,last_error) VALUES (1,?)
