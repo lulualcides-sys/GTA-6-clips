@@ -2,4 +2,3 @@
 # Install only after assessing storage, CPU/RAM and license permissions.
 faster-whisper>=1.2,<2
 scenedetect>=0.7,<1
-opencv-python-headless>=4.8,<5
