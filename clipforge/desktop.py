@@ -21,6 +21,8 @@ from pathlib import Path
 from urllib.parse import quote
 
 from .core import Runtime
+from .updater import UpdateService, UpdateError
+from .version import VERSION
 from .web import ThreadingHTTPServer, make_handler
 
 APP_NAME = "GTA6Clips"
@@ -115,6 +117,54 @@ class DesktopBridge:
     """Explicit no-argument UI actions. No arbitrary filesystem paths accepted."""
     def __init__(self, home: Path):
         self.home = home
+        self.updater = UpdateService(home)
+
+    def check_updates(self):
+        """Check signed-by-release-digest official builds; no installation."""
+        try:
+            return {"ok": True, "version": VERSION, **self.updater.check()}
+        except UpdateError as exc:
+            return {"ok": False, "version": VERSION,
+                    "error": str(exc)[:200]}
+
+    def install_update(self):
+        """Explicit user action: verify, stage, then restart via helper."""
+        if sys.platform != "win32" or not getattr(sys, "frozen", False):
+            return {"ok": False, "error": "Requer o aplicativo Windows compilado"}
+        installed = Path(sys.executable).resolve().parent
+        helper = installed / "GTA6ClipsUpdater.exe"
+        if not helper.is_file():
+            return {"ok": False, "error": "Atualizador ausente nesta instalação"}
+        try:
+            release, staged = self.updater.stage()
+            # Helper must run OUTSIDE the old install folder, otherwise
+            # Windows keeps it locked while trying to replace the directory.
+            helper_copy = self.home / "updates" / (
+                "GTA6ClipsUpdater-" + secrets.token_hex(5) + ".exe"
+            )
+            shutil.copy2(helper, helper_copy)
+            subprocess.Popen([
+                str(helper_copy), "--apply",
+                "--home", str(self.home),
+                "--staged", str(staged),
+                "--installed", str(installed),
+                "--parent-pid", str(os.getpid()),
+            ], creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                close_fds=True)
+            # Give the JS caller a moment to receive the status, then
+            # close the UI and let the helper update after this EXE exits.
+            def close_window():
+                try:
+                    import webview
+                    if webview.windows:
+                        webview.windows[0].destroy()
+                except Exception:
+                    pass
+            threading.Timer(1.2, close_window).start()
+            return {"ok": True, "restarting": True,
+                    "latest": release["latest"]}
+        except (OSError, ValueError, UpdateError, subprocess.SubprocessError) as exc:
+            return {"ok": False, "error": str(exc)[:220]}
 
     def _open(self, path: Path):
         if sys.platform != "win32":
