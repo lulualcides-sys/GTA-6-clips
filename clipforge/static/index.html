@@ -1,11 +1,71 @@
 <!doctype html>
 <html lang="pt-BR">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>GTA CLIPS CONTROL</title><link rel="stylesheet" href="/styles.css"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>GTA CLIPS CONTROL</title><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/agents.css"></head>
 <body>
 <header class="topbar"><div class="brand"><span class="mark">VI</span><div><strong>GTA CLIPS <em>CONTROL</em></strong><small>STUDIO / AUTOMATION WORKSPACE</small></div></div><div class="top-actions"><span id="connection" class="tag muted">Verificando</span><button id="scan" class="btn secondary">↻ Verificar pasta</button></div></header>
 <main class="shell">
 <section class="section-head"><div><p class="eyebrow">VISÃO GERAL</p><h1>Central de produção</h1><p class="hint">Clipes autorizados, renderização, revisão e histórico em uma tela.</p></div><span class="tag">MVP · LOCAL FIRST</span></section>
 <section class="stats"><article class="stat"><small>ENCONTRADOS</small><strong id="stat-total">0</strong><span>arquivos válidos</span></article><article class="stat"><small>PROCESSANDO</small><strong id="stat-progress">0</strong><span>fila de trabalho</span></article><article class="stat"><small>EM REVISÃO</small><strong id="stat-ready">0</strong><span>vídeos aguardando</span></article><article class="stat"><small>APROVADOS</small><strong id="stat-approved">0</strong><span>não publicados</span></article></section>
+
+<section class="mission-wrap" id="agent-control" aria-label="Central de agentes e automações">
+  <div class="mission-hero">
+    <div>
+      <div class="mission-sup"><span class="spark" aria-hidden="true"></span> GTA VI / OPERATIONS SYSTEM / v1.0</div>
+      <h2>Mission <span>Control.</span></h2>
+      <p class="mission-lead">Acompanhe cada etapa do pipeline em um único fluxo visual. Estados e atividades obtidos do servidor — sem tarefas inventadas.</p>
+    </div>
+    <div id="mission-connection" class="mission-live connecting">
+      <span class="live-dot" aria-hidden="true"></span><span>VERIFICANDO SERVIDOR</span>
+    </div>
+  </div>
+  <div class="mission-statusbar">
+    <div class="mission-status-left">
+      <small>CONTEXTO DO FLUXO</small>
+      <strong id="mission-focus">Visão global da produção</strong>
+    </div>
+    <div class="mission-status-right">
+      <span id="mission-updated">Aguardando a primeira leitura</span>
+      <button type="button" id="mission-refresh" class="mission-refresh">↻ Sincronizar</button>
+    </div>
+  </div>
+  <div class="mission-grid">
+    <section class="mission-visual" aria-label="Agentes do pipeline">
+      <div class="mission-section-title">
+        <strong>Pipeline de agentes</strong><small>Execução real · 9 módulos</small>
+      </div>
+      <div class="agent-tiles" aria-label="Métricas atuais">
+        <div class="agent-tile"><strong id="agent-count">0</strong><span>ETAPAS EXECUTANDO</span></div>
+        <div class="agent-tile"><strong id="agent-tasks">0</strong><span>CLIPES EM PROCESSO</span></div>
+        <div class="agent-tile"><strong id="agent-pending">0</strong><span>PARA REVISÃO</span></div>
+        <div class="agent-tile"><strong id="agent-error">0</strong><span>ERROS DE RENDER</span></div>
+      </div>
+      <div class="agent-flow">
+        <div class="agent-nodes" id="agent-nodes" aria-live="polite" aria-label="Estados operacionais">
+          <p class="placeholder">Carregando estados reais dos módulos…</p>
+        </div>
+      </div>
+      <p class="agent-help"><b>Como funciona:</b> selecione um clipe na biblioteca para ver o histórico daquele arquivo. Toque em um módulo para filtrar eventos. Os cartões representam componentes de automação, não agentes de IA independentes.</p>
+      <p class="agent-help" id="mission-summary">Scanner e módulos opcionais serão verificados junto ao servidor.</p>
+    </section>
+    <aside class="mission-feed-panel" aria-label="Histórico real de eventos">
+      <div class="feed-top">
+        <div class="feed-heading">
+          <h3>Atividade em tempo real</h3>
+          <span class="feed-counter" id="mission-activity-count">0</span>
+        </div>
+        <div class="feed-tabs">
+          <button class="feed-tab active" type="button" data-activity-filter="all">Todos</button>
+          <button class="feed-tab" type="button" data-activity-filter="running">Executando</button>
+          <button class="feed-tab" type="button" data-activity-filter="failed">Erros</button>
+        </div>
+        <p class="feed-filter-label" id="agent-filter-label">Todas as atividades</p>
+      </div>
+      <div class="mission-feed" id="mission-feed" aria-live="polite">
+        <div class="mission-empty"><span class="empty-orb" aria-hidden="true">◎</span><strong>Aguardando dados</strong><p>O histórico será carregado do banco SQLite.</p></div>
+      </div>
+    </aside>
+  </div>
+</section>
 <section class="workspace">
 <aside class="panel list-panel"><div class="panel-head"><div><p class="eyebrow">BIBLIOTECA</p><h2>Clipes</h2></div><button class="btn text-btn" id="refresh">Atualizar</button></div><div class="filters"><button class="chip active" data-filter="all">Todos</button><button class="chip" data-filter="ready">Prontos</button><button class="chip" data-filter="failed">Falhas</button></div><div id="clip-list" class="clips"><p class="placeholder">Nenhum clipe importado.</p></div></aside>
 <section class="panel preview-panel"><div class="panel-head"><div><p class="eyebrow">MONITOR DE QUALIDADE</p><h2 id="detail-title">Selecione um clipe</h2></div><span id="detail-status" class="tag muted">Aguardando</span></div><div class="player-wrap"><div id="player-placeholder" class="player-placeholder"><span>▶</span><strong>Prévia indisponível</strong><small>Selecione um clipe renderizado para assistir.</small></div><video id="player" controls playsinline preload="metadata" hidden></video></div><div class="details" id="details"><p class="hint">Os detalhes de origem e permissão aparecerão aqui.</p></div><div class="review-actions"><button id="render" class="btn secondary" disabled>Renderizar</button><button id="transcribe" class="btn secondary" disabled>Gerar legendas IA</button><button id="hyperframes" class="btn secondary" disabled>Exportar HyperFrames</button><button id="reject" class="btn danger" disabled>Rejeitar</button><button id="approve" class="btn primary" disabled>Aprovar clipe</button></div><p class="footnote">Aprovar não publica automaticamente. Direitos de terceiros exigem verificação fora do sistema.</p></section>
@@ -28,4 +88,4 @@
 </section></main>
 <div id="message" class="toast" role="status" aria-live="polite" hidden></div>
 <dialog id="login-modal"><form method="dialog" id="login-form"><p class="eyebrow">ACESSO RESTRITO</p><h2>Token do painel</h2><p class="hint">Informe DASHBOARD_TOKEN. Salvo apenas nesta aba.</p><input id="token" type="password" autocomplete="off" placeholder="Token" required><div class="dialog-actions"><button class="btn primary" type="submit">Entrar</button></div></form></dialog>
-<script src="/app.js" defer></script><script src="/candidates.js" defer></script></body></html>
+<script src="/app.js" defer></script><script src="/candidates.js" defer></script><script src="/agents.js" defer></script></body></html>
