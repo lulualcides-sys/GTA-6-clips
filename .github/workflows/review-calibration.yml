@@ -1,0 +1,33 @@
+name: Private Twitch calibration source clips
+on:
+  pull_request:
+    paths:
+      - "tools/review_calibration_sources.py"
+      - ".github/workflows/review-calibration.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fetch-samples:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install free media tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          python -m pip install --disable-pip-version-check 'yt-dlp>=2025.10.01'
+      - name: Download Twitch sources and verify with ffprobe
+        run: python tools/review_calibration_sources.py
+      - name: Upload samples for private editorial review
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-clips-real-calibration-sources
+          path: review-artifacts/
+          if-no-files-found: error
+          retention-days: 1
