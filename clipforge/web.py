@@ -62,9 +62,23 @@ def make_handler(runtime: Runtime):
                 return self._reply(200, runtime.twitch.status())
             if route == "/api/twitch/candidates":
                 return self._reply(200, {"candidates": runtime.twitch.list_candidates()})
+            if route == "/api/captions":
+                return self._reply(200, {"captions": runtime.captions.all_statuses()})
             if route == "/api/clips":
-                return self._reply(200, {"clips": runtime.store.all()})
+                # Never expose private proof of license or local input paths to UI.
+                clips = runtime.store.all()
+                for item in clips:
+                    item.pop("evidence", None)
+                    item.pop("input_path", None)
+                    item["output_path"] = bool(item.get("output_path"))
+                return self._reply(200, {"clips": clips})
             pieces = route.strip("/").split("/")
+            if len(pieces) == 4 and pieces[:2] == ["api", "clips"] and pieces[-1] == "captions.srt":
+                clip_id = self._clip_id(pieces)
+                subtitle = runtime.captions.captions_file(clip_id or "")
+                if not subtitle:
+                    return self._reply(404, {"error": "No current captions available"})
+                return self._file(subtitle, "text/plain; charset=utf-8")
             if len(pieces) == 4 and pieces[:2] == ["api", "clips"] and pieces[-1] == "hyperframes.zip":
                 clip_id = self._clip_id(pieces)
                 item = runtime.store.get(clip_id or "")
@@ -106,10 +120,22 @@ def make_handler(runtime: Runtime):
             if not item:
                 return self._reply(404, {"error": "Clip not found"})
             action = pieces[-1]
+            if action == "transcribe":
+                try:
+                    queued = runtime.captions.queue(item_id)
+                    return self._reply(202 if queued else 409, {
+                        "queued": queued,
+                        "captions": runtime.captions.status(item_id)
+                    })
+                except (ValueError, OSError) as exc:
+                    return self._reply(409, {"error": str(exc)[:240]})
             if action == "hyperframes":
                 from .hyperframes import export_composition
                 try:
-                    export_composition(runtime.store, item_id)
+                    export_composition(
+                        runtime.store, item_id,
+                        captions_file=runtime.captions.captions_file(item_id)
+                    )
                 except (ValueError, OSError) as exc:
                     return self._reply(409, {"error": str(exc)[:250]})
                 return self._reply(201, {
@@ -146,6 +172,7 @@ def main():
     finally:
         httpd.server_close()
         runtime.executor.shutdown(wait=False)
+        runtime.captions.stop()
 
 
 if __name__ == "__main__":
