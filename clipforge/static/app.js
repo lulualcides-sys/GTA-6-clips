@@ -11,12 +11,31 @@ function renderList(){const list=byId("clip-list");list.replaceChildren();const 
 function field(label,value){const w=el("div");w.appendChild(el("small","",label));w.appendChild(el("strong","",value===null||value===undefined||value===""?"—":String(value)));return w;}
 function clearPreview(){byId("player").pause();byId("player").hidden=true;byId("player").removeAttribute("src");byId("player-placeholder").hidden=false;if(previewUrl)URL.revokeObjectURL(previewUrl);previewUrl="";previewKey="";}
 async function showPreview(c){const key=c.id+":"+c.output_path;if(previewKey===key)return;clearPreview();previewKey=key;try{const b=await api("/api/clips/"+c.id+"/video","GET",true);if(activeId!==c.id)return;previewUrl=URL.createObjectURL(b);byId("player").src=previewUrl;byId("player").hidden=false;byId("player-placeholder").hidden=true;}catch(e){previewKey="";toast("Prévia: "+e.message);}}
-function renderDetail(){const c=clips.find(x=>x.id===activeId);if(!c){byId("detail-title").textContent="Selecione um clipe";status(byId("detail-status"),"detected");byId("details").replaceChildren(el("p","hint","Os detalhes de origem e permissão aparecerão aqui."));["render","approve","reject"].forEach(id=>byId(id).disabled=true);clearPreview();return;}byId("detail-title").textContent=c.filename;status(byId("detail-status"),c.status);byId("details").replaceChildren(field("CRIADOR",c.creator),field("DURAÇÃO",Math.round(c.duration_sec)+"s"),field("DIREITOS DECLARADOS",c.rights_status),field("INÍCIO DO TRECHO",c.start_sec===null?"Seleção automática":c.start_sec+"s"),field("REFERÊNCIA DE ORIGEM",c.source_url),field("ERRO / AVISO",c.error));byId("render").disabled=!["detected","failed","rejected"].includes(c.status);byId("approve").disabled=c.status!=="ready";byId("reject").disabled=!["ready","approved"].includes(c.status);if(c.output_path&&["ready","approved"].includes(c.status))showPreview(c);else clearPreview();}
+function renderDetail(){const c=clips.find(x=>x.id===activeId);if(!c){byId("detail-title").textContent="Selecione um clipe";status(byId("detail-status"),"detected");byId("details").replaceChildren(el("p","hint","Os detalhes de origem e permissão aparecerão aqui."));["render","approve","reject","hyperframes"].forEach(id=>byId(id).disabled=true);clearPreview();return;}byId("detail-title").textContent=c.filename;status(byId("detail-status"),c.status);byId("details").replaceChildren(field("CRIADOR",c.creator),field("DURAÇÃO",Math.round(c.duration_sec)+"s"),field("DIREITOS DECLARADOS",c.rights_status),field("INÍCIO DO TRECHO",c.start_sec===null?"Seleção automática":c.start_sec+"s"),field("REFERÊNCIA DE ORIGEM",c.source_url),field("ERRO / AVISO",c.error));byId("render").disabled=!["detected","failed","rejected"].includes(c.status);byId("hyperframes").disabled=!(c.output_path&&["ready","approved"].includes(c.status));byId("approve").disabled=c.status!=="ready";byId("reject").disabled=!["ready","approved"].includes(c.status);if(c.output_path&&["ready","approved"].includes(c.status))showPreview(c);else clearPreview();}
 async function refresh(silent=true){try{const data=await api("/api/clips");clips=data.clips||[];byId("connection").textContent="Serviço online";byId("connection").className="tag good";if(!clips.find(c=>c.id===activeId))activeId=clips.length?clips[0].id:null;stats();renderList();renderDetail();}catch(e){byId("connection").textContent="Sem conexão";byId("connection").className="tag bad";if(!silent)toast(e.message);}}
 async function action(name){if(!activeId)return;try{await api("/api/clips/"+activeId+"/"+name,"POST");toast(name==="render"?"Renderização enviada à fila.":"Estado atualizado.");await refresh();}catch(e){toast(e.message);}}
 byId("refresh").addEventListener("click",()=>refresh(false));
 byId("scan").addEventListener("click",async()=>{try{const r=await api("/api/scan","POST");toast(r.added.length+" novo(s) clipe(s). "+r.errors.length+" erro(s).");if(r.errors.length)console.warn("Manifestos inválidos:",r.errors);await refresh();}catch(e){toast(e.message);}});
-byId("render").addEventListener("click",()=>action("render"));byId("approve").addEventListener("click",()=>action("approve"));byId("reject").addEventListener("click",()=>action("reject"));
+byId("render").addEventListener("click",()=>action("render"));
+async function exportHyperFrames(){
+  if(!activeId) return;
+  const clipId=activeId;
+  const button=byId("hyperframes");
+  button.disabled=true;
+  try{
+    const exported=await api("/api/clips/"+clipId+"/hyperframes","POST");
+    const zip=await api(exported.download_path,"GET",true);
+    const url=URL.createObjectURL(zip);
+    const link=document.createElement("a");
+    link.href=url;link.download="gta6-"+clipId+"-hyperframes.zip";
+    document.body.appendChild(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),30000);
+    toast("Pacote HyperFrames exportado. O render final ainda exige a CLI local.");
+  }catch(err){toast("HyperFrames: "+err.message);}
+  finally{renderDetail();}
+}
+byId("hyperframes").addEventListener("click",exportHyperFrames);
+byId("approve").addEventListener("click",()=>action("approve"));byId("reject").addEventListener("click",()=>action("reject"));
 document.querySelectorAll("[data-filter]").forEach(b=>b.addEventListener("click",()=>{filter=b.dataset.filter;document.querySelectorAll("[data-filter]").forEach(x=>x.classList.toggle("active",x===b));renderList();}));
 byId("login-form").addEventListener("submit",e=>{e.preventDefault();token=byId("token").value;sessionStorage.setItem("gta_clips_token",token);byId("login-modal").close();refresh(false);});
 setInterval(()=>refresh(),6000);refresh(false);
