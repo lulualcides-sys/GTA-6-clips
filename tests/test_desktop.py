@@ -34,7 +34,7 @@ class LocalDesktopTests(unittest.TestCase):
         path = initialize_settings(self.home)
         self.assertEqual(path, self.home / "config.env")
         self.assertTrue(path.is_file())
-        self.assertIn("TWITCH_ENABLED=0", path.read_text())
+        self.assertIn("TWITCH_ENABLED=1", path.read_text())
 
     def test_config_is_not_overwritten_and_only_allowlisted_values_loaded(self):
         settings = initialize_settings(self.home)
