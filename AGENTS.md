@@ -21,6 +21,10 @@ Até o lançamento, para cortes de humor visual de GTA V e GTA RP, consultar **d
 
 A V8 de CS é uma referência de **acabamento aprovado**, não um recorte universal. Antes de editar outros jogos, consultar **docs/EDITORIAL_PRESETS.md** e usar `clipforge/editorial_profiles.py` / `python -m tools.editorial_plan` para sugerir contexto, desenrolar, clímax, reação e replay. **Evento prevalece sobre jogo:** GTA RP pode ser diálogo; GTA VI pode ser ação ou humor; Minecraft pode ser sobrevivência ou zoeira. Esses perfis dependem de tempos identificados e validados manualmente e **não** detectam jogadas, piadas, falas ou o rosto de um streamer. Não alegar que a implementação destes planejadores já automatizou a edição ou está instalada no Windows. Preservar os vídeos e padrões aprovados.
 
+## Preparação específica do GTA VI (13/11/2026)
+
+Consultar **docs/GTA6_EDITORIAL_READINESS.md** e **clipforge/gta6_readiness.py**. Treinar em GTA V com 7 roteiros editoriais transferíveis para GTA VI: perseguição, assalto, dupla, humor físico, momento viral, exploração e diálogo RP. Confirmado oficialmente: história de Jason/Lucia, Vice City/Leonida, crime e presença de redes sociais na ambientação. **Não** assumir GTA VI RP/multiplayer, postagens in-game, física ou IA policial específica antes de evidência concreta. Aplicar a qualidade da V8 de CS (aprovada) adaptando enquadramento e cortes ao evento. Planejador requer timestamps humanos, não é sistema de edição automática. Até 18/11 o radar monitora GTA V; em 19/11 passa a GTA VI conforme regra vigente. Preservar trilha de aprovação e direitos de terceiros.
+
 ## Mapa dos arquivos
 
 - clipforge/core.py: ingestão, direitos, ffprobe, banco, FFmpeg e workers.
