@@ -89,6 +89,8 @@ class ClipStore:
                 status TEXT NOT NULL, error TEXT, created_at TEXT NOT NULL
             )""")
             db.commit()
+        from .telemetry import ActivityLog
+        self.activity = ActivityLog(self.database, self.lock)
 
     def _db(self):
         conn = sqlite3.connect(self.database, timeout=20)
@@ -109,9 +111,22 @@ class ClipStore:
         if not fields or any(name not in allowed for name in fields):
             raise ValueError("Invalid update")
         with self.lock, self._db() as db:
+            old = db.execute("SELECT status FROM clips WHERE id=?", (clip_id,)).fetchone()
             sql = ", ".join(f"{name}=?" for name in fields)
             db.execute(f"UPDATE clips SET {sql} WHERE id=?", (*fields.values(), clip_id))
             db.commit()
+            current = fields.get("status")
+            if old and current and current != old["status"]:
+                transitions = {
+                    "queued": ("edicao", "queued", "Clipe aguardando FFmpeg"),
+                    "rendering": ("edicao", "running", "Renderização vertical em execução"),
+                    "ready": ("edicao", "complete", "MP4 vertical validado por ffprobe"),
+                    "failed": ("edicao", "failed", "Renderização falhou; verifique o erro do clipe"),
+                    "approved": ("revisao", "complete", "Aprovação editorial registrada"),
+                    "rejected": ("revisao", "failed", "Clipe rejeitado na revisão"),
+                }
+                if current in transitions:
+                    self.activity.append(clip_id, *transitions[current])
 
     def ingest(self, sidecar: Path) -> dict | None:
         """Import only explicit rights manifests. Existence of a Twitch clip is not permission."""
@@ -163,6 +178,11 @@ class ClipStore:
             )
             inserted = db.execute("SELECT changes()").fetchone()[0]
             db.commit()
+        if inserted:
+            self.activity.append(item["id"], "ingestao", "complete",
+                                 "Arquivo local importado e deduplicado")
+            self.activity.append(item["id"], "direitos", "complete",
+                                 "Manifesto de direitos válido; autorização externa requer revisão")
         return item if inserted else None
 
     def scan(self) -> dict:
@@ -191,12 +211,19 @@ def render_clip(store: ClipStore, clip_id: str) -> None:
         length = min(float(item["duration_sec"]), total)
         start = item["start_sec"]
         if start is None:
+            store.activity.append(clip_id, "curadoria", "running",
+                                  "Analisando atividade de áudio e cenas opcionais")
             if os.getenv("SMART_SCENES", "0") == "1":
                 from .smart import choose_smart_highlight
                 start, _ = choose_smart_highlight(source, total, length)
             else:
                 start = choose_highlight(source, total, length)
             store.update(clip_id, start_sec=start, score=None)
+            store.activity.append(clip_id, "curadoria", "complete",
+                                  "Trecho sugerido por heurística técnica, sem análise semântica")
+        else:
+            store.activity.append(clip_id, "curadoria", "complete",
+                                  "Trecho marcado explicitamente no manifesto")
         if start + length > total + 0.2:
             raise ValueError("Segment exceeds media duration")
         # Blur background, keep full landscape gameplay centered (no destructive crop).
