@@ -15,14 +15,19 @@ MAX_SCAN_SECONDS = 300.0
 def find_cuts(path: Path, *, limit_seconds: float = MAX_SCAN_SECONDS) -> list[float]:
     """Get visual cuts from PySceneDetect if installed; fail open to audio baseline."""
     try:
-        from scenedetect import detect, ContentDetector
+        from scenedetect import open_video, SceneManager, ContentDetector
     except ImportError:
         return []
     try:
-        scenes = detect(str(path), ContentDetector(threshold=30.0),
-                        end_time=max(1.0, min(limit_seconds, MAX_SCAN_SECONDS)),
-                        show_progress=False)
-        cuts = [round(float(s[0].get_seconds()), 3) for s in scenes[1:]]
+        video = open_video(str(path))
+        manager = SceneManager()
+        manager.add_detector(ContentDetector(threshold=27.0))
+        manager.detect_scenes(
+            video=video, end_time=max(1.0, min(limit_seconds, MAX_SCAN_SECONDS)),
+            show_progress=False
+        )
+        # Direct cut list, not list of scenes (which can omit the opening scene).
+        cuts = [round(float(t.get_seconds()), 3) for t in manager.get_cut_list()]
         return [t for t in cuts if 0 < t < limit_seconds][:500]
     except (OSError, ValueError, RuntimeError) as exc:
         print(f"Scene detection unavailable: {type(exc).__name__}", flush=True)
