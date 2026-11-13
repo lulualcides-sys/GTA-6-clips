@@ -122,7 +122,7 @@ class TwitchClient:
 class TwitchDiscovery:
     """Persist top public clip METADATA. Permission file stays private on disk."""
     def __init__(self, database: Path, lock: threading.RLock, data_root: Path,
-                 client: TwitchClient | None = None):
+                 client: TwitchClient | None = None, activity=None):
         self.database = database
         self.lock = lock
         self.data_root = data_root
@@ -130,6 +130,7 @@ class TwitchDiscovery:
         self.secret = os.getenv("TWITCH_CLIENT_SECRET", "").strip()
         self.enabled = os.getenv("TWITCH_ENABLED", "0") == "1"
         self.client = client
+        self.activity = activity
         with self._db() as db:
             db.execute("""CREATE TABLE IF NOT EXISTS twitch_candidates (
                 id TEXT PRIMARY KEY, broadcaster_id TEXT NOT NULL,
@@ -196,6 +197,9 @@ class TwitchDiscovery:
             raise TwitchError("Configure TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET first")
         client = self.client or TwitchClient(self.client_id, self.secret)
         self.client = client
+        if self.activity:
+            self.activity.append(None, "radar", "running",
+                                 "Consultando metadados oficiais da Twitch")
         try:
             game_id = os.getenv("TWITCH_GAME_ID", "").strip() or client.find_gta6_game()
             if not game_id.isdigit():
@@ -238,6 +242,9 @@ class TwitchDiscovery:
                               last_at=excluded.last_at,last_error=NULL,
                               game_id=excluded.game_id""", (now, None, game_id))
                 db.commit()
+            if self.activity:
+                self.activity.append(None, "radar", "complete",
+                                     f"Consulta Twitch concluída: {inserted} registros de metadados")
             return {"ok": True, "received": len(records), "processed": inserted, "game_id": game_id}
         except (TwitchError, TypeError, ValueError, sqlite3.Error) as exc:
             message = str(exc)[:240]
@@ -246,6 +253,9 @@ class TwitchDiscovery:
                               ON CONFLICT(id) DO UPDATE SET last_error=excluded.last_error""",
                            (message,))
                 db.commit()
+            if self.activity:
+                self.activity.append(None, "radar", "failed",
+                                     "Consulta de metadados Twitch falhou")
             raise TwitchError(message) from exc
 
     def start_polling(self):
