@@ -62,6 +62,12 @@ O smoke gera vídeo **sintético**, testa a verificação de direitos e renderiz
 - Não ingerir sem autorização de terceiros. Respeitar termos da plataforma, direitos de voz/imagem e propriedade intelectual.
 - Não hospedar mídia, banco, licenças privadas ou tokens no GitHub.
 
+## Monitoramento Twitch — múltiplas categorias até GTA VI
+
+**Regra operacional:** até 18/11/2026 buscar clipes em até 12 categorias populares da Twitch, incluindo IRL e jogos. **À meia-noite de 19/11/2026, horário de São Paulo**, mudar automaticamente para **somente Grand Theft Auto VI**. A data pode ser atualizada caso a Rockstar altere o lançamento. A busca é apenas de metadados; não baixa ou publica material de terceiros.
+
+**Ativação no Windows:** no aplicativo clique em **Configurar Twitch e IA**, preencha `TWITCH_CLIENT_ID` e `TWITCH_CLIENT_SECRET` recebidos no Twitch Developer Console e confirme `TWITCH_ENABLED=1`. Reinicie o programa. Credenciais ficam apenas no arquivo local `config.env`, fora do GitHub. Veja [docs/TWITCH.md](docs/TWITCH.md).
+
 ## Descoberta de clipes na Twitch
 
 O painel agora tem uma área de **candidatos da Twitch**. Com `TWITCH_CLIENT_ID` e `TWITCH_CLIENT_SECRET`, ela busca até 100 registros públicos na categoria exata Grand Theft Auto VI, classifica por visualizações/recência/duração e indica se a permissão foi declarada no arquivo privado `data/twitch_sources.json`. Modo automático opcional `TWITCH_ENABLED=1` (varredura a cada 15 min).
