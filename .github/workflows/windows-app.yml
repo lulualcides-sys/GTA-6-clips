@@ -64,9 +64,22 @@ jobs:
         run: |
           $json = Join-Path $env:RUNNER_TEMP "gta6-desktop-selftest.json"
           $exe = (Resolve-Path "./dist/GTA6Clips/GTA6Clips.exe").Path
-          $process = Start-Process -FilePath $exe -ArgumentList @("--self-test", $json) -Wait -PassThru
+          $process = Start-Process -FilePath $exe -ArgumentList @("--self-test", $json) -PassThru
+          # Start-Process -Wait can hang on GUI process trees. Wait for the
+          # concrete JSON report, with a hard time bound, then inspect exit.
+          $deadline = (Get-Date).AddSeconds(65)
+          while (-not (Test-Path $json) -and (Get-Date) -lt $deadline) {
+            Start-Sleep -Milliseconds 500
+          }
+          if (-not (Test-Path $json)) {
+            if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
+            throw "Frozen executable did not write a self-test report within 65 seconds"
+          }
+          if (-not $process.WaitForExit(5000)) {
+            Stop-Process -Id $process.Id -Force
+            throw "Frozen executable did not exit cleanly after self-test"
+          }
           if ($process.ExitCode -ne 0) { throw "Packaged EXE returned $($process.ExitCode)" }
-          if (-not (Test-Path $json)) { throw "The packaged EXE did not produce its report" }
           $result = Get-Content $json -Raw | ConvertFrom-Json
           $result | ConvertTo-Json
           if ($result.status -ne "pass") { throw "Packaged EXE self-test failed" }
