@@ -20,6 +20,7 @@ from pathlib import Path
 from .core import ClipStore, duration_of, probe
 
 CSS_TEMPLATE = Path(__file__).with_name("templates") / "shorts.css"
+BRAND_MARK = CSS_TEMPLATE.parent / "nexus-clips-br.svg"
 TIME_CODE = re.compile(
     r"^(\d{2}):(\d{2}):(\d{2})[,.](\d{3})\s+-->\s+"
     r"(\d{2}):(\d{2}):(\d{2})[,.](\d{3})(?:\s+.*)?$"
@@ -104,9 +105,12 @@ def composition_html(duration: float, creator: str, title: str,
   <video id="gameplay" class="clip" src="./source.mp4"
          data-start="0" data-duration="{safe_duration}"
          data-track-index="0" data-has-audio="true" playsinline preload="auto"></video>
+  <img id="nexus-brand" class="clip brand-watermark" src="./nexus-clips-br.svg"
+       data-start="0" data-duration="{safe_duration}" data-track-index="4"
+       alt="" aria-hidden="true">
   <section id="header" class="clip headline" data-start="0"
            data-duration="{title_length}" data-track-index="1">
-    <div class="kicker">GTA VI <span class="kicker-bullet">/</span> CLIP</div>
+    <div class="kicker">NEXUS CLIPS BR</div>
     <h1>{safe_title}</h1>
     <div class="headline-line"></div>
   </section>
@@ -176,6 +180,7 @@ def export_composition(store: ClipStore, clip_id: str, *, title: str = "",
     (final_dir / "index.html").write_text(markup, encoding="utf-8")
     (final_dir / "style.css").write_text(CSS_TEMPLATE.read_text(encoding="utf-8"),
                                          encoding="utf-8")
+    shutil.copyfile(BRAND_MARK, final_dir / "nexus-clips-br.svg")
     # Public metadata only: no signature/evidence of privately granted permission.
     metadata = {
         "clip_id": clip_id, "creator": item["creator"],
@@ -186,6 +191,8 @@ def export_composition(store: ClipStore, clip_id: str, *, title: str = "",
         "captions_count": len(captions),
         "rights_status": item["rights_status"],
         "rendered": False,
+        "editorial_locale": "pt-BR",
+        "brand": "Nexus Clips BR",
     }
     (final_dir / "manifest.json").write_text(
         json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -193,7 +200,7 @@ def export_composition(store: ClipStore, clip_id: str, *, title: str = "",
     # A portable, offline-editable package. MP4 is already compressed.
     archive = final_dir / "hyperframes-project.zip"
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_STORED) as bundle:
-        for name in ("index.html", "style.css", "source.mp4", "manifest.json"):
+        for name in ("index.html", "style.css", "nexus-clips-br.svg", "source.mp4", "manifest.json"):
             bundle.write(final_dir / name, arcname=name)
     return final_dir
 
