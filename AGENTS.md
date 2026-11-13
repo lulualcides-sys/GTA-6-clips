@@ -13,6 +13,10 @@
 - Entregas de vídeo em revisão: preferir URL HTTPS com player diretamente no navegador, sem exigir download do MP4; confirmar que a fonte da mídia não expirou.
 - Não inventar resultados, streams, vídeos, direitos, alcance ou testes.
 
+## Regra nova de câmera e reação (13/11/2026)
+
+**O usuário rejeitou a V9 por não mostrar câmera e reação.** Para novos cortes GTA V/GTA VI, selecionar **somente** clipes com webcam/facecam real visível **e reação do próprio streamer ao evento na mesma fonte**. Não usar câmera fictícia nem importar reação de outra live. `clipforge/reaction_qa.py` é um gate de auditoria de dados conferidos manualmente, **não é detector automático**. Ver docs/REACTION_REQUIRED.md. A V9 não deve virar preset. Ainda falta integrar o gate ao fluxo de seleção e renderização.
+
 ## Padrão editorial Nexus Clips BR (13/11/2026)
 
 Até o lançamento, para cortes de humor visual de GTA V e GTA RP, consultar **docs/nexus-clips-br-editorial.md** antes da revisão: título curto em PT-BR, sem rótulo de replay, replay lento opcional, crédito pequeno ao criador, marca-d'água compacta Nexus Clips BR e final com corte seco. Para cenas cujo humor dependa da fala, a legenda PT-BR deve traduzir fielmente o áudio de verdade; não inventar diálogo. Aprovação editorial e direitos de publicação são gates distintos. A implementação automática do preset no aplicativo e o PNG no instalador ainda dependem de integração e testes; este documento não os configura por si só.
