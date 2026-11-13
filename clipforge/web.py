@@ -57,6 +57,10 @@ def make_handler(runtime: Runtime):
                                          "authenticated": bool(token)})
             if not self._auth():
                 return self._reply(401, {"error": "Unauthorized"})
+            if route == "/api/twitch/status":
+                return self._reply(200, runtime.twitch.status())
+            if route == "/api/twitch/candidates":
+                return self._reply(200, {"candidates": runtime.twitch.list_candidates()})
             if route == "/api/clips":
                 return self._reply(200, {"clips": runtime.store.all()})
             pieces = route.strip("/").split("/")
@@ -76,6 +80,12 @@ def make_handler(runtime: Runtime):
                 return self._reply(401, {"error": "Unauthorized"})
             if self.headers.get("Content-Length", "0") not in ("", "0"):
                 return self._reply(400, {"error": "Body not accepted"})
+            if route == "/api/twitch/refresh":
+                from .twitch import TwitchError
+                try:
+                    return self._reply(200, runtime.twitch.refresh())
+                except TwitchError as exc:
+                    return self._reply(503, {"error": str(exc)})
             if route == "/api/scan":
                 return self._reply(200, runtime.scan())
             pieces = route.strip("/").split("/")
@@ -107,6 +117,7 @@ def main():
         raise SystemExit("DASHBOARD_TOKEN required for non-local binding. Use HTTPS reverse proxy.")
     runtime = Runtime(Path(os.getenv("CLIPS_DATA_DIR", "./data")))
     runtime.start_polling()
+    runtime.twitch.start_polling()
     httpd = ThreadingHTTPServer((host, port), make_handler(runtime))
     print(f"GTA6 Clips dashboard listening at http://{host}:{port}", flush=True)
     try:
