@@ -2,7 +2,21 @@
 
 **Versão portátil (sem instalação tradicional):** o programa abre o Mission Control como uma janela do Windows usando pywebview + Microsoft Edge WebView2. O backend Python, FFmpeg, banco SQLite, vídeos e módulos existentes executam **no próprio computador**, sem contratar Railway nem servidor.
 
-## Como obter a versão compilada
+## Atualização pelo GitHub sem reinstalação manual
+
+O aplicativo a partir da versão **0.2.0** verifica, ao abrir e a cada três horas, a última versão estável publicada em [GitHub Releases](https://github.com/lulualcides-sys/GTA-6-clips/releases). Se uma versão maior existir, o próprio painel exibirá **Atualizar**.
+
+Ao clicar, o aplicativo baixa o ZIP do GitHub, confere o SHA-256 informado pela API oficial, extrai apenas arquivos de caminhos seguros, executa o autoteste da nova versão e fecha a janela. Um atualizador separado substitui a pasta do programa, mantém uma cópia de segurança da instalação anterior e abre a nova versão. **Nada é instalado silenciosamente sem o clique no botão**. Caso o download ou autoteste falhe, a versão atual permanece intacta.
+
+Os arquivos de usuário continuam em `%LOCALAPPDATA%\GTA6Clips\data` e as configurações em `%LOCALAPPDATA%\GTA6Clips\config.env`, fora da pasta de instalação. Nunca são apagados pelo atualizador. Se a troca de pasta falhar, o programa tenta restaurar a instalação anterior. O atualizador não exige hospedagem paga, mas depende de internet para verificar e baixar releases.
+
+**Primeira atualização:** quem já tem um pacote antigo **sem** esse recurso precisará baixar manualmente a versão 0.2.0 uma única vez. Daí em diante o programa pode avisar sobre novas releases e aplicar atualizações com um clique. Se a instalação estiver numa pasta protegida por administrador, mova o aplicativo para uma pasta editável do próprio usuário.
+
+**Segurança:** o arquivo do projeto ainda não é assinado digitalmente. SHA-256 confirma a integridade do arquivo fornecido pelo repositório oficial, mas não substitui assinatura de código, antivírus ou revisão do código. Nenhum vídeo é enviado para o GitHub.
+
+Para desenvolvedores, atualizar `clipforge/version.py` e mesclar uma PR testada no `main` faz o workflow Windows compilar e, se passar, publicar automaticamente uma **nova GitHub Release** da versão. A mesma versão não é republicada; os arquivos da release não são sobrescritos.
+
+
 
 1. Abra [GitHub Actions do projeto](https://github.com/lulualcides-sys/GTA-6-clips/actions/workflows/windows-app.yml).
 2. Escolha a execução **Windows app - build and verify** com resultado verde. Confirme que passou o passo de autoteste do executável.
