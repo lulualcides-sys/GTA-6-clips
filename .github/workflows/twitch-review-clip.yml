@@ -1,0 +1,35 @@
+name: Real Twitch clip - private editorial review
+on:
+  pull_request:
+    paths:
+      - "tools/review_real_twitch_clip.py"
+      - ".github/workflows/twitch-review-clip.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  render-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install free video tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          python -m pip install --disable-pip-version-check 'yt-dlp>=2025.10.01'
+      - name: Download original public Twitch clip and edit vertical
+        run: python tools/review_real_twitch_clip.py
+      - name: Upload finished MP4 for private review
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gta-real-twitch-xqc-review
+          path: |
+            review-artifacts/GTA_Twitch_xQc_Splat_Review.mp4
+            review-artifacts/source.json
+          if-no-files-found: error
+          retention-days: 1
