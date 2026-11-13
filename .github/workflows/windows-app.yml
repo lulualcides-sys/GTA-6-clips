@@ -63,8 +63,9 @@ jobs:
         shell: pwsh
         run: |
           $json = Join-Path $env:RUNNER_TEMP "gta6-desktop-selftest.json"
-          & "./dist/GTA6Clips/GTA6Clips.exe" --self-test $json
-          if ($LASTEXITCODE -ne 0) { throw "Packaged EXE returned $LASTEXITCODE" }
+          $exe = (Resolve-Path "./dist/GTA6Clips/GTA6Clips.exe").Path
+          $process = Start-Process -FilePath $exe -ArgumentList @("--self-test", $json) -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Packaged EXE returned $($process.ExitCode)" }
           if (-not (Test-Path $json)) { throw "The packaged EXE did not produce its report" }
           $result = Get-Content $json -Raw | ConvertFrom-Json
           $result | ConvertTo-Json
