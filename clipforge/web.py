@@ -5,7 +5,7 @@ import json
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, parse_qs
 
 from .core import Runtime
 
@@ -49,7 +49,9 @@ def make_handler(runtime: Runtime):
                 return self._file(STATIC / "index.html", "text/html; charset=utf-8")
             assets = {"/app.js": ("app.js", "text/javascript; charset=utf-8"),
                       "/styles.css": ("styles.css", "text/css; charset=utf-8"),
-                      "/candidates.js": ("candidates.js", "text/javascript; charset=utf-8")}
+                      "/candidates.js": ("candidates.js", "text/javascript; charset=utf-8"),
+                      "/agents.js": ("agents.js", "text/javascript; charset=utf-8"),
+                      "/agents.css": ("agents.css", "text/css; charset=utf-8")}
             if route in assets:
                 name, mime = assets[route]
                 return self._file(STATIC / name, mime)
@@ -58,6 +60,18 @@ def make_handler(runtime: Runtime):
                                          "authenticated": bool(token)})
             if not self._auth():
                 return self._reply(401, {"error": "Unauthorized"})
+            if route == "/api/agents":
+                params = parse_qs(urlsplit(self.path).query)
+                clip_ids = params.get("clip_id", [])
+                if len(clip_ids) > 1:
+                    return self._reply(400, {"error": "One clip ID at a time"})
+                clip_id = clip_ids[0] if clip_ids else None
+                try:
+                    return self._reply(200, runtime.store.activity.snapshot(runtime, clip_id))
+                except ValueError:
+                    return self._reply(400, {"error": "Invalid clip ID"})
+                except LookupError:
+                    return self._reply(404, {"error": "Clip not found"})
             if route == "/api/twitch/status":
                 return self._reply(200, runtime.twitch.status())
             if route == "/api/twitch/candidates":
@@ -112,8 +126,21 @@ def make_handler(runtime: Runtime):
                     return self._reply(200, runtime.twitch.refresh())
                 except TwitchError as exc:
                     return self._reply(503, {"error": str(exc)})
+            if route == "/api/demo":
+                try:
+                    return self._reply(202, runtime.demo.start())
+                except PermissionError:
+                    return self._reply(403, {"error": "Modo de teste sintético desativado"})
+                except ValueError as exc:
+                    return self._reply(409, {"error": str(exc)[:180]})
             if route == "/api/scan":
-                return self._reply(200, runtime.scan())
+                result = runtime.scan()
+                if result["errors"]:
+                    runtime.store.activity.append(
+                        None, "ingestao", "failed",
+                        f"{len(result['errors'])} manifesto(s) rejeitado(s) na leitura local"
+                    )
+                return self._reply(200, result)
             pieces = route.strip("/").split("/")
             if len(pieces) != 4 or pieces[:2] != ["api", "clips"]:
                 return self._reply(404, {"error": "Not found"})
@@ -133,13 +160,24 @@ def make_handler(runtime: Runtime):
                     return self._reply(409, {"error": str(exc)[:240]})
             if action == "hyperframes":
                 from .hyperframes import export_composition
+                if item["status"] not in {"ready", "approved"}:
+                    return self._reply(409, {"error": "Clip must be ready"})
+                runtime.store.activity.append(
+                    item_id, "motion", "running", "Preparando pacote editável HyperFrames"
+                )
                 try:
                     export_composition(
                         runtime.store, item_id,
                         captions_file=runtime.captions.captions_file(item_id)
                     )
                 except (ValueError, OSError) as exc:
+                    runtime.store.activity.append(
+                        item_id, "motion", "failed", "Falha na exportação HyperFrames"
+                    )
                     return self._reply(409, {"error": str(exc)[:250]})
+                runtime.store.activity.append(
+                    item_id, "motion", "complete", "Composição HTML/CSS exportada, não publicada"
+                )
                 return self._reply(201, {
                     "status": "prepared", "engine": "HyperFrames",
                     "rendered": False,

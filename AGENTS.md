@@ -16,6 +16,8 @@
 
 - clipforge/core.py: ingestão, direitos, ffprobe, banco, FFmpeg e workers.
 - clipforge/web.py: HTTP API e autenticação simples.
+- clipforge/telemetry.py: histórico durável de eventos reais, 9 módulos visuais; não fabricar status.
+- clipforge/demo.py: teste sintético próprio, opt-in e limitado a 3 entradas por volume; sem conteúdo de streamers.
 - clipforge/smart.py: seleção visual opcional e compatível com fallback áudio.
 - clipforge/captions.py: SRT de fala real, jobs limitados, cache e proteção de direitos.
 - clipforge/hyperframes.py: pós-produção opcional, exportação HTML/CSS + SRT, empacotamento, CLI local.
@@ -23,7 +25,9 @@
 - clipforge/twitch.py: OAuth app, consulta de **metadados** de clipes e ranking heurístico; não faz download.
 - clipforge/static/: interface HTML/CSS/JS sem framework.
 - tests/: testes de API, segurança e exportação HyperFrames; tools/smoke.py: render FFmpeg; tools/hyperframes_smoke.py: piloto HyperFrames.
-- docs/: arquitetura, arsenal, roadmap, operação, análise de cenas, legendas e fontes Twitch. Atualize sempre que alterar contratos.
+- docs/: arquitetura, arsenal, roadmap, operação, análise de cenas, legendas, fontes Twitch e Mission Control.
+- clipforge/static/agents.js e agents.css: dashboard de etapas ligado ao GET /api/agents, sem dados fictícios.
+- tools/browser_smoke.mjs: QA visual Playwright PC/mobile; workflow mission-ui.yml. Atualize sempre que alterar contratos.
 - examples/: exemplos públicos sem IDs reais e sem segredos.
 - data/: mídias e banco, nunca comitar.
 
@@ -33,7 +37,7 @@
 2. Conservar fonte, autor e evidências. Nunca colocar tokens, dados privados ou mídias protegidas no Git.
 3. Mudança grande em branch/PR com teste de regressão e plano de rollback; preservar funcionalidades aprovadas.
 4. Priorizar ferramentas gratuitas/open source; instalar dependência somente após justificar necessidade, custo, licença e manutenção.
-5. Não chamar de IA semântica algo que é score de volume de áudio.
+5. Não chamar de IA semântica algo que é score de volume de áudio. Os nove cartões representam componentes automatizados e controles editoriais, não nove agentes de IA independentes. Não simular atividade; logar somente operações reais.
 6. Não expor dashboard sem HTTPS, autenticação, firewall e controles de acesso.
 7. Testes focados durante desenvolvimento; testes completos e smoke test antes de publicar.
 8. No frontend, usar textContent para dados do usuário e evitar innerHTML.

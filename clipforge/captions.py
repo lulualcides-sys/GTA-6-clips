@@ -180,6 +180,15 @@ class CaptionService:
                 (clip_id, sha, status, language, model, cues, error,
                  time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())))
             db.commit()
+        notices = {
+            "queued": ("queued", "Transcrição aguardando worker"),
+            "processing": ("running", "Whisper processando o áudio do clipe"),
+            "ready": ("complete", "SRT de fala gerado" if cues else
+                      "Transcrição concluída sem fala detectada"),
+            "failed": ("failed", "Falha na transcrição; consultar o painel"),
+        }
+        state, note = notices[status]
+        self.store.activity.append(clip_id, "legendas", state, note)
 
     def queue(self, clip_id: str) -> bool:
         item, path = self._video(clip_id)
