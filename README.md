@@ -93,4 +93,12 @@ Agora existem módulos **opcionais** de análise de cenas por PySceneDetect e de
 
 Os pacotes estão em `requirements-ai.txt` e **não são instalados no Docker básico**. `SMART_SCENES=0` e `AUTO_TRANSCRIBE=0` por padrão; ative apenas em máquina com CPU/memória adequadas. O primeiro uso do faster-whisper pode baixar pesos de modelos. Veja [docs/AI_PIPELINE.md](docs/AI_PIPELINE.md).
 
+## Mission Control — central visual dos agentes
+
+O painel agora tem uma área de automações com nove módulos conectados, histórico real de tarefas, filtros, estado de cada etapa e indicadores de trabalho. Selecionar um clipe atualiza o fluxo daquele arquivo. Os cartões são **módulos operacionais, não modelos de IA autônomos**; não há agentes falsamente marcados como trabalhando.
+
+O recurso persiste eventos no banco SQLite e mantém a edição, revisão, HyperFrames e Twitch existentes. Para um teste de ponta a ponta com mídia sintética própria, configure `ENABLE_SYNTHETIC_DEMO=1` em um servidor controlado e use **Testar fluxo real**. É desativado por padrão e limitado a três testes por volume, sem postar nada.
+
+Veja [docs/MISSION_CONTROL.md](docs/MISSION_CONTROL.md). A interface continua local-first; a hospedagem pública depende de infraestrutura segura e orçamento.
+
 Leia **AGENTS.md** primeiro. Arquitetura em docs/ARCHITECTURE.md; inventário filtrado em docs/ARSENAL.md; prioridades em docs/ROADMAP.md; operações em docs/RUNBOOK.md.
