@@ -61,10 +61,22 @@ class HyperFramesTests(unittest.TestCase):
         self.assertIn("Streamer &lt;Private&gt;", markup)
         self.assertTrue((directory / "source.mp4").is_file())
         self.assertTrue((directory / "style.css").is_file())
+        self.assertTrue((directory / "nexus-clips-br.svg").is_file())
+        self.assertIn('src="./nexus-clips-br.svg"', markup)
+        self.assertIn("NEXUS CLIPS BR", markup)
+        self.assertNotIn('<div class="kicker">GTA VI', markup)
+        css = (directory / "style.css").read_text(encoding="utf-8")
+        self.assertIn(".brand-watermark", css)
+        self.assertIn("background: transparent", css)
+        import zipfile
+        with zipfile.ZipFile(directory / "hyperframes-project.zip") as package:
+            self.assertIn("nexus-clips-br.svg", package.namelist())
         metadata = json.loads((directory / "manifest.json").read_text())
         self.assertEqual(metadata["rights_status"], "owned")
         self.assertNotIn("evidence", metadata)
         self.assertFalse(metadata["rendered"])
+        self.assertEqual(metadata["editorial_locale"], "pt-BR")
+        self.assertEqual(metadata["brand"], "Nexus Clips BR")
 
     def test_export_srt_captions_and_cruel_html(self):
         srt = self.root / "captions.srt"
