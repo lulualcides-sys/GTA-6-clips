@@ -33,7 +33,23 @@ try {
   assert.equal(await page.locator("#agent-tasks").textContent(),"0");
   assert.equal(await page.locator("#mission-activity-count").textContent(),"0");
   assert.match(await page.title(),/GTA CLIPS CONTROL/);
+  const theme=await page.request.get(base+"/studio-v2.css");
+  assert.equal(theme.status(),200,"Studio V2 stylesheet must be served by the real app");
+  assert.match(await theme.text(),/Studio V2/);
+  assert.equal(await page.locator(".workspace-nav a").count(),3);
+  assert.equal(await page.locator("#production-workspace").count(),1);
+  assert.equal(await page.locator("#twitch-monitor").count(),1);
+  const themeApplied=await page.locator(".section-head").evaluate(node=>
+    getComputedStyle(node).borderRadius
+  );
+  assert.equal(themeApplied,"20px","Visual theme must apply, not merely load");
   await page.screenshot({path:out+"/mission-desktop.png",fullPage:true});
+
+  await page.setViewportSize({width:768,height:1024});
+  const tabletOverflow=await page.evaluate(()=>
+    document.documentElement.scrollWidth-window.innerWidth
+  );
+  assert(tabletOverflow<=2,"Tablet horizontal overflow: "+tabletOverflow+"px");
 
   await page.setViewportSize({width:390,height:844});
   await page.waitForTimeout(500);
@@ -43,7 +59,7 @@ try {
   assert(overflow<=2,"Mobile horizontal overflow: "+overflow+"px");
   assert.equal(await page.locator(".agent-unit").count(),9);
   await page.screenshot({path:out+"/mission-mobile.png",fullPage:true});
-  console.log("MISSION BROWSER PASS: real idle/blocked states, 9 cards, mobile layout, 2 screenshots");
+  console.log("MISSION BROWSER PASS: actual Studio V2 theme, real idle/blocked states, 9 cards, tablet/mobile layout, 2 screenshots");
 } finally {
   await browser.close();
 }
