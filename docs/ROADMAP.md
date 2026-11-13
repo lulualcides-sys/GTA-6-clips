@@ -13,12 +13,12 @@
 
 - [x] Exportador HyperFrames com HTML/CSS original, créditos, legenda SRT opcional, ZIP protegido e botão no painel.
 - [x] Testes unitários/API de exportação adicionados.
-- [ ] Render real no workflow HyperFrames deve ser verificado verde antes de considerar CLI validada.
-- [ ] Integrar Whisper com legendas genuínas e análise visual com PySceneDetect; nenhum dos dois está implementado.
+- [x] Render real HyperFrames validado com vídeo sintético no CI (sem comprovação editorial em gameplay real).
+- [x] Implementar componentes opcionais PySceneDetect e faster-whisper, testes de API e legendas, com flags desligadas no Docker padrão.\n- [ ] Testar a precisão da transcrição com vídeos reais autorizados e medir CPU/latência.\n- [ ] Habilitar IA em worker com capacidade e custos definidos.
 
 
-- [ ] Transcrição opcional com faster-whisper e cache de legendas sincronizadas.
-- [ ] Audio + visual + fala para detectar trechos com contexto; métricas para avaliar score.
+- [x] Transcrição opt-in faster-whisper e cache privado com detecção de mídia alterada.\n- [ ] Validar a qualidade de legendas e a escolha do trecho com criadores autorizados.
+- [x] Heurística conservadora áudio + cortes visuais (não identifica eventos semanticamente).\n- [ ] Evoluir score com sinais de fala e métricas humanas, sem alegar compreensão semântica.
 - [ ] Template facecam/gameplay, créditos, zooms moderados e safe area do app.
 - [ ] Verificar silêncio, clipping, telas pretas, congelamento, legibilidade e duplicata perceptual.
 - [ ] Testar 10 clipes autorizados e registrar qualidade editorial real.
