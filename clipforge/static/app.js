@@ -1,6 +1,15 @@
 "use strict";
 const byId = id => document.getElementById(id);
 const LABELS = {detected:"Detectado",queued:"Na fila",rendering:"Renderizando",ready:"Pronto para revisar",approved:"Aprovado",rejected:"Rejeitado",failed:"Falhou"};
+// The native desktop shell receives its randomly generated loopback API token
+// in the URL fragment. Fragments are never sent in HTTP requests.
+if (location.hash.startsWith("#desktop-token=")) {
+  const provided = decodeURIComponent(location.hash.slice("#desktop-token=".length));
+  if (provided.length >= 24) {
+    sessionStorage.setItem("gta_clips_token", provided);
+  }
+  history.replaceState(null, "", location.pathname + location.search);
+}
 let clips=[], captionStates={}, whisperAvailable=false, activeId=null, filter="all", previewKey="", previewUrl="", token=sessionStorage.getItem("gta_clips_token")||"", toastTimeout;
 function toast(message){const b=byId("message");b.textContent=message;b.hidden=false;clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>b.hidden=true,5500);}
 async function api(path,method="GET",asBlob=false){const headers={};if(token)headers.Authorization="Bearer "+token;const r=await fetch(path,{method,headers,cache:"no-store"});if(r.status===401){if(!byId("login-modal").open)byId("login-modal").showModal();throw new Error("Informe o token do painel.");}if(!r.ok){let msg="HTTP "+r.status;try{msg=(await r.json()).error||msg;}catch(_){}throw new Error(msg);}return asBlob?r.blob():r.json();}
@@ -39,4 +48,26 @@ byId("hyperframes").addEventListener("click",exportHyperFrames);
 byId("approve").addEventListener("click",()=>action("approve"));byId("reject").addEventListener("click",()=>action("reject"));
 document.querySelectorAll("[data-filter]").forEach(b=>b.addEventListener("click",()=>{filter=b.dataset.filter;document.querySelectorAll("[data-filter]").forEach(x=>x.classList.toggle("active",x===b));renderList();}));
 byId("login-form").addEventListener("submit",e=>{e.preventDefault();token=byId("token").value;sessionStorage.setItem("gta_clips_token",token);byId("login-modal").close();refresh(false);window.dispatchEvent(new Event("gta:auth-updated"));});
+function mountDesktopControls() {
+  const bridge=window.pywebview?.api;
+  const bar=byId("desktop-toolbar");
+  if(!bridge||!bar||!bar.hidden) return;
+  bar.hidden=false;
+  const actions={
+    "desktop-incoming":"open_incoming",
+    "desktop-rendered":"open_rendered",
+    "desktop-settings":"open_settings"
+  };
+  for(const [id,method] of Object.entries(actions)){
+    byId(id).addEventListener("click",async()=>{
+      try{
+        const result=await bridge[method]();
+        if(!result?.ok) toast(result?.error||"A pasta não pôde ser aberta");
+      }catch(error){toast("Windows: "+error.message);}
+    });
+  }
+}
+window.addEventListener("pywebviewready",mountDesktopControls);
+mountDesktopControls();
+
 setInterval(()=>refresh(),6000);refresh();
