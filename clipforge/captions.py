@@ -7,6 +7,7 @@ Raw SRT and media remain under private data/, never committed to Git.
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import os
 import sqlite3
 import threading
@@ -149,6 +150,11 @@ class CaptionService:
             except ValueError:
                 result["status"] = "stale"
         return result
+
+    @staticmethod
+    def available() -> bool:
+        """Whether the optional Python package is installed, not model weights readiness."""
+        return importlib.util.find_spec("faster_whisper") is not None
 
     def all_statuses(self) -> dict:
         with self._db() as db:
