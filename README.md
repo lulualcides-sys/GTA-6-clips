@@ -66,4 +66,25 @@ O painel agora tem uma área de **candidatos da Twitch**. Com `TWITCH_CLIENT_ID`
 
 **Não baixa lives ou clipes da Twitch e não os publica**: essa etapa é apenas a descoberta de metadados. Consulte [docs/TWITCH.md](docs/TWITCH.md) e [docs/OPEN_SOURCE_DECISIONS.md](docs/OPEN_SOURCE_DECISIONS.md) antes de conectar fontes.
 
+## Acabamento visual HyperFrames (integração opcional)
+
+O sistema gera agora **composições HTML/CSS reais e editáveis** usando [HyperFrames](https://github.com/heygen-com/hyperframes) (Apache-2.0). O botão **Exportar HyperFrames**, disponível para clipes prontos ou aprovados, prepara um ZIP para baixar no painel, contendo `index.html`, `style.css`, `source.mp4` e `manifest.json`. Ele inclui título original, animações CSS finitas, crédito permanente ao criador e, quando fornecido, legenda SRT com timestamps reais. Sem SRT, **não inventa legendas**.
+
+Para preparar manualmente por linha de comando:
+
+```bash
+python -m clipforge.hyperframes abcdef123456 --title "MOMENTO ABSURDO NO GTA VI"
+# IDs devem existir no SQLite e ter vídeo renderizado válido
+```
+
+Para executar render final pelo HyperFrames em uma máquina de edição com Node.js 22+, FFmpeg, Chrome e CLI do HyperFrames previamente instalados:
+
+```bash
+npm install -g hyperframes
+hyperframes browser ensure
+python -m clipforge.hyperframes abcdef123456 --title "DESTAQUE DO STREAMER" --render
+```
+
+O render final fica separado em `data/hyperframes/<id>/final.mp4`, e **nunca sobrescreve o MP4-base aprovado**. O Docker de produção não instala HyperFrames/Chromium por padrão. No painel, **Exportar não significa renderizar nem publicar**: para render final use uma máquina com CLI instalada. Veja [docs/HYPERFRAMES.md](docs/HYPERFRAMES.md).
+
 Leia **AGENTS.md** primeiro. Arquitetura em docs/ARCHITECTURE.md; inventário filtrado em docs/ARSENAL.md; prioridades em docs/ROADMAP.md; operações em docs/RUNBOOK.md.

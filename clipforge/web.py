@@ -65,6 +65,15 @@ def make_handler(runtime: Runtime):
             if route == "/api/clips":
                 return self._reply(200, {"clips": runtime.store.all()})
             pieces = route.strip("/").split("/")
+            if len(pieces) == 4 and pieces[:2] == ["api", "clips"] and pieces[-1] == "hyperframes.zip":
+                clip_id = self._clip_id(pieces)
+                item = runtime.store.get(clip_id or "")
+                if not item or item["status"] not in {"ready", "approved"}:
+                    return self._reply(404, {"error": "No exportable clip"})
+                archive = runtime.store.root / "hyperframes" / clip_id / "hyperframes-project.zip"
+                if not archive.is_file() or archive.is_symlink():
+                    return self._reply(404, {"error": "Export first"})
+                return self._file(archive, "application/zip")
             if len(pieces) == 4 and pieces[:2] == ["api", "clips"] and pieces[-1] == "video":
                 item = runtime.store.get(self._clip_id(pieces) or "")
                 if not item or not item["output_path"]:
@@ -97,6 +106,17 @@ def make_handler(runtime: Runtime):
             if not item:
                 return self._reply(404, {"error": "Clip not found"})
             action = pieces[-1]
+            if action == "hyperframes":
+                from .hyperframes import export_composition
+                try:
+                    export_composition(runtime.store, item_id)
+                except (ValueError, OSError) as exc:
+                    return self._reply(409, {"error": str(exc)[:250]})
+                return self._reply(201, {
+                    "status": "prepared", "engine": "HyperFrames",
+                    "rendered": False,
+                    "download_path": f"/api/clips/{item_id}/hyperframes.zip"
+                })
             if action == "render":
                 queued = runtime.queue(item_id)
                 return self._reply(202 if queued else 409, {"queued": queued})

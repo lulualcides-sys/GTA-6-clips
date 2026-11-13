@@ -1,0 +1,37 @@
+name: HyperFrames optional integration smoke
+on:
+  pull_request:
+    paths:
+      - "clipforge/hyperframes.py"
+      - "clipforge/templates/**"
+      - "tools/hyperframes_smoke.py"
+      - "tests/test_hyperframes.py"
+      - ".github/workflows/hyperframes.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      HYPERFRAMES_NO_TELEMETRY: "1"
+      HYPERFRAMES_SKIP_SKILLS: "1"
+      HYPERFRAMES_NO_UPDATE_CHECK: "1"
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install FFmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+      - name: Install HyperFrames CLI
+        run: npm install -g hyperframes
+      - name: Install Chrome headless shell
+        run: hyperframes browser ensure
+      - name: Run HyperFrames full end-to-end synthetic render
+        run: python -m tools.hyperframes_smoke --render

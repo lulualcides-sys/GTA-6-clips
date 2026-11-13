@@ -4,6 +4,7 @@ Referências principais, todas separadas do motor produtivo:
 
 | Projeto | Onde ajuda | Onde NÃO ajuda / decisão |
 | --- | --- | --- |
+| [heygen-com/hyperframes](https://github.com/heygen-com/hyperframes) | Composição animada HTML/CSS e renderização MP4 determinística, preparada por IA | **Exportação integrada** (ZIP + API + dashboard); CLI Chrome/Node opcional; não seleciona clips nem faz postagem |
 | [yihui-dev/awesome-opus5-5-videos](https://github.com/yihui-dev/awesome-opus5-5-videos) | Exemplos de prompts, HTML, SVG, GSAP e Three.js para vinhetas, transições e elementos visuais | **Não** identifica cortes nem transforma lives em Shorts; usar seletivamente como inspiração, sem importar o repositório inteiro |
 | [Donchitos/Claude-Code-Game-Studios](https://github.com/Donchitos/Claude-Code-Game-Studios) | Contratos de agentes por domínio, gates de QA, documentação e evidência visual | Framework de jogos, **não** serviço de clipes; adaptação do método ao AGENTS.md e testes, não instalação de 49 agentes |
 | [MoneyPrinterTurbo](https://github.com/harry0703/MoneyPrinterTurbo) | Pipeline de vídeo sintético/automatizado; referências para padrões de orquestração | Foco em vídeos gerados, não direitos de gameplay de terceiros; não adotar motor pesado |
@@ -15,6 +16,8 @@ Referências principais, todas separadas do motor produtivo:
 | [Descript](https://www.descript.com) | Editor assistido e legendas; conector acessível na conversa | Ferramenta comercial opcional, não núcleo 100% open source |
 
 ## Aplicação real nesta fase
+
+- **HyperFrames selecionado e aplicado:** exportação de templates HTML/CSS com crédito ao autor, título e SRT opcional sobre MP4-base autorizado. Não afirmamos que clipes reais ou renderizações CLI foram produzidos até que o workflow específico passe.
 
 - Aproveitados de Claude Code Game Studios: ideia de **separar domínios**, exigir QA com evidências e um contrato de agentes. Estão em AGENTS.md e testes automatizados; não houve instalação do template.
 - Aproveitados de Awesome Opus: referências de movimento para futura biblioteca de templates. **Ainda não há assets, SVGs ou animações do catálogo incorporados ao vídeo renderizado.**

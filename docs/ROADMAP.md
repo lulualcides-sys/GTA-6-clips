@@ -11,6 +11,12 @@
 
 ## Etapa 1 — Qualidade de edição
 
+- [x] Exportador HyperFrames com HTML/CSS original, créditos, legenda SRT opcional, ZIP protegido e botão no painel.
+- [x] Testes unitários/API de exportação adicionados.
+- [ ] Render real no workflow HyperFrames deve ser verificado verde antes de considerar CLI validada.
+- [ ] Integrar Whisper com legendas genuínas e análise visual com PySceneDetect; nenhum dos dois está implementado.
+
+
 - [ ] Transcrição opcional com faster-whisper e cache de legendas sincronizadas.
 - [ ] Audio + visual + fala para detectar trechos com contexto; métricas para avaliar score.
 - [ ] Template facecam/gameplay, créditos, zooms moderados e safe area do app.
