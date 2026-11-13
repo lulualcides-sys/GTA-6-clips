@@ -43,6 +43,23 @@ try {
     getComputedStyle(node).borderRadius
   );
   assert.equal(themeApplied,"20px","Visual theme must apply, not merely load");
+  // Isolated CSS fixture; never changes real telemetry or renders fake activity.
+  const animationCheck=await page.evaluate(()=>{
+    const fixture=document.createElement("div");
+    fixture.className="agent-unit";
+    fixture.dataset.state="running";
+    fixture.style.cssText="position:absolute;top:-9999px";
+    document.body.appendChild(fixture);
+    const running=getComputedStyle(fixture).animationName;
+    const ring=getComputedStyle(fixture,"::before").animationName;
+    fixture.dataset.state="idle";
+    const idle=getComputedStyle(fixture).animationName;
+    fixture.remove();
+    return {running,ring,idle};
+  });
+  assert.match(animationCheck.running,/studio-live-card/,"Only active modules should pulse");
+  assert.match(animationCheck.ring,/studio-live-ring/,"Active modules need a pulse halo");
+  assert.equal(animationCheck.idle,"none","Inactive stages must remain still");
   await page.screenshot({path:out+"/mission-desktop.png",fullPage:true});
 
   await page.setViewportSize({width:768,height:1024});
