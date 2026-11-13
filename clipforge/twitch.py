@@ -108,10 +108,12 @@ class TwitchClient:
         raise TwitchError("GTA VI category not yet available on Twitch; configure TWITCH_GAME_ID")
 
     def get_clips(self, game_id: str, lookback_hours: int = 72) -> list[dict]:
-        since = datetime.now(timezone.utc) - timedelta(hours=lookback_hours)
+        now = datetime.now(timezone.utc)
+        since = now - timedelta(hours=lookback_hours)
         params = {
             "game_id": game_id, "first": 100,
             "started_at": since.isoformat(timespec="seconds").replace("+00:00", "Z"),
+            "ended_at": now.isoformat(timespec="seconds").replace("+00:00", "Z"),
         }
         # One page is intentional: predictable quotas and bounded dashboard processing.
         return list(self._get("clips", params).get("data", []))[:100]
