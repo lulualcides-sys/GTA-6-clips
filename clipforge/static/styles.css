@@ -16,3 +16,18 @@
 .twitch-hint{color:#a9b8ce;font-size:11px;margin-top:15px;line-height:1.6}
 @media(max-width:1020px){.candidate-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.candidate-grid{grid-template-columns:1fr}.twitch-section .panel-head{flex-direction:column;align-items:flex-start}.twitch-actions{justify-content:space-between;width:100%}}
+
+/* Windows desktop mode: only the native pywebview bridge can reveal these. */
+.desktop-toolbar[hidden] { display: none !important; }
+.desktop-toolbar {background:linear-gradient(90deg,#14233a,#15283b);
+  border-bottom:1px solid #344966;padding:12px 24px;display:flex;
+  justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap}
+.desktop-tag {font-size:10px;color:#9ddcde;font-weight:850;letter-spacing:.13em}
+.desktop-tag span{padding:0 7px;color:#6c789b}
+.desktop-buttons {display:flex;gap:9px;flex-wrap:wrap}
+.desktop-open {cursor:pointer;border:1px solid #395b75;background:#203651;
+  color:#e3f4ff;border-radius:9px;padding:10px 13px;font-size:11px;
+  font-weight:750;transition:background .15s}
+.desktop-open:hover{background:#2a496b;border-color:#86b8ca}
+@media(max-width:740px){.desktop-toolbar{padding:12px}
+  .desktop-buttons{width:100%}.desktop-open{flex:1 1 140px}}
