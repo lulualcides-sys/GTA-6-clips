@@ -45,6 +45,10 @@ jobs:
             Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
             refreshenv
           }
+          $ffmpegCmd = Get-Command ffmpeg -ErrorAction Stop
+          $ffprobeCmd = Get-Command ffprobe -ErrorAction Stop
+          Add-Content -Path $env:GITHUB_PATH -Value (Split-Path $ffmpegCmd.Source)
+          Add-Content -Path $env:GITHUB_PATH -Value (Split-Path $ffprobeCmd.Source)
           ffmpeg -version | Select-Object -First 1
           ffprobe -version | Select-Object -First 1
       - name: Install GUI packager
