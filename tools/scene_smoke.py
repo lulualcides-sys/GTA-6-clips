@@ -20,6 +20,14 @@ def main():
             "-map", "[v]", "-c:v", "libx264", "-preset", "ultrafast",
             "-pix_fmt", "yuv420p", str(movie)
         ], check=True, timeout=45)
+        from scenedetect import open_video, SceneManager, ContentDetector
+        debug_video = open_video(str(movie))
+        debug_mgr = SceneManager()
+        debug_mgr.add_detector(ContentDetector(threshold=27.0))
+        processed = debug_mgr.detect_scenes(video=debug_video, end_time=6.0)
+        print("DEBUG scene frames processed:", processed,
+              "raw cuts:", [c.get_seconds() for c in debug_mgr.get_cut_list()],
+              "scenes:", len(debug_mgr.get_scene_list(start_in_scene=True)), flush=True)
         cuts = find_cuts(movie, limit_seconds=6)
         assert len(cuts) >= 2, f"Expected at least 2 synthetic edits: {cuts}"
         assert 1.5 < cuts[0] < 2.5, cuts
