@@ -1,0 +1,33 @@
+name: Private narrative clip research
+on:
+  pull_request:
+    paths:
+      - 'tools/review_story_clips.py'
+      - '.github/workflows/review-story-clips.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate-sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install tooling
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          python -m pip install 'yt-dlp>=2025.10.01'
+      - name: Download actual long clips and verify
+        run: python tools/review_story_clips.py
+      - name: Temporary samples for private analysis
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-storytelling-raw
+          path: review-storytelling/
+          if-no-files-found: error
+          retention-days: 1
