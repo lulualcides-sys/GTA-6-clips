@@ -3,6 +3,14 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>GTA CLIPS CONTROL</title><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/agents.css"></head>
 <body>
 <header class="topbar"><div class="brand"><span class="mark">VI</span><div><strong>GTA CLIPS <em>CONTROL</em></strong><small>STUDIO / AUTOMATION WORKSPACE</small></div></div><div class="top-actions"><span id="connection" class="tag muted">Verificando</span><button id="scan" class="btn secondary">↻ Verificar pasta</button></div></header>
+<section id="desktop-toolbar" class="desktop-toolbar" hidden aria-label="Controles do aplicativo Windows">
+  <div class="desktop-tag">◈ APLICATIVO WINDOWS <span>·</span> processamento local</div>
+  <div class="desktop-buttons">
+    <button type="button" id="desktop-incoming" class="desktop-open">↧ Abrir vídeos para editar</button>
+    <button type="button" id="desktop-rendered" class="desktop-open">▣ Abrir clipes prontos</button>
+    <button type="button" id="desktop-settings" class="desktop-open">⚙ Configurar Twitch e IA</button>
+  </div>
+</section>
 <main class="shell">
 <section class="section-head"><div><p class="eyebrow">VISÃO GERAL</p><h1>Central de produção</h1><p class="hint">Clipes autorizados, renderização, revisão e histórico em uma tela.</p></div><span class="tag">MVP · LOCAL FIRST</span></section>
 <section class="stats"><article class="stat"><small>ENCONTRADOS</small><strong id="stat-total">0</strong><span>arquivos válidos</span></article><article class="stat"><small>PROCESSANDO</small><strong id="stat-progress">0</strong><span>fila de trabalho</span></article><article class="stat"><small>EM REVISÃO</small><strong id="stat-ready">0</strong><span>vídeos aguardando</span></article><article class="stat"><small>APROVADOS</small><strong id="stat-approved">0</strong><span>não publicados</span></article></section>
