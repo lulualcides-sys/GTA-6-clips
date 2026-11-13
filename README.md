@@ -66,7 +66,7 @@ O smoke gera vídeo **sintético**, testa a verificação de direitos e renderiz
 
 **Regra operacional:** até 18/11/2026 buscar clipes em até 12 categorias populares da Twitch, incluindo IRL e jogos. **À meia-noite de 19/11/2026, horário de São Paulo**, mudar automaticamente para **somente Grand Theft Auto VI**. A data pode ser atualizada caso a Rockstar altere o lançamento. A busca é apenas de metadados; não baixa ou publica material de terceiros.
 
-**Ativação no Windows:** no aplicativo clique em **Configurar Twitch e IA**, preencha `TWITCH_CLIENT_ID` e `TWITCH_CLIENT_SECRET` recebidos no Twitch Developer Console e confirme `TWITCH_ENABLED=1`. Reinicie o programa. Credenciais ficam apenas no arquivo local `config.env`, fora do GitHub. Veja [docs/TWITCH.md](docs/TWITCH.md).
+**Ativação no Windows:** no aplicativo clique em **Conectar Twitch**, preencha `Client ID` e `Client Secret` recebidos no Twitch Developer Console. O programa verifica o OAuth antes de salvar localmente; reinicie o programa. Credenciais ficam apenas no arquivo `config.env` no seu PC, fora do GitHub. Veja [docs/TWITCH.md](docs/TWITCH.md).
 
 ## Descoberta de clipes na Twitch
 
