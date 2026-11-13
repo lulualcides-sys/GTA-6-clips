@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 import shutil
 import subprocess
@@ -30,6 +31,7 @@ CONFIG_KEYS = frozenset({
     "AUTO_RENDER", "AUTO_SCAN", "AUTO_TRANSCRIBE", "ENABLE_SYNTHETIC_DEMO",
     "SMART_SCENES", "POLL_SECONDS", "TWITCH_ENABLED", "TWITCH_POLL_SECONDS",
     "TWITCH_CLIENT_ID", "TWITCH_CLIENT_SECRET", "TWITCH_GAME_ID",
+    "TWITCH_GTA6_LAUNCH_AT",
     "WHISPER_MODEL", "WHISPER_LANGUAGE", "MAX_SOURCE_SECONDS",
 })
 DEFAULT_CONFIG = """# GTA VI Clips - configuracoes locais. Reinicie o app apos editar.
@@ -43,10 +45,12 @@ WHISPER_MODEL=base
 WHISPER_LANGUAGE=pt
 
 # Crie um app em https://dev.twitch.tv/console/apps para usar descoberta real.
-TWITCH_ENABLED=0
+TWITCH_ENABLED=1
 TWITCH_CLIENT_ID=
 TWITCH_CLIENT_SECRET=
 TWITCH_POLL_SECONDS=900
+# Até o lançamento, categorias populares; depois, apenas GTA VI:
+TWITCH_GTA6_LAUNCH_AT=2026-11-19T03:00:00+00:00
 """
 
 
@@ -179,6 +183,54 @@ class DesktopBridge:
 
     def open_rendered(self):
         return self._open(self.home / "data" / "rendered")
+
+    def save_twitch_credentials(self, client_id: str, client_secret: str) -> dict:
+        """User-supplied OAuth app credentials saved only in LocalAppData.
+
+        Called from the desktop-only pywebview bridge, never through the HTTP API.
+        A restart is required; no token or secret is returned to JavaScript.
+        """
+        if not isinstance(client_id, str) or not isinstance(client_secret, str):
+            return {"ok": False, "error": "Client ID e Secret devem ser textos"}
+        client_id, client_secret = client_id.strip(), client_secret.strip()
+        if not re.fullmatch(r"[A-Za-z0-9]{10,80}", client_id):
+            return {"ok": False, "error": "Client ID inválido; confira o Twitch Developer Console"}
+        if not re.fullmatch(r"[A-Za-z0-9]{10,160}", client_secret):
+            return {"ok": False, "error": "Client Secret inválido; confira o Twitch Developer Console"}
+        # Check the official Twitch OAuth application credentials BEFORE saving.
+        # Credentials are never returned in the API response or written to logs.
+        from .twitch import TwitchClient, TwitchError
+        try:
+            client = TwitchClient(client_id, client_secret)
+            client.get_top_categories(limit=1)
+        except TwitchError:
+            return {"ok": False, "error": "Não foi possível autenticar na API da Twitch; confira Client ID e Secret"}
+        try:
+            conf = initialize_settings(self.home)
+            current = conf.read_text(encoding="utf-8-sig").splitlines()
+            updates = {
+                "TWITCH_ENABLED": "1",
+                "TWITCH_CLIENT_ID": client_id,
+                "TWITCH_CLIENT_SECRET": client_secret,
+            }
+            output = []
+            for line in current:
+                key = line.split("=", 1)[0].strip() if "=" in line else ""
+                if key in updates:
+                    output.append(f"{key}={updates.pop(key)}")
+                else:
+                    output.append(line)
+            output.extend(f"{k}={v}" for k, v in updates.items())
+            temp = self.home / ("config-" + secrets.token_hex(7) + ".tmp")
+            try:
+                with temp.open("x", encoding="utf-8") as f:
+                    f.write("\n".join(output) + "\n")
+                os.replace(temp, conf)
+            finally:
+                temp.unlink(missing_ok=True)
+            return {"ok": True, "restart_required": True}
+        except (OSError, ValueError) as exc:
+            return {"ok": False, "error": "Não foi possível salvar configurações locais"}
 
     def open_settings(self):
         return self._open(self.home / "config.env")

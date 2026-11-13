@@ -1,5 +1,14 @@
 # Roadmap objetivo
 
+## Twitch — descoberta geral e foco GTA VI
+
+- [x] Perfil temporal: top 12 categorias populares antes de 19/11/2026 e apenas GTA VI após a virada, com filtro de histórico.
+- [x] Categoria identificada por ID/nome, score dos clipes e migração SQLite compatível com o banco existente.
+- [x] Painel mostra perfil ativo e últimas categorias consultadas; configuração local de OAuth sem segredos no GitHub.
+- [ ] Configurar Twitch Client ID/Secret no PC e confirmar primeira requisição real (não é possível validar sem credenciais).
+- [ ] Validar mudança de perfil com dados reais em 19/11/2026 e acompanhar eventuais mudanças oficiais de lançamento.
+- [ ] Captura de mídia e republicação: ainda não implementadas e exigem direitos explícitos.
+
 ## Atualização gratuita do aplicativo Windows
 
 - [x] Verificador de GitHub Releases estáveis, comparação SemVer e botão de atualização na interface.

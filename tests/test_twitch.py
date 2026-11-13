@@ -1,6 +1,8 @@
 """No real Twitch tokens or network calls are needed for this suite."""
 import json
 import os
+from contextlib import closing
+import sqlite3
 import tempfile
 import threading
 import unittest
@@ -45,7 +47,8 @@ class TwitchDiscoveryTests(unittest.TestCase):
         self.lock = threading.RLock()
         self.env = patch.dict(os.environ, {
             "TWITCH_CLIENT_ID": "", "TWITCH_CLIENT_SECRET": "",
-            "TWITCH_GAME_ID": "", "TWITCH_ENABLED": "0"
+            "TWITCH_GAME_ID": "", "TWITCH_ENABLED": "0",
+            "TWITCH_GTA6_LAUNCH_AT": "2026-01-01T00:00:00+00:00"
         })
         self.env.start()
         self.addCleanup(self.env.stop)
@@ -110,6 +113,101 @@ class TwitchDiscoveryTests(unittest.TestCase):
         discovery=TwitchDiscovery(self.db,self.lock,self.root,DummyClient([forged]))
         self.assertEqual(discovery.refresh()["processed"],0)
         self.assertEqual(discovery.list_candidates(),[])
+
+    def test_upgrade_preserves_legacy_gta_only_database(self):
+        with closing(sqlite3.connect(self.db)) as db:
+            db.execute("""CREATE TABLE twitch_candidates (
+                id TEXT PRIMARY KEY, broadcaster_id TEXT NOT NULL,
+                creator_name TEXT, title TEXT, url TEXT,
+                view_count INTEGER NOT NULL, duration REAL NOT NULL,
+                created_at TEXT, score INTEGER NOT NULL,
+                consent_flag TEXT NOT NULL, seen_at TEXT NOT NULL
+            )""")
+            db.execute("""CREATE TABLE twitch_sync (
+                id INTEGER PRIMARY KEY CHECK(id=1), last_at TEXT,
+                last_error TEXT, game_id TEXT
+            )""")
+            db.execute("""INSERT INTO twitch_candidates VALUES (
+                'legacy','123','Previous streamer','Old clip',
+                'https://clips.twitch.tv/FunnyClip123',1,30,'2026-11-12',
+                20,'unverified','2026-11-12'
+            )""")
+            db.commit()
+        discovery=TwitchDiscovery(self.db,self.lock,self.root,DummyClient([]))
+        with closing(sqlite3.connect(self.db)) as db:
+            fields={col[1] for col in db.execute("PRAGMA table_info(twitch_candidates)")}
+            self.assertIn("game_id",fields)
+            self.assertIn("game_name",fields)
+            self.assertEqual(db.execute("SELECT count(*) FROM twitch_candidates").fetchone()[0],1)
+        self.assertEqual(discovery.status()["count"],0)
+        self.assertEqual(discovery.list_candidates(),[])
+
+    def test_profile_switches_exactly_at_rockstar_launch(self):
+        with patch.dict(os.environ, {
+            "TWITCH_GTA6_LAUNCH_AT": "2026-11-19T03:00:00+00:00"
+        }):
+            discovery = TwitchDiscovery(self.db, self.lock, self.root)
+            self.assertEqual(
+                discovery.profile(datetime(2026,11,19,2,59,59,tzinfo=timezone.utc))["profile"],
+                "prelaunch_multi"
+            )
+            self.assertEqual(
+                discovery.profile(datetime(2026,11,19,3,0,0,tzinfo=timezone.utc))["profile"],
+                "gta6_only"
+            )
+
+    def test_prelaunch_searches_multiple_official_top_categories(self):
+        class MixedClient(DummyClient):
+            def get_top_categories(self, limit=12):
+                return [
+                    {"id":"11", "name":"Just Chatting"},
+                    {"id":"22", "name":"Minecraft"},
+                    {"id":"33", "name":"Grand Theft Auto V"},
+                ]
+            def get_clips(self, game_id, first=100):
+                self.requested_game=game_id
+                return [clip("mixed-"+game_id,views=1000+int(game_id))]
+        with patch.dict(os.environ, {
+            "TWITCH_GTA6_LAUNCH_AT":"2099-01-01T00:00:00+00:00"
+        }):
+            discovery=TwitchDiscovery(self.db,self.lock,self.root,MixedClient([]))
+            result=discovery.refresh()
+            self.assertEqual(result["profile"],"prelaunch_multi")
+            self.assertEqual(result["received"],3)
+            self.assertEqual(result["game_id"],None)
+            self.assertEqual(set(result["categories"]),
+                             {"Just Chatting","Minecraft","Grand Theft Auto V"})
+            items=discovery.list_candidates()
+            self.assertEqual(len(items),3)
+            self.assertEqual({x["game_name"] for x in items},
+                             {"Just Chatting","Minecraft","Grand Theft Auto V"})
+            # A full historical catalog must not leak when the launch date passes.
+        with patch.dict(os.environ, {
+            "TWITCH_GTA6_LAUNCH_AT":"2026-01-01T00:00:00+00:00"
+        }):
+            self.assertEqual(discovery.status()["count"],0)
+            self.assertEqual(discovery.list_candidates(),[])
+            discovery.refresh()
+            self.assertEqual(discovery.status()["count"],1)
+            items=discovery.list_candidates()
+            self.assertEqual({x["game_name"] for x in items}, {"Grand Theft Auto VI"})
+
+    def test_prelaunch_top_categories_are_bounded(self):
+        client=TwitchClient("id","secret")
+        with patch.object(client,"_get",return_value={
+            "data":[{"id":"1","name":"Just Chatting"},
+                    {"id":"2","name":"Minecraft"},
+                    {"id":"not_number","name":"Untrusted"}]
+        }) as request:
+            games=client.get_top_categories()
+        self.assertEqual([x["name"] for x in games],["Just Chatting","Minecraft"])
+        request.assert_called_once_with("games/top",{"first":12})
+
+    def test_bad_launch_date_falls_back_to_official_schedule(self):
+        with patch.dict(os.environ,{"TWITCH_GTA6_LAUNCH_AT":"not-a-date"}):
+            discovery=TwitchDiscovery(self.db,self.lock,self.root)
+            self.assertEqual(discovery.profile()["launch_at"],
+                             "2026-11-19T03:00:00+00:00")
 
     def test_category_must_be_exact(self):
         client=TwitchClient("id","secret")

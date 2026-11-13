@@ -35,3 +35,11 @@
 .desktop-update:disabled{opacity:.68;cursor:not-allowed}
 @media(max-width:740px){.desktop-toolbar{padding:12px}
   .desktop-buttons{width:100%}.desktop-open{flex:1 1 140px}}
+
+/* Twitch OAuth desktop-only dialog. Text and secrets never populate HTML. */
+#twitch-oauth-modal {width:min(460px,94vw);max-width:min(460px,94vw)}
+#twitch-oauth-modal h2 {font-size:20px;margin:10px 0}
+#twitch-oauth-modal label {display:block;font-size:12px;color:#d3e4ff;margin-top:10px}
+#twitch-oauth-modal input {margin:7px 0 11px}
+#twitch-oauth-modal .dialog-actions {gap:9px;justify-content:flex-end}
+#twitch-oauth-modal a {color:#a9dfff}
