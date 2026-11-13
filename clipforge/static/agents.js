@@ -85,7 +85,16 @@
       indicator.setAttribute("aria-hidden","true");
       bottom.append(indicator,e("span","agent-state",stateText[agent.state]||"EM ESPERA"));
       const note=e("p","agent-note",agent.message || "Sem atividade registrada");
-      card.append(head,title,subtitle,bottom,note);
+      // Decorative local-only CSS operator; its motion is controlled exclusively
+      // by the API-backed data-state on the parent card, never by a fake timer.
+      const worker=e("span","agent-worker");
+      worker.setAttribute("aria-hidden","true");
+      for (const part of ["worker-shadow","worker-console","worker-body",
+                          "worker-arm worker-arm-left","worker-arm worker-arm-right",
+                          "worker-head","worker-eyes","worker-tool"]) {
+        worker.appendChild(e("span",part));
+      }
+      card.append(head,title,subtitle,worker,bottom,note);
       card.addEventListener("click",()=>{
         agentFilter=agentFilter===agent.id?null:agent.id;
         drawNodes(last.stages);
