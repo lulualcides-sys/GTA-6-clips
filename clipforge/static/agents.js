@@ -186,6 +186,7 @@
     });
   });
   window.addEventListener("gta:clip-selected",loadSnapshot);
+  window.addEventListener("gta:auth-updated",loadSnapshot);
   window.GTAAgents={refresh:loadSnapshot};
   window.setInterval(loadSnapshot,6000);
   loadSnapshot();

@@ -97,6 +97,7 @@
       await load();
     }
   });
+  window.addEventListener("gta:auth-updated",load);
   setInterval(load, 15000);
   load();
 })();
