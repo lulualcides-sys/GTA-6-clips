@@ -150,6 +150,12 @@ def shutdown_backend(server, runtime, thread) -> None:
 
 def self_test(destination: Path | None = None) -> dict:
     """Safe headless validation of the frozen EXE, local HTTP API and FFmpeg."""
+    def report(state: dict) -> None:
+        if destination:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text(json.dumps(state, indent=2), encoding="utf-8")
+
+    report({"phase": "entry", "status": "running"})
     with tempfile.TemporaryDirectory(prefix="gta6-desktop-qa-") as root:
         home = Path(root)
         tools = find_ffmpeg_tools()
@@ -166,8 +172,10 @@ def self_test(destination: Path | None = None) -> dict:
                 check=False
             )
             result[name] = check.returncode == 0
+        report({**result, "phase": "native_tools"})
         token = secrets.token_urlsafe(32)
         server, runtime, thread = start_backend(home / "data", token)
+        report({**result, "phase": "server_started"})
         try:
             base = f"http://127.0.0.1:{server.server_port}"
             with urllib.request.urlopen(base + "/api/health", timeout=10) as resp:
@@ -187,14 +195,14 @@ def self_test(destination: Path | None = None) -> dict:
             except urllib.error.HTTPError as exc:
                 result["protected_api"] &= exc.code == 401
         finally:
+            report({**result, "phase": "stopping_server"})
             shutdown_backend(server, runtime, thread)
+            report({**result, "phase": "server_stopped"})
         result["status"] = ("pass" if
                             all(result.get(k) for k in (
                                 "ffmpeg", "ffprobe", "health", "protected_api"
                             )) else "fail")
-        if destination:
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_text(json.dumps(result, indent=2), encoding="utf-8")
+        report({**result, "phase": "complete"})
         return result
 
 
@@ -226,8 +234,22 @@ def run_desktop() -> None:
 def main() -> int:
     if "--self-test" in sys.argv:
         index = sys.argv.index("--self-test")
-        destination = Path(sys.argv[index + 1]) if len(sys.argv) > index + 1 else None
-        result = self_test(destination)
-        return 0 if result["status"] == "pass" else 2
+        destination = (Path(os.environ["GTA6_SELFTEST_PATH"])
+                       if os.environ.get("GTA6_SELFTEST_PATH")
+                       else Path(sys.argv[index + 1]) if len(sys.argv) > index + 1
+                       else None)
+        try:
+            result = self_test(destination)
+            return 0 if result["status"] == "pass" else 2
+        except Exception as exc:
+            if destination:
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_text(
+                    json.dumps({"phase": "exception", "status": "fail",
+                                "type": type(exc).__name__,
+                                "message": str(exc)[:350]}, indent=2),
+                    encoding="utf-8",
+                )
+            return 3
     run_desktop()
     return 0
