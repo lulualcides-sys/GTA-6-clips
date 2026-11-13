@@ -55,6 +55,8 @@
     details.push(data.transcription_available ? "Whisper instalado" : "Whisper não instalado");
     details.push("Publicação desativada");
     summary.textContent = details.join(" · ");
+    get("mission-demo").hidden = !data.demo_enabled;
+
     const current = (typeof clips !== "undefined" && data.selected_clip) ?
       clips.find(c=>c.id===data.selected_clip) : null;
     selected.textContent = current ? current.filename : "Visão global da produção";
@@ -139,6 +141,10 @@
     if (inFlight) return;
     inFlight=true;
     const clipId=currentClipId();
+    if (clipId!==selectedClip) {
+      agentFilter=null;
+      get("agent-filter-label").textContent="Todas as atividades";
+    }
     try {
       const url="/api/agents"+(clipId?"?clip_id="+encodeURIComponent(clipId):"");
       const data=await api(url);
@@ -159,6 +165,18 @@
     }
   }
   get("mission-refresh").addEventListener("click",loadSnapshot);
+  get("mission-demo").addEventListener("click", async ()=>{
+    const button=get("mission-demo");
+    button.disabled=true;
+    try {
+      const result=await api("/api/demo","POST");
+      if(typeof toast==="function")
+        toast("Teste real iniciado com vídeo sintético próprio. Acompanhe a atividade e selecione o clipe quando aparecer.");
+      await loadSnapshot();
+    } catch(err) {
+      if(typeof toast==="function") toast("Teste: "+err.message);
+    } finally {button.disabled=false;}
+  });
   document.querySelectorAll("[data-activity-filter]").forEach(btn=>{
     btn.addEventListener("click",()=>{
       feedFilter=btn.dataset.activityFilter;
