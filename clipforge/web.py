@@ -122,19 +122,9 @@ def make_handler(runtime: Runtime):
                 return self._reply(400, {"error": "Body not accepted"})
             if route == "/api/twitch/refresh":
                 from .twitch import TwitchError
-                runtime.store.activity.append(None, "radar", "running",
-                                              "Consultando metadados pela API Twitch")
                 try:
-                    result = runtime.twitch.refresh()
-                    runtime.store.activity.append(
-                        None, "radar", "complete",
-                        f"Consulta de metadados concluída: {result['processed']} registros"
-                    )
-                    return self._reply(200, result)
+                    return self._reply(200, runtime.twitch.refresh())
                 except TwitchError as exc:
-                    runtime.store.activity.append(
-                        None, "radar", "failed", "Consulta Twitch falhou"
-                    )
                     return self._reply(503, {"error": str(exc)})
             if route == "/api/demo":
                 try:
