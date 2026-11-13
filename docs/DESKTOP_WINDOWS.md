@@ -60,15 +60,22 @@ Todos os originais, cortes, históricos, legendas e credenciais locais ficam no 
 
 **Atenção:** declarar `owned` exige que o vídeo seja realmente seu. Não use esta configuração para reclassificar vídeos de streamers sem autorização. Para terceiros use `permission_granted` e `evidence` verificável. Criar Twitch Clips não concede direito automático de republicação.
 
+## Twitch: várias categorias agora, GTA VI exclusivamente no lançamento
+
+A partir da versão 0.3.0, o monitor usa categorias populares da Twitch antes do lançamento e muda automaticamente para a categoria exata Grand Theft Auto VI em 19/11/2026 (00:00 São Paulo), sem precisar atualizar manualmente a seleção. O aplicativo exige `TWITCH_CLIENT_ID` e `TWITCH_CLIENT_SECRET` próprios, cadastrados no Twitch Developer Console. `TWITCH_ENABLED=1` só ativa a busca se essas credenciais estiverem configuradas.
+
+Quem atualiza a partir de uma versão antiga deve abrir `config.env` e mudar `TWITCH_ENABLED=0` para `TWITCH_ENABLED=1`, pois o atualizador preserva configurações existentes. Consulte [TWITCH.md](TWITCH.md).
+
 ## Configurações sem servidor
 
 Na janela clique em **Configurar Twitch e IA**. Isso abre `config.env`, sem enviar nenhuma informação à nuvem. Salve e **reinicie o programa**.
 
 ```dotenv
-TWITCH_ENABLED=0
+TWITCH_ENABLED=1
 TWITCH_CLIENT_ID=
 TWITCH_CLIENT_SECRET=
 TWITCH_POLL_SECONDS=900
+TWITCH_GTA6_LAUNCH_AT=2026-11-19T03:00:00+00:00
 SMART_SCENES=0
 AUTO_TRANSCRIBE=0
 ENABLE_SYNTHETIC_DEMO=0
