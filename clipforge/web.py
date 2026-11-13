@@ -60,7 +60,8 @@ def make_handler(runtime: Runtime):
                       "/styles.css": ("styles.css", "text/css; charset=utf-8"),
                       "/candidates.js": ("candidates.js", "text/javascript; charset=utf-8"),
                       "/agents.js": ("agents.js", "text/javascript; charset=utf-8"),
-                      "/agents.css": ("agents.css", "text/css; charset=utf-8")}
+                      "/agents.css": ("agents.css", "text/css; charset=utf-8"),
+                      "/studio-v2.css": ("studio-v2.css", "text/css; charset=utf-8")}
             if route in assets:
                 name, mime = assets[route]
                 return self._file(STATIC / name, mime)
