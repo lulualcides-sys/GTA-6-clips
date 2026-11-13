@@ -33,6 +33,17 @@
 - examples/: exemplos públicos sem IDs reais e sem segredos.
 - data/: mídias e banco, nunca comitar.
 
+## Sistema de atualizações Windows
+
+- `clipforge/version.py`: número SemVer atual; nunca anunciar versão maior antes de release válida.
+- `clipforge/updater.py`: consulta API GitHub Releases, exige digest SHA-256, limita download/extração, valida novo EXE com `--self-test`.
+- `desktop_update_helper.py`: compilado como EXE independente; espera processo antigo encerrar, troca diretórios, mantém backup e tenta rollback em falhas.
+- `tools/build_windows.py`: empacota também `GTA6ClipsUpdater.exe`; releases estáveis só após pipeline Windows verde.
+- `tests/test_updater.py`: cobertura de URL oficial, releases estáveis, SHA-256, zip-slip, persistência e caminhos seguros.
+- Atualização é **um clique** no painel, não auto-instalação silenciosa. Primeira versão antiga requer baixar novo pacote manualmente.
+- Nunca colocar mídias, bancos de dados, arquivos `config.env` ou segredos dentro do ZIP do programa. Armazenar dados só em LocalAppData.
+- Bump de versão **somente** quando realmente quiser lançar nova release; release do GitHub não deve ser reescrita ou substituída.
+
 ## Regras
 
 **Desktop:** nunca mudar dados de LocalAppData para diretório temporário de PyInstaller, nem expor HTTP externo. Não declarar que o aplicativo já foi instalado no PC do usuário; somente o usuário pode baixar/executar o `.exe`. Para saber o estado do build, conferir GitHub Actions e o autoteste do executável.
