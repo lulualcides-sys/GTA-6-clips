@@ -62,7 +62,7 @@ Todos os originais, cortes, históricos, legendas e credenciais locais ficam no 
 
 ## Twitch: várias categorias agora, GTA VI exclusivamente no lançamento
 
-A partir da versão 0.3.0, o monitor usa categorias populares da Twitch antes do lançamento e muda automaticamente para a categoria exata Grand Theft Auto VI em 19/11/2026 (00:00 São Paulo), sem precisar atualizar manualmente a seleção. O aplicativo exige `TWITCH_CLIENT_ID` e `TWITCH_CLIENT_SECRET` próprios, cadastrados no Twitch Developer Console. `TWITCH_ENABLED=1` só ativa a busca se essas credenciais estiverem configuradas.
+A partir da versão 0.3.0, o monitor usa categorias populares da Twitch antes do lançamento e muda automaticamente para a categoria exata Grand Theft Auto VI em 19/11/2026 (00:00 São Paulo), sem precisar atualizar manualmente a seleção. Para conectar, abra o Twitch Developer Console, crie sua aplicação e obtenha `TWITCH_CLIENT_ID` e `TWITCH_CLIENT_SECRET`. No programa, clique em **Conectar Twitch**, digite os valores e clique **Salvar no PC**. A integração valida o OAuth sem mostrar as credenciais no GitHub. Reinicie o aplicativo para iniciar a busca. `TWITCH_ENABLED=1` sem credenciais não consulta nada.
 
 Quem atualiza a partir de uma versão antiga deve abrir `config.env` e mudar `TWITCH_ENABLED=0` para `TWITCH_ENABLED=1`, pois o atualizador preserva configurações existentes. Consulte [TWITCH.md](TWITCH.md).
 
