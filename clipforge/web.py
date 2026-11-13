@@ -136,6 +136,13 @@ def make_handler(runtime: Runtime):
                         None, "radar", "failed", "Consulta Twitch falhou"
                     )
                     return self._reply(503, {"error": str(exc)})
+            if route == "/api/demo":
+                try:
+                    return self._reply(202, runtime.demo.start())
+                except PermissionError:
+                    return self._reply(403, {"error": "Modo de teste sintético desativado"})
+                except ValueError as exc:
+                    return self._reply(409, {"error": str(exc)[:180]})
             if route == "/api/scan":
                 result = runtime.scan()
                 if result["errors"]:
