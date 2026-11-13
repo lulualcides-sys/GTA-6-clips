@@ -1,0 +1,14 @@
+# Compose with: docker compose -f compose.yaml -f compose.ai.yaml up --build
+# Keep this optional. No hosted/cloud costs are incurred by building locally.
+services:
+  clips:
+    build:
+      context: .
+      dockerfile: Dockerfile.ai
+    environment:
+      SMART_SCENES: ${SMART_SCENES:-1}
+      AUTO_TRANSCRIBE: ${AUTO_TRANSCRIBE:-0}
+      WHISPER_MODEL: ${WHISPER_MODEL:-base}
+      WHISPER_LANGUAGE: ${WHISPER_LANGUAGE:-pt}
+      OMP_NUM_THREADS: "2"
+      HF_HOME: /app/data/model-cache
