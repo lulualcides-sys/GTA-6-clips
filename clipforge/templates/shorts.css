@@ -126,3 +126,22 @@ html, body {
   text-shadow: 0 4px 5px #000;
   overflow-wrap: anywhere;
 }
+
+
+/* Seekable finite CSS animations for HyperFrames, no wall-clock JS. */
+@keyframes clip-rise {
+  from { opacity: 0; transform: translateY(65px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes clip-line {
+  from { opacity: 0; transform: scaleX(.06); }
+  to { opacity: 1; transform: scaleX(1); }
+}
+@keyframes clip-pop {
+  from { opacity: 0; transform: scale(.92) translateY(15px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.headline .kicker { animation: clip-rise .45s ease-out both; }
+.headline h1 { animation: clip-rise .6s .12s ease-out both; }
+.headline .headline-line { transform-origin: left center; animation: clip-line .7s .25s ease-out both; }
+.caption span { animation: clip-pop .18s ease-out both; }
