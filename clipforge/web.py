@@ -63,7 +63,9 @@ def make_handler(runtime: Runtime):
             if route == "/api/twitch/candidates":
                 return self._reply(200, {"candidates": runtime.twitch.list_candidates()})
             if route == "/api/captions":
-                return self._reply(200, {"captions": runtime.captions.all_statuses()})
+                return self._reply(200, {"captions": runtime.captions.all_statuses(),
+                                         "transcription_available": runtime.captions.available(),
+                                         "auto_transcribe": runtime.auto_transcribe})
             if route == "/api/clips":
                 # Never expose private proof of license or local input paths to UI.
                 clips = runtime.store.all()
