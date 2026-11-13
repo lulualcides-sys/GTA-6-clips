@@ -1,5 +1,13 @@
 # Roadmap objetivo
 
+## Atualização gratuita do aplicativo Windows
+
+- [x] Verificador de GitHub Releases estáveis, comparação SemVer e botão de atualização na interface.
+- [x] Download com validação SHA-256, extração protegida, autoteste da nova versão e atualizador externo com rollback.
+- [x] Publicação automática de GitHub Release versionada pelo CI quando uma nova versão é aprovada no main.
+- [ ] Conferir CI Windows verde e release v0.2.0 publicada antes de entregar pacote atualizado.
+- [ ] Validar ciclo completo de atualização em Windows de usuário, incluindo fechamento, instalação, reabertura e rollback.
+
 ## Aplicativo Windows sem servidor pago
 
 - [x] Lançador pywebview que reaproveita Mission Control e APIs locais com token aleatório.

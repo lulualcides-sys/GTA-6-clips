@@ -77,7 +77,22 @@ def main():
     destination = root / "dist" / "GTA6Clips" / "GTA6Clips.exe"
     if not destination.is_file():
         raise SystemExit("Build did not produce a desktop executable")
-    print(f"WINDOWS BUILD PASS: {destination}")
+    # Separate one-file helper runs from a user-owned updates directory.
+    # It must not keep any old installation file locked during replacement.
+    helper_options = [
+        str(root / "desktop_update_helper.py"),
+        "--noconfirm", "--clean", "--onefile", "--console",
+        "--name=GTA6ClipsUpdater",
+        f"--distpath={root / 'dist'}",
+        f"--workpath={root / 'build' / 'update-helper'}",
+        f"--specpath={root / 'build' / 'update-helper'}",
+    ]
+    PyInstaller.__main__.run(helper_options)
+    helper = root / "dist" / "GTA6ClipsUpdater.exe"
+    if not helper.is_file():
+        raise SystemExit("Update helper executable was not built")
+    shutil.move(str(helper), str(destination.parent / "GTA6ClipsUpdater.exe"))
+    print(f"WINDOWS BUILD PASS: {destination}; updater helper bundled")
 
 
 if __name__ == "__main__":
