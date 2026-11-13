@@ -1,0 +1,60 @@
+name: Mission Control browser smoke
+on:
+  pull_request:
+    paths:
+      - "clipforge/static/**"
+      - "clipforge/telemetry.py"
+      - "tools/browser_smoke.mjs"
+      - ".github/workflows/mission-ui.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  dashboard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DASHBOARD_TOKEN: mission-test-token-0123456789
+      AUTO_SCAN: "0"
+      AUTO_RENDER: "0"
+      TWITCH_ENABLED: "0"
+      TWITCH_CLIENT_ID: ""
+      TWITCH_CLIENT_SECRET: ""
+      ENABLE_SYNTHETIC_DEMO: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install browser test dependencies
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Run actual local server (no fake event data)
+        run: |
+          mkdir -p "$RUNNER_TEMP/mission-ui-data"
+          export CLIPS_DATA_DIR="$RUNNER_TEMP/mission-ui-data"
+          nohup python -m clipforge.web > "$RUNNER_TEMP/mission-server.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/mission-server.pid"
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/api/health > /dev/null; then
+              echo "Backend ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/mission-server.log"
+          exit 1
+      - name: Verify desktop and mobile dashboard and capture screenshots
+        run: node tools/browser_smoke.mjs
+      - name: Upload visual QA artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gta6-mission-control-previews
+          path: ui-artifacts/*.png
+          if-no-files-found: warn
+          retention-days: 7
