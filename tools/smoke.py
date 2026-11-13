@@ -28,6 +28,10 @@ def main():
         item=store.get(clip_id)
         assert item["status"]=="ready",item.get("error")
         assert Path(item["output_path"]).is_file()
+        events=store.activity.recent(clip_id)
+        names={e["agent"] for e in events}
+        assert {"ingestao","direitos","curadoria","edicao"}.issubset(names), events
+        assert any(e["agent"]=="edicao" and e["state"]=="complete" for e in events)
         print("SMOKE PASS: generated source -> rights -> ffmpeg -> 1080x1920 MP4")
 
 
