@@ -86,6 +86,25 @@ class LocalDesktopTests(unittest.TestCase):
         finally:
             shutdown_backend(server, runtime, thread)
 
+    def test_gui_http_server_works_without_any_stderr_console(self):
+        # PyInstaller --windowed normally sets sys.stderr=None on Windows.
+        # The standard BaseHTTPRequestHandler logger must not crash requests.
+        token = "desktop-no-console-security-token-012345"
+        server, runtime, thread = start_backend(self.home / "data", token)
+        try:
+            url = f"http://127.0.0.1:{server.server_port}/api/health"
+            with patch("sys.stderr", None):
+                with urllib.request.urlopen(url, timeout=4) as response:
+                    self.assertEqual(response.status, 200)
+                request = urllib.request.Request(
+                    f"http://127.0.0.1:{server.server_port}/api/agents",
+                    headers={"Authorization": "Bearer " + token},
+                )
+                with urllib.request.urlopen(request, timeout=4) as response:
+                    self.assertEqual(response.status, 200)
+        finally:
+            shutdown_backend(server, runtime, thread)
+
     def test_initialize_settings_cannot_overwrite_existing_user_data(self):
         settings = initialize_settings(self.home)
         settings.write_text("AUTO_SCAN=0\n", encoding="utf-8")
