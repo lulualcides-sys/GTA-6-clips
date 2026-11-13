@@ -270,6 +270,8 @@ class Runtime:
         self.auto_render = os.getenv("AUTO_RENDER", "1") == "1"
         self.auto_scan = os.getenv("AUTO_SCAN", "1") == "1"
         self.poll_seconds = max(10, int(os.getenv("POLL_SECONDS", "30")))
+        from .demo import SyntheticDemo
+        self.demo = SyntheticDemo(self)
         with self.store._db() as db:
             db.execute("UPDATE clips SET status='failed', error='Interrupted by restart' "
                        "WHERE status IN ('queued','rendering')")
