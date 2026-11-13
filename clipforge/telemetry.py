@@ -102,6 +102,8 @@ class ActivityLog:
         clip = runtime.store.get(clip_id) if clip_id else None
         if clip_id and not clip:
             raise LookupError("Clip not found")
+        clips = runtime.store.all()
+        caption_jobs = runtime.captions.all_statuses()
 
         activity = self.recent(clip_id, 80)
         latest: dict[str, dict] = {}
@@ -164,6 +166,32 @@ class ActivityLog:
                 elif clip["status"] == "rejected":
                     stage["state"] = "failed"
                     stage["message"] = "Rejeitado na revisão manual"
+            elif key == "edicao" and not clip:
+                running = sum(c["status"] == "rendering" for c in clips)
+                queued = sum(c["status"] == "queued" for c in clips)
+                stage["state"] = "running" if running else "queued" if queued else "idle"
+                stage["message"] = (
+                    f"{running} clipe(s) renderizando" if running
+                    else f"{queued} clipe(s) aguardando render" if queued
+                    else "Nenhum render em execução"
+                )
+            elif key == "legendas" and not clip:
+                processing = sum(j["status"] == "processing" for j in caption_jobs.values())
+                queued = sum(j["status"] == "queued" for j in caption_jobs.values())
+                stage["state"] = ("running" if processing else
+                                  "queued" if queued else
+                                  "idle" if runtime.captions.available() else "blocked")
+                stage["message"] = (
+                    f"{processing} transcrição(ões) executando" if processing
+                    else f"{queued} transcrição(ões) aguardando" if queued
+                    else "Nenhuma transcrição ativa" if runtime.captions.available()
+                    else "Módulo faster-whisper não instalado"
+                )
+            elif key == "revisao" and not clip:
+                pending = sum(c["status"] == "ready" for c in clips)
+                stage["state"] = "waiting" if pending else "idle"
+                stage["message"] = (f"{pending} clipe(s) aguardando revisão" if pending
+                                    else "Nenhum clipe aguardando aprovação")
             elif key == "motion" and clip and not event:
                 if clip["status"] in {"ready", "approved"}:
                     stage["state"] = "waiting"
@@ -173,7 +201,6 @@ class ActivityLog:
                 stage["message"] = "Nenhuma integração de postagem GTA habilitada"
             stages.append(stage)
 
-        clips = runtime.store.all()
         counts = {
             "total": len(clips),
             "in_progress": sum(i["status"] in {"queued", "rendering"} for i in clips),
