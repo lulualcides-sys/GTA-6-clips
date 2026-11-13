@@ -13,10 +13,12 @@
 ## Mapa dos arquivos
 
 - clipforge/core.py: ingestão, direitos, ffprobe, banco, FFmpeg e workers.
-- clipforge/web.py: HTTP API e autenticação simples.\n- clipforge/twitch.py: OAuth app, consulta de **metadados** de clipes e ranking heurístico; não faz download.
+- clipforge/web.py: HTTP API e autenticação simples.
+- clipforge/twitch.py: OAuth app, consulta de **metadados** de clipes e ranking heurístico; não faz download.
 - clipforge/static/: interface HTML/CSS/JS sem framework.
 - tests/: testes e ferramentas de QA; tools/smoke.py: teste fim-a-fim sintético.
-- docs/: arquitetura, arsenal, roadmap, operação e fontes Twitch. Atualize sempre que alterar contratos.\n- examples/: exemplos públicos sem IDs reais e sem segredos.
+- docs/: arquitetura, arsenal, roadmap, operação e fontes Twitch. Atualize sempre que alterar contratos.
+- examples/: exemplos públicos sem IDs reais e sem segredos.
 - data/: mídias e banco, nunca comitar.
 
 ## Regras
