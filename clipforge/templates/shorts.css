@@ -1,0 +1,128 @@
+/* Original GTA-6-clips portrait preset. No external fonts, scripts or CDNs. */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 1080px;
+  height: 1920px;
+  overflow: hidden;
+  background: #090e18;
+  color: #f7f9ff;
+  font-family: "Arial Black", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+#root {
+  position: relative;
+  width: 1080px;
+  height: 1920px;
+  isolation: isolate;
+  background: #090e18;
+  overflow: hidden;
+}
+#gameplay {
+  position: absolute;
+  inset: 0;
+  width: 1080px;
+  height: 1920px;
+  object-fit: contain;
+  z-index: 0;
+}
+.headline {
+  position: absolute;
+  width: 100%;
+  top: 130px;
+  left: 0;
+  padding: 34px 55px 46px;
+  background: linear-gradient(180deg, rgba(4,8,20,.94) 0%, rgba(4,8,20,.79) 72%, transparent 100%);
+  text-align: left;
+  z-index: 4;
+}
+.headline .kicker {
+  display: inline-block;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 27px;
+  letter-spacing: 5px;
+  font-weight: 900;
+  background: #e8f079;
+  color: #0f1521;
+}
+.headline .kicker-bullet { color: #565f2e; }
+.headline h1 {
+  margin: 24px 0 14px;
+  max-width: 960px;
+  font-size: 78px;
+  letter-spacing: -.02em;
+  text-transform: uppercase;
+  line-height: 1.05;
+  color: #fff;
+  -webkit-text-stroke: 0;
+  text-shadow: 0 4px 17px rgba(0,0,0,.9);
+  overflow-wrap: anywhere;
+}
+.headline-line {
+  width: 180px;
+  height: 11px;
+  margin-top: 25px;
+  background: #e8f079;
+  box-shadow: 0 0 23px rgba(232,240,121,.35);
+}
+.credit {
+  position: absolute;
+  top: 1605px;
+  left: 48px;
+  right: 48px;
+  z-index: 8;
+  width: 984px;
+  min-height: 74px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 16px 20px;
+  background: rgba(5,10,23,.83);
+  border-left: 10px solid #e8f079;
+  border-radius: 5px;
+  font-family: Arial, sans-serif;
+}
+.credit-mark {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  color: #e8f079;
+  flex: 0 0 auto;
+}
+.credit-creator {
+  min-width: 0;
+  color: white;
+  font-size: 29px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
+}
+.caption {
+  position: absolute;
+  width: 970px;
+  top: 1245px;
+  left: 55px;
+  z-index: 10;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  text-align: center;
+  min-height: 200px;
+  padding: 14px;
+  pointer-events: none;
+}
+.caption span {
+  display: block;
+  max-width: 100%;
+  padding: 14px 26px 18px;
+  font-size: 59px;
+  line-height: 1.14;
+  font-family: Arial, sans-serif;
+  font-weight: 900;
+  color: #fff;
+  background: rgba(1, 5, 12, .72);
+  border-radius: 14px;
+  text-shadow: 0 4px 5px #000;
+  overflow-wrap: anywhere;
+}
