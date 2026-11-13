@@ -70,6 +70,11 @@ body {background:
 .mission-status-right span {font-size:10px;color:#92a4c1;}
 .mission-refresh {border:1px solid #465978;background:#1c2b46;color:#d5e5ff;border-radius:8px;padding:8px 11px;font-weight:750;font-size:11px;}
 .mission-refresh:hover {border-color:#76bfe6;}
+.mission-demo {border-color:#5e7768;background:linear-gradient(120deg,#304c42,#263c39);color:#d1f5c2;}
+.mission-demo:hover {border-color:#c9ee79;}
+.mission-demo[hidden] {display:none !important;}
+.mission-demo:disabled {opacity:.5;cursor:not-allowed;}
+
 .mission-grid {
   display:grid;grid-template-columns:minmax(0,1.95fr) minmax(305px,.85fr);
   background:#0d1625;border:1px solid #34425f;border-top:0;
