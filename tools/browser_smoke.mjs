@@ -23,6 +23,7 @@ try {
     return label && label.textContent.includes("OAuth não configurado");
   },null,{timeout:20000});
   assert(!((await page.locator("#twitch-last").textContent())||"").includes("Informe o token"));
+  assert(await page.locator("#message").isHidden(),"Login cannot leave stale unauthorized toast over the UI");
   assert.equal(await page.locator(".agent-unit").count(),9);
   const states=await page.locator(".agent-unit").evaluateAll(nodes=>
     nodes.map(x=>({name:x.querySelector(".agent-name")?.textContent,state:x.dataset.state}))
