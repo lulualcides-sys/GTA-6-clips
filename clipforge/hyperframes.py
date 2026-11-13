@@ -221,10 +221,11 @@ def render_composition(directory: Path, *, timeout: int = 1200) -> Path:
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise RuntimeError("HyperFrames CLI unavailable or render timed out") from exc
         if result.returncode:
+            # Local diagnostics only; never include environment variables or tokens.
+            detail = "\n".join((result.stderr or result.stdout or "").splitlines()[-15:])[-1200:]
             raise RuntimeError(
-                "HyperFrames CLI failed. Run 'npm install --no-save hyperframes' "
-                "in the composition directory, then repeat. "
-                f"Exit code: {result.returncode}"
+                f"HyperFrames {args[0]} failed (exit {result.returncode}). "
+                f"CLI diagnostics: {detail}"
             )
     output = directory / "final.mp4"
     if not output.is_file():
