@@ -15,7 +15,7 @@
 
 ## Padrão editorial Nexus Clips BR (13/11/2026)
 
-Até o lançamento, para cortes de humor visual de quaisquer games, consultar **docs/nexus-clips-br-editorial.md** antes da revisão: título curto em PT-BR, sem rótulo de replay, replay lento opcional, crédito pequeno ao criador, marca-d'água compacta Nexus Clips BR e final com corte seco. Para cenas cujo humor dependa da fala, a legenda PT-BR deve traduzir fielmente o áudio de verdade; não inventar diálogo. Aprovação editorial e direitos de publicação são gates distintos. A implementação automática do preset no aplicativo e o PNG no instalador ainda dependem de integração e testes; este documento não os configura por si só.
+Até o lançamento, para cortes de humor visual de GTA V e GTA RP, consultar **docs/nexus-clips-br-editorial.md** antes da revisão: título curto em PT-BR, sem rótulo de replay, replay lento opcional, crédito pequeno ao criador, marca-d'água compacta Nexus Clips BR e final com corte seco. Para cenas cujo humor dependa da fala, a legenda PT-BR deve traduzir fielmente o áudio de verdade; não inventar diálogo. Aprovação editorial e direitos de publicação são gates distintos. A implementação automática do preset no aplicativo e o PNG no instalador ainda dependem de integração e testes; este documento não os configura por si só.
 
 ## Perfis narrativos por tipo de evento (planejamento, ainda não render automático)
 
@@ -33,7 +33,7 @@ A V8 de CS é uma referência de **acabamento aprovado**, não um recorte univer
 - clipforge/captions.py: SRT de fala real, jobs limitados, cache e proteção de direitos.
 - clipforge/hyperframes.py: pós-produção opcional, exportação HTML/CSS + SRT, empacotamento, CLI local.
 - clipforge/templates/: presets de composição 9:16 próprios e sem dependência CDN.
-- clipforge/twitch.py: OAuth e busca somente de **metadados** (sem download). De 13 a 18/11/2026, perfil `global_trending`: diversas categorias, jogos e streamers sem exclusividade. Em **19/11/2026, 00:00 America/Sao_Paulo** (`2026-11-19T03:00:00Z`), comutação automática para `gta6_only`, excluindo os clipes de outras categorias da lista e coletando apenas GTA VI de qualquer streamer. Permite mudar `TWITCH_GTA6_LAUNCH_AT` só se a Rockstar alterar oficialmente a data. Limites: `TWITCH_TRENDING_CATEGORIES` até 100, `TWITCH_CLIPS_PER_CATEGORY` até 30 e `TWITCH_LOOKBACK_HOURS` até 168; idioma PT-BR tem prioridade no ranking sem filtro de nacionalidade. APIs continuam exigindo credenciais.
+- clipforge/twitch.py: OAuth e busca somente de **metadados** (sem download). **Até 18/11/2026**, perfil `gta5_only`: consultar somente a categoria exata GTA V (que inclui streamers de GTA RP), de qualquer criador. **Em 19/11/2026, 00:00 America/Sao_Paulo** (`2026-11-19T03:00:00Z`), comutação automática para `gta6_only`: somente GTA VI, sem trazer registros antigos de GTA V. `TWITCH_GTA5_GAME_ID` pode indicar ID exato antes da virada; `TWITCH_GAME_ID` é reservado para o ID GTA VI depois. `TWITCH_GTA6_LAUNCH_AT` altera a data apenas se o calendário oficial mudar. PT-BR tem prioridade sem excluir outros idiomas, mas nunca misturar outros jogos. APIs continuam exigindo credenciais.
 - clipforge/static/: interface HTML/CSS/JS sem framework.
 - tests/: testes de API, segurança e exportação HyperFrames; tools/smoke.py: render FFmpeg; tools/hyperframes_smoke.py: piloto HyperFrames.
 - docs/: arquitetura, arsenal, roadmap, operação, análise de cenas, legendas, fontes Twitch e Mission Control.
@@ -79,4 +79,4 @@ A V8 de CS é uma referência de **acabamento aprovado**, não um recorte univer
 
 ## Sequência P1
 
-Conectar OAuth Twitch real no Windows (segredos privados) e validar consulta de múltiplas categorias antes do lançamento; após o lançamento, focar exclusivamente GTA VI. Validar desempenho e qualidade da transcrição com vídeo autorizado, verificar seleção visual (não semântica), integrar dados para edição, concluir autenticação Twitch e publicação nas redes somente com canal GTA próprio. Não instalar o Arsenal completo em massa.
+Conectar OAuth Twitch real no Windows (segredos privados) e validar consulta exclusiva de GTA V antes do lançamento e GTA VI após a virada. Validar desempenho e qualidade da transcrição com vídeo autorizado, verificar seleção visual (não semântica), integrar dados para edição, concluir autenticação Twitch e publicação nas redes somente com canal GTA próprio. Não instalar o Arsenal completo em massa.

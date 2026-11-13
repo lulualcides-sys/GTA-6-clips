@@ -77,19 +77,18 @@
         (meta.auto_monitoring ? "Monitoramento ativo" : "Configurado · manual") :
         "OAuth não configurado";
       state.className = "tag " + (meta.configured ? "good" : "muted");
-      const gtaOnly = meta.profile === "gta6_only";
-      if(heading) heading.textContent = gtaOnly
-        ? "Twitch · GTA VI (exclusivo desde 19/11)"
-        : "Twitch · clipes em alta de todas as categorias";
-      if(mode) mode.textContent = gtaOnly
+      const gta6 = meta.profile === "gta6_only";
+      if(heading) heading.textContent = gta6
+        ? "Twitch · GTA VI (a partir de 19/11)"
+        : "Twitch · GTA V (laboratório de edição)";
+      if(mode) mode.textContent = gta6
         ? "Desde 19/11: apenas GTA VI, de qualquer streamer. Português tem prioridade no ranking."
-        : "Até 18/11: vários jogos, IRL e streamers. Em 19/11, o radar muda automaticamente para GTA VI.";
+        : "Até 18/11: apenas GTA V, incluindo GTA RP. Em 19/11, o radar muda automaticamente para GTA VI.";
       if(categories) categories.textContent = meta.categories?.length
-        ? "Categorias recentes: " + meta.categories.join(" · ")
-        : (gtaOnly
+        ? "Categoria recente: " + meta.categories.join(" · ")
+        : (gta6
           ? "Buscando clipes da categoria exata Grand Theft Auto VI."
-          : "A próxima busca consultará até " + (meta.category_limit || 30) +
-            " categorias populares, sem exclusividade por jogo.");
+          : "Buscando clipes da categoria exata Grand Theft Auto V.");
       last.textContent = "Última busca: " + relativeTime(meta.last_sync) +
         (meta.last_error ? " · Erro: " + meta.last_error : "");
       displayCandidates(listing.candidates || []);

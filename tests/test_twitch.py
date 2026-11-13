@@ -30,6 +30,9 @@ class DummyClient:
         self.categories_requested = None
         self.requested_lookback = None
 
+    def find_gta5_game(self):
+        return "123456"
+
     def get_top_categories(self, limit=30):
         self.categories_requested = limit
         return [{"id": "123456", "name": "Grand Theft Auto V"}]
@@ -92,10 +95,10 @@ class TwitchDiscoveryTests(unittest.TestCase):
         discovery = TwitchDiscovery(self.db,self.lock,self.root,api)
         result = discovery.refresh()
         self.assertTrue(result["ok"])
-        self.assertEqual(result["profile"],"global_trending")
+        self.assertEqual(result["profile"],"gta5_only")
         self.assertEqual(result["processed"],2)
         self.assertEqual(api.requested_game,"123456")
-        self.assertEqual(api.categories_requested,30)
+        self.assertIsNone(api.categories_requested)
         self.assertEqual(api.requested_lookback,72)
         items = discovery.list_candidates()
         self.assertEqual(len(items),2)
@@ -152,16 +155,17 @@ class TwitchDiscoveryTests(unittest.TestCase):
             cols = {col[1] for col in db.execute("PRAGMA table_info(twitch_candidates)")}
             self.assertTrue({"game_id","game_name","language"}.issubset(cols))
             self.assertEqual(db.execute("SELECT count(*) FROM twitch_candidates").fetchone()[0],1)
-        self.assertEqual(discovery.status()["count"],1)
-        self.assertEqual(discovery.list_candidates()[0]["id"],"legacy")
+        # Preserve legacy data, but hide entries with no target-game metadata.
+        self.assertEqual(discovery.status()["count"],0)
+        self.assertEqual(discovery.list_candidates(),[])
 
-    def test_global_until_midnight_sao_paulo_then_gta6_only(self):
+    def test_gta5_until_midnight_sao_paulo_then_gta6_only(self):
         discovery = TwitchDiscovery(self.db,self.lock,self.root)
         before = datetime(2026,11,19,2,59,59,tzinfo=timezone.utc)
         start = datetime(2026,11,19,3,tzinfo=timezone.utc)
         for when in (datetime(2026,11,13,tzinfo=timezone.utc), before):
-            self.assertEqual(discovery.profile(when)["profile"],"global_trending")
-            self.assertIsNone(discovery.profile(when)["focus_game"])
+            self.assertEqual(discovery.profile(when)["profile"],"gta5_only")
+            self.assertEqual(discovery.profile(when)["focus_game"],"Grand Theft Auto V")
         for when in (start, datetime(2027,1,1,tzinfo=timezone.utc)):
             self.assertEqual(discovery.profile(when)["profile"],"gta6_only")
             self.assertEqual(discovery.profile(when)["focus_game"],"Grand Theft Auto VI")
@@ -174,45 +178,50 @@ class TwitchDiscoveryTests(unittest.TestCase):
         with patch.dict(os.environ, {"TWITCH_GTA6_LAUNCH_AT":"2027-01-01T03:00:00+00:00"}):
             discovery = TwitchDiscovery(self.db,self.lock,self.root)
             self.assertEqual(discovery.profile(
-                datetime(2026,11,19,3,tzinfo=timezone.utc))["profile"],"global_trending")
+                datetime(2026,11,19,3,tzinfo=timezone.utc))["profile"],"gta5_only")
 
-    def test_multiple_categories_and_streamers_are_not_filtered(self):
+    def test_prelaunch_queries_only_gta5_from_any_streamer(self):
         class MixedClient(DummyClient):
-            def get_top_categories(self,limit=30):
-                return [
-                    {"id":"11","name":"Just Chatting"},
-                    {"id":"22","name":"Minecraft"},
-                    {"id":"33","name":"Grand Theft Auto V"},
-                    {"id":"44","name":"IRL"},
-                ]
+            def find_gta5_game(self):
+                return "33"
+            def get_top_categories(self, limit=30):
+                raise AssertionError("GTA V mode must not query top categories")
             def get_clips(self, game_id, lookback_hours=72, first=15):
-                return [clip("mixed-"+game_id, broadcaster_id=game_id,
-                             views=1000+int(game_id),language="pt" if game_id=="44" else "en")]
+                self.requested_game = game_id
+                return [clip("gaules", broadcaster_id="1", language="pt"),
+                        clip("alanzoka", broadcaster_id="2", language="pt-BR"),
+                        clip("foreign", broadcaster_id="3", language="en")]
         discovery = TwitchDiscovery(self.db,self.lock,self.root,MixedClient([]))
         result = discovery.refresh()
-        self.assertEqual(result["profile"],"global_trending")
-        self.assertEqual(result["received"],4)
-        self.assertIsNone(result["game_id"])
-        self.assertEqual(set(result["categories"]),{"Just Chatting","Minecraft","Grand Theft Auto V","IRL"})
-        self.assertEqual({x["game_name"] for x in discovery.list_candidates()},set(result["categories"]))
-        self.assertEqual(discovery.status()["count"],4)
-        self.assertIn("language",discovery.list_candidates()[0])
+        self.assertEqual(result["profile"],"gta5_only")
+        self.assertEqual(result["game_id"],"33")
+        self.assertEqual(result["categories"],["Grand Theft Auto V"])
+        self.assertEqual(result["received"],3)
+        self.assertEqual(discovery.status()["count"],3)
+        self.assertEqual({x["broadcaster_id"] for x in discovery.list_candidates()},
+                         {"1","2","3"})
+        self.assertEqual({x["game_name"] for x in discovery.list_candidates()},
+                         {"Grand Theft Auto V"})
 
-    def test_switch_hides_old_games_and_queries_only_gta6(self):
+    def test_switch_hides_gta5_and_queries_only_gta6(self):
         class MixedClient(DummyClient):
+            def find_gta5_game(self):
+                return "555"
             def find_gta6_game(self):
                 return "777"
-            def get_top_categories(self,limit=30):
-                return [{"id":"11","name":"Just Chatting"},
-                        {"id":"22","name":"League of Legends"}]
-            def get_clips(self,game_id,lookback_hours=72,first=15):
+            def get_top_categories(self, limit=30):
+                raise AssertionError("Focused modes must not query other games")
+            def get_clips(self, game_id, lookback_hours=72, first=15):
                 self.requested_game = game_id
                 return [clip("clip-"+game_id, broadcaster_id=game_id)]
         fake = MixedClient([])
         discovery = TwitchDiscovery(self.db,self.lock,self.root,fake)
-        discovery.refresh()
-        self.assertEqual(discovery.status()["count"],2)
-        self.assertEqual(len(discovery.list_candidates()),2)
+        first = discovery.refresh()
+        self.assertEqual(first["profile"],"gta5_only")
+        self.assertEqual(fake.requested_game,"555")
+        self.assertEqual(discovery.status()["count"],1)
+        self.assertEqual({x["game_name"] for x in discovery.list_candidates()},
+                         {"Grand Theft Auto V"})
         with patch.dict(os.environ,{"TWITCH_GTA6_LAUNCH_AT":"2026-01-01T00:00:00+00:00"}):
             self.assertEqual(discovery.status()["count"],0)
             self.assertEqual(discovery.list_candidates(),[])
@@ -224,6 +233,32 @@ class TwitchDiscoveryTests(unittest.TestCase):
             self.assertEqual(discovery.status()["count"],1)
             self.assertEqual({x["game_name"] for x in discovery.list_candidates()},
                              {"Grand Theft Auto VI"})
+        # The previous game's records remain in SQLite and are visible in their mode.
+        self.assertEqual({x["game_name"] for x in discovery.list_candidates()},
+                         {"Grand Theft Auto V"})
+
+    def test_lookup_gta5_category_exact_only(self):
+        client = TwitchClient("id","secret")
+        with patch.object(client,"_get",return_value={"data":[
+            {"id":"11","name":"Grand Theft Auto VI"},
+            {"id":"12","name":"Grand Theft Auto V"}]}):
+            self.assertEqual(client.find_gta5_game(),"12")
+        with patch.object(client,"_get",return_value={"data":[
+            {"id":"11","name":"Grand Theft Auto VI"}]}):
+            with self.assertRaisesRegex(TwitchError,"unavailable"):
+                client.find_gta5_game()
+
+    def test_prelaunch_specific_game_id_override(self):
+        with patch.dict(os.environ, {"TWITCH_GTA5_GAME_ID":"32982"}):
+            fake = DummyClient([clip()])
+            fake.find_gta5_game = lambda: (_ for _ in ()).throw(AssertionError("unneeded lookup"))
+            discovery = TwitchDiscovery(self.db,self.lock,self.root,fake)
+            result = discovery.refresh()
+            self.assertEqual(result["game_id"], "32982")
+            self.assertEqual(discovery.status()["game_id"], "32982")
+        with patch.dict(os.environ, {"TWITCH_GTA5_GAME_ID":"not-an-id"}):
+            with self.assertRaisesRegex(TwitchError,"Invalid Twitch game ID"):
+                TwitchDiscovery(self.db,self.lock,self.root,DummyClient([])).refresh()
 
     def test_lookup_gta6_category_exact_only(self):
         client = TwitchClient("id","secret")
