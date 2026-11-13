@@ -1,6 +1,7 @@
 """No real Twitch tokens or network calls are needed for this suite."""
 import json
 import os
+from contextlib import closing
 import sqlite3
 import tempfile
 import threading
@@ -114,7 +115,7 @@ class TwitchDiscoveryTests(unittest.TestCase):
         self.assertEqual(discovery.list_candidates(),[])
 
     def test_upgrade_preserves_legacy_gta_only_database(self):
-        with sqlite3.connect(self.db) as db:
+        with closing(sqlite3.connect(self.db)) as db:
             db.execute("""CREATE TABLE twitch_candidates (
                 id TEXT PRIMARY KEY, broadcaster_id TEXT NOT NULL,
                 creator_name TEXT, title TEXT, url TEXT,
@@ -133,7 +134,7 @@ class TwitchDiscoveryTests(unittest.TestCase):
             )""")
             db.commit()
         discovery=TwitchDiscovery(self.db,self.lock,self.root,DummyClient([]))
-        with sqlite3.connect(self.db) as db:
+        with closing(sqlite3.connect(self.db)) as db:
             fields={col[1] for col in db.execute("PRAGMA table_info(twitch_candidates)")}
             self.assertIn("game_id",fields)
             self.assertIn("game_name",fields)
