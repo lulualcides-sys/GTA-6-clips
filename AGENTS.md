@@ -15,7 +15,7 @@
 
 ## Padrão editorial Nexus Clips BR (13/11/2026)
 
-Para cortes de humor visual de GTA e outros games, consultar **docs/nexus-clips-br-editorial.md** antes da revisão: título curto em PT-BR, sem rótulo de replay, replay lento opcional, crédito pequeno ao criador, marca-d'água compacta Nexus Clips BR e final com corte seco. Para cenas cujo humor dependa da fala, a legenda PT-BR deve traduzir fielmente o áudio de verdade; não inventar diálogo. Aprovação editorial e direitos de publicação são gates distintos. A implementação automática do preset no aplicativo e o PNG no instalador ainda dependem de integração e testes; este documento não os configura por si só.
+Até o lançamento, para cortes de humor visual de quaisquer games, consultar **docs/nexus-clips-br-editorial.md** antes da revisão: título curto em PT-BR, sem rótulo de replay, replay lento opcional, crédito pequeno ao criador, marca-d'água compacta Nexus Clips BR e final com corte seco. Para cenas cujo humor dependa da fala, a legenda PT-BR deve traduzir fielmente o áudio de verdade; não inventar diálogo. Aprovação editorial e direitos de publicação são gates distintos. A implementação automática do preset no aplicativo e o PNG no instalador ainda dependem de integração e testes; este documento não os configura por si só.
 
 ## Mapa dos arquivos
 
@@ -29,7 +29,7 @@ Para cortes de humor visual de GTA e outros games, consultar **docs/nexus-clips-
 - clipforge/captions.py: SRT de fala real, jobs limitados, cache e proteção de direitos.
 - clipforge/hyperframes.py: pós-produção opcional, exportação HTML/CSS + SRT, empacotamento, CLI local.
 - clipforge/templates/: presets de composição 9:16 próprios e sem dependência CDN.
-- clipforge/twitch.py: OAuth de aplicativo, consulta de **metadados** e ranking de tendências de múltiplas categorias. Não faz download de vídeos. Perfil contínuo `global_trending` sem lista fixa de streamers/jogos nem bloqueio automático na estreia de GTA VI. Configurável: `TWITCH_TRENDING_CATEGORIES` (padrão 30, máximo 100), `TWITCH_CLIPS_PER_CATEGORY` (padrão 15, máximo 30) e `TWITCH_LOOKBACK_HOURS` (padrão 72, máximo 168). Português recebe bônus pequeno na pontuação; clipes de outros idiomas não são excluídos. A lista representa amostra das categorias mais populares, **não todos os clipes existentes**.
+- clipforge/twitch.py: OAuth e busca somente de **metadados** (sem download). De 13 a 18/11/2026, perfil `global_trending`: diversas categorias, jogos e streamers sem exclusividade. Em **19/11/2026, 00:00 America/Sao_Paulo** (`2026-11-19T03:00:00Z`), comutação automática para `gta6_only`, excluindo os clipes de outras categorias da lista e coletando apenas GTA VI de qualquer streamer. Permite mudar `TWITCH_GTA6_LAUNCH_AT` só se a Rockstar alterar oficialmente a data. Limites: `TWITCH_TRENDING_CATEGORIES` até 100, `TWITCH_CLIPS_PER_CATEGORY` até 30 e `TWITCH_LOOKBACK_HOURS` até 168; idioma PT-BR tem prioridade no ranking sem filtro de nacionalidade. APIs continuam exigindo credenciais.
 - clipforge/static/: interface HTML/CSS/JS sem framework.
 - tests/: testes de API, segurança e exportação HyperFrames; tools/smoke.py: render FFmpeg; tools/hyperframes_smoke.py: piloto HyperFrames.
 - docs/: arquitetura, arsenal, roadmap, operação, análise de cenas, legendas, fontes Twitch e Mission Control.
