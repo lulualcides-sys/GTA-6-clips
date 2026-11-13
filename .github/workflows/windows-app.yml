@@ -7,14 +7,18 @@ on:
       - desktop_launcher.py
       - clipforge/**
       - tools/build_windows.py
+      - desktop_update_helper.py
       - tests/test_desktop.py
+      - tests/test_updater.py
       - .github/workflows/windows-app.yml
   pull_request:
     paths:
       - desktop_launcher.py
       - clipforge/**
       - tools/build_windows.py
+      - desktop_update_helper.py
       - tests/test_desktop.py
+      - tests/test_updater.py
       - .github/workflows/windows-app.yml
 
 permissions:
@@ -91,6 +95,14 @@ jobs:
           if (-not $result.ffmpeg -or -not $result.ffprobe -or -not $result.protected_api) {
             throw "Required native tools or protected API missing"
           }
+      - name: Verify standalone update helper
+        shell: pwsh
+        run: |
+          & "./dist/GTA6Clips/GTA6ClipsUpdater.exe" --self-test
+          if ($LASTEXITCODE -ne 0) { throw "Windows update helper failed its own self-test" }
+          if (-not (Test-Path "./dist/GTA6Clips/GTA6ClipsUpdater.exe")) {
+            throw "Windows update helper missing"
+          }
       - name: Create portable ZIP
         shell: pwsh
         run: |
@@ -105,3 +117,40 @@ jobs:
           path: dist/GTA6Clips-Windows-portable.zip
           compression-level: 0
           retention-days: 14
+
+  publish-release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build-portable
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: GTA6Clips-Windows-Portable
+          path: release
+      - name: Publish stable GitHub Release only for new app version
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          VERSION=$(python -c 'from clipforge.version import VERSION; print(VERSION)')
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid release version"; exit 1; }
+          TAG="v$VERSION"
+          if gh release view "$TAG" --repo "$REPOSITORY" >/dev/null 2>&1; then
+            echo "$TAG already exists; not replacing signed release assets"
+            exit 0
+          fi
+          test -s release/GTA6Clips-Windows-portable.zip
+          cd release
+          sha256sum GTA6Clips-Windows-portable.zip > GTA6Clips-Windows-portable.zip.sha256
+          gh release create "$TAG" \
+            GTA6Clips-Windows-portable.zip \
+            GTA6Clips-Windows-portable.zip.sha256 \
+            --repo "$REPOSITORY" --target "${GITHUB_SHA}" \
+            --title "GTA VI Clips $TAG" --generate-notes --latest
+          echo "Permanent release published: $TAG"
+
