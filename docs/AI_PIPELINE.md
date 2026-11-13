@@ -17,6 +17,18 @@
 5. Run `python -m unittest discover -s tests -v` and `python -m tools.scene_smoke`. The latter requires OpenCV/PySceneDetect.
 6. SRT files are stored privately under `data/captions/<id>.srt`; statuses persist in the SQLite `clip_captions` table.
 
+## Docker CPU profile (optional)
+
+For a local machine or provisioned persistent server, use:
+```bash
+cp .env.example .env
+# Edit DASHBOARD_TOKEN to a unique, strong value
+docker compose -f compose.yaml -f compose.ai.yaml up --build
+```
+The override builds `Dockerfile.ai`, which installs PySceneDetect/OpenCV and faster-whisper. The default container remains small. The model cache lives inside the `/app/data` persistent volume, so downloads are reused across restarts. Auto-transcription remains off unless `AUTO_TRANSCRIBE=1` is explicitly enabled.
+
+**Never use GitHub Actions as a persistent AI server.** The optional scene workflow is an acceptance test, not a daemon.
+
 ## Pipeline states and API
 
 - Existing clip remains `ready` even if caption generation fails; a failed optional postprocess must not destroy approved gameplay.
