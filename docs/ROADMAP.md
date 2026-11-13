@@ -1,5 +1,16 @@
 # Roadmap objetivo
 
+## Aplicativo Windows sem servidor pago
+
+- [x] Lançador pywebview que reaproveita Mission Control e APIs locais com token aleatório.
+- [x] Dados persistentes em LocalAppData, controles para abrir pastas e configurações do app.
+- [x] Workflow Windows x64 prepara ZIP portátil com FFmpeg/ffprobe e autoteste do executável.
+- [ ] CI Windows verde e artefato para baixar no GitHub (verificar antes de marcar).
+- [ ] Validar abertura da janela gráfica num Windows 10 real e prévia em resolução 144 Hz.
+- [ ] Testar edição de vídeo próprio no PC e configurar Twitch OAuth autorizado.
+- [ ] Decidir modo inicializar com Windows somente após preferência explícita.
+
+
 ## Etapa 0 — Base (implementada no código)
 
 - [x] Repositório independente e AGENTS.md para qualquer IA.

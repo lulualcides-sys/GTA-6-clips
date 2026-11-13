@@ -16,6 +16,8 @@
 
 - clipforge/core.py: ingestão, direitos, ffprobe, banco, FFmpeg e workers.
 - clipforge/web.py: HTTP API e autenticação simples.
+- clipforge/desktop.py + desktop_launcher.py: shell Windows pywebview/Edge WebView2, HTTP somente 127.0.0.1 com token por processo, persistência em %LOCALAPPDATA%\\GTA6Clips e FFmpeg portátil.
+- tools/build_windows.py + windows-app.yml: geração de ZIP de aplicativo Windows, autoteste congelado e compilação somente em Windows.
 - clipforge/telemetry.py: histórico durável de eventos reais, 9 módulos visuais; não fabricar status.
 - clipforge/demo.py: teste sintético próprio, opt-in e limitado a 3 entradas por volume; sem conteúdo de streamers.
 - clipforge/smart.py: seleção visual opcional e compatível com fallback áudio.
@@ -32,6 +34,8 @@
 - data/: mídias e banco, nunca comitar.
 
 ## Regras
+
+**Desktop:** nunca mudar dados de LocalAppData para diretório temporário de PyInstaller, nem expor HTTP externo. Não declarar que o aplicativo já foi instalado no PC do usuário; somente o usuário pode baixar/executar o `.exe`. Para saber o estado do build, conferir GitHub Actions e o autoteste do executável.
 
 1. Processar apenas vídeos próprios ou com permissão documentada. Twitch Clip não é licença de republicação. Sem burlar APIs, DRM, paywalls ou marcas d'água.
 2. Conservar fonte, autor e evidências. Nunca colocar tokens, dados privados ou mídias protegidas no Git.

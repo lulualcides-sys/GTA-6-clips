@@ -1,0 +1,107 @@
+name: Windows app - build and verify
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - desktop_launcher.py
+      - clipforge/**
+      - tools/build_windows.py
+      - tests/test_desktop.py
+      - .github/workflows/windows-app.yml
+  pull_request:
+    paths:
+      - desktop_launcher.py
+      - clipforge/**
+      - tools/build_windows.py
+      - tests/test_desktop.py
+      - .github/workflows/windows-app.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build-portable:
+    runs-on: windows-2022
+    timeout-minutes: 35
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      AUTO_SCAN: "0"
+      AUTO_RENDER: "0"
+      TWITCH_ENABLED: "0"
+      AUTO_TRANSCRIBE: "0"
+      ENABLE_SYNTHETIC_DEMO: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: x64
+      - name: Ensure FFmpeg and ffprobe exist
+        shell: pwsh
+        run: |
+          if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue) -or -not (Get-Command ffprobe -ErrorAction SilentlyContinue)) {
+            choco install ffmpeg --no-progress -y
+            Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+            refreshenv
+          }
+          $ffmpegCmd = Get-Command ffmpeg -ErrorAction Stop
+          $ffprobeCmd = Get-Command ffprobe -ErrorAction Stop
+          Add-Content -Path $env:GITHUB_PATH -Value (Split-Path $ffmpegCmd.Source)
+          Add-Content -Path $env:GITHUB_PATH -Value (Split-Path $ffprobeCmd.Source)
+          ffmpeg -version | Select-Object -First 1
+          ffprobe -version | Select-Object -First 1
+      - name: Install GUI packager
+        run: python -m pip install --disable-pip-version-check "pyinstaller>=6.12,<7" "pywebview>=5.4,<7"
+      - name: Python and API regression tests
+        run: python -m unittest discover -s tests -v
+      - name: Real FFmpeg synthetic render smoke
+        run: python -m tools.smoke
+      - name: Build portable native .exe with local FFmpeg
+        run: python -m tools.build_windows
+      - name: Test the FROZEN executable and loopback API
+        shell: pwsh
+        run: |
+          $json = Join-Path $env:RUNNER_TEMP "gta6-desktop-selftest.json"
+          $env:GTA6_SELFTEST_PATH = $json
+          $exe = (Resolve-Path "./dist/GTA6Clips/GTA6Clips.exe").Path
+          $process = Start-Process -FilePath $exe -ArgumentList @("--self-test") -PassThru
+          $deadline = (Get-Date).AddSeconds(45)
+          $result = $null
+          while ((Get-Date) -lt $deadline) {
+            if (Test-Path $json) {
+              try { $result = Get-Content $json -Raw | ConvertFrom-Json } catch {}
+              if ($result -and $result.phase -in @("complete","exception")) { break }
+            }
+            if ($process.HasExited) { break }
+            Start-Sleep -Milliseconds 500
+          }
+          if (-not $result) { $result = [pscustomobject]@{ phase="no_report"; status="fail" } }
+          $result | ConvertTo-Json
+          if ($result.phase -ne "complete") {
+            if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
+            throw "Frozen executable did not complete. Last phase: $($result.phase)"
+          }
+          if (-not $process.WaitForExit(5000)) {
+            Stop-Process -Id $process.Id -Force
+            throw "Frozen executable did not exit cleanly after self-test"
+          }
+          if ($process.ExitCode -ne 0) { throw "Packaged EXE returned $($process.ExitCode)" }
+          if ($result.status -ne "pass") { throw "Packaged EXE self-test failed" }
+          if (-not $result.ffmpeg -or -not $result.ffprobe -or -not $result.protected_api) {
+            throw "Required native tools or protected API missing"
+          }
+      - name: Create portable ZIP
+        shell: pwsh
+        run: |
+          Copy-Item docs/DESKTOP_WINDOWS.md dist/GTA6Clips/LEIA-ME-PRIMEIRO.md
+          Copy-Item LICENSES.md dist/GTA6Clips/LICENSES.md
+          Compress-Archive -Path "dist/GTA6Clips/*" -DestinationPath "dist/GTA6Clips-Windows-portable.zip" -Force
+          if ((Get-Item "dist/GTA6Clips-Windows-portable.zip").Length -lt 1000000) { throw "Suspiciously small ZIP" }
+      - name: Upload Windows app ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: GTA6Clips-Windows-Portable
+          path: dist/GTA6Clips-Windows-portable.zip
+          compression-level: 0
+          retention-days: 14

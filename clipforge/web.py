@@ -16,6 +16,15 @@ def make_handler(runtime: Runtime):
     token = os.getenv("DASHBOARD_TOKEN", "")
 
     class Handler(BaseHTTPRequestHandler):
+        def log_message(self, format, *args):
+            """The Windows --windowed executable has sys.stderr=None.
+
+            HTTP server default logging crashes before headers are sent when
+            stderr is unavailable. Event telemetry is stored in SQLite.
+            Avoid logging tokens, media paths or private request metadata.
+            """
+            return
+
         def _auth(self) -> bool:
             return not token or self.headers.get("Authorization") == f"Bearer {token}"
 
