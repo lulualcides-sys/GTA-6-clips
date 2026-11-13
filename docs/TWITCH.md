@@ -1,54 +1,48 @@
-# Twitch Helix — descoberta geral até GTA VI, exclusiva após lançamento
+# Twitch Helix — GTA V até 18/11, GTA VI a partir de 19/11
 
-## Política de categorias
+**Decisão editorial atualizada (13/11/2026):** enquanto treinamos a edição, o radar consulta **exclusivamente Grand Theft Auto V**, incluindo criadores de GTA RP que usem essa categoria. A partir de **19/11/2026 às 00:00 America/Sao_Paulo** (UTC 03:00), passa a consultar **exclusivamente Grand Theft Auto VI**. É uma mudança de foco editorial em relação à antiga busca geral; não criar exceções por nome de streamer.
 
-**Regra definida:** até **18/11/2026**, buscar clipes em até 12 categorias populares da Twitch, incluindo jogos e categorias IRL. Na virada para **19/11/2026 à 00:00 em São Paulo**, monitorar **somente** a categoria exata `Grand Theft Auto VI` (ou `Grand Theft Auto 6`, caso a Twitch use esse nome).
+A hora de lançamento deve acompanhar a informação oficial da Rockstar: https://www.rockstargames.com/VI . Quando o horário oficial mudar, ajustar `TWITCH_GTA6_LAUNCH_AT` e os testes; não antecipar uma virada com base em rumor.
 
-A data foi definida a partir da informação oficial da Rockstar em https://www.rockstargames.com/VI e https://support.rockstargames.com/articles/29jV3Cv2cCgvwM1XgtMO5o/grand-theft-auto-vi-regional-pre-load-and-release-times-on-playstation-5-and-xbox-series-x-or-s . Se a Rockstar alterar o lançamento, ajuste a variável local `TWITCH_GTA6_LAUNCH_AT` antes do novo prazo.
+## O que está implementado
 
-- **Antes do lançamento:** `GET /helix/games/top` retorna categorias principais, `GET /helix/clips?game_id=...` retorna até 15 clipes por categoria em janela de 72h; ordenação por atividade popular/recência/duração. Não há cobertura de todas as categorias da Twitch nem reconhecimento semântico de momentos engraçados.
-- **Após o lançamento:** consulta e lista exclusivas de GTA VI. O sistema verifica a categoria com nome exato; nunca usa GTA V como substituta silenciosa. Se a categoria não existir ou a API falhar, mostrará erro.
-- **Banco:** preserva histórico e anota nome/ID de cada categoria; a lista após a virada **filtra GTA VI** mesmo se o banco ainda tiver registros antigos de outras categorias.
-- **Limite:** 12 categorias, 15 clipes por categoria, uma atualização a cada 15 minutos por padrão, com até 100 candidatos exibidos. Evita consultas excessivas.
+- OAuth de aplicação: `TWITCH_CLIENT_ID` e `TWITCH_CLIENT_SECRET` configurados localmente.
+- A busca pré-lançamento resolve por nome exato `Grand Theft Auto V` pela API `search/categories`, com `TWITCH_GTA5_GAME_ID` como override opcional. **Não** usar `TWITCH_GAME_ID` para GTA V.
+- Após a virada resolve a categoria exata `Grand Theft Auto VI` (também aceita `Grand Theft Auto 6`), com `TWITCH_GAME_ID` como override opcional. Se não encontrar a categoria, emite erro explícito; nunca volta silenciosamente para GTA V.
+- Busca `GET /helix/clips?game_id=...` em janela padrão de 72 horas, até 15 clipes por consulta (configurável até 30). Ranking heurístico por views, recência, duração e leve bônus PT-BR. **Não** identifica semântica de piadas, falas ou eventos.
+- Banco SQLite mantém todos os registros anteriores, mas listagem e contagem em cada perfil mostram somente o jogo ativo; não misturar GTA V com GTA VI depois da virada.
+- `TWITCH_ENABLED` ativa consultas periódicas somente com credenciais válidas, aplicativo aberto e PC ligado.
 
-## Ativação no aplicativo Windows
+## Configuração
 
-1. Abra o **GTA VI Clips** no PC.
-2. Crie um app de desenvolvedor no [Twitch Developer Console](https://dev.twitch.tv/console/apps) e obtenha **Client ID** e **Client Secret**.
-3. Clique em **Conectar Twitch** no aplicativo. Digite os dois valores na janela local. O programa **testa a autenticação na API oficial antes de salvar** e não exibe o segredo após isso.
-4. Alternativamente, clique em **Configurações** e edite o arquivo `%LOCALAPPDATA%\GTA6Clips\config.env` diretamente:
+Em `config.env` local, após conectar a Twitch pelo aplicativo:
 
-```dotenv
+```ini
 TWITCH_ENABLED=1
-TWITCH_CLIENT_ID=seu-client-id
-TWITCH_CLIENT_SECRET=seu-client-secret
+TWITCH_CLIENT_ID=<id-da-sua-aplicacao>
+TWITCH_CLIENT_SECRET=<segredo-somente-no-PC>
 TWITCH_POLL_SECONDS=900
 TWITCH_GTA6_LAUNCH_AT=2026-11-19T03:00:00+00:00
+# Opcional, somente antes do lançamento:
+# TWITCH_GTA5_GAME_ID=<id-exato-da-categoria-GTA-V>
+# Opcional, somente depois:
+# TWITCH_GAME_ID=<id-exato-da-categoria-GTA-VI>
 ```
 
-5. Salve (ou use **Salvar no PC** na janela de conexão) e reinicie o aplicativo. O monitor começa a consultar **metadados** automaticamente. O botão **Buscar clipes** permite uma consulta manual.
-6. No painel, confira se aparece "Monitoramento ativo", qual o modo atual e as categorias de fato encontradas.
+Para credenciais: https://dev.twitch.tv/console/apps . Não as colocar no GitHub. A atualização do app **não sobrescreve** um `config.env` existente; verificar `TWITCH_ENABLED` se uma instalação antiga não monitora.
 
-**Importante para quem já tinha o programa:** a atualização **não sobrescreve** `config.env`. Se a sua cópia antiga diz `TWITCH_ENABLED=0`, troque manualmente para `1`. Sem Client ID e Client Secret não é possível fazer uma consulta real à API Twitch. Não é necessário login de espectadores: o OAuth de aplicação usa `client_credentials`.
+## Preparação da edição
 
-## Direitos, arquivos e publicação
+GTA V é o laboratório para a chegada de GTA VI. A V8 aprovada (Counter-Strike) define **nível de acabamento**, não enquadramento único.
 
-- A integração consulta **somente metadados públicos, URLs de clipes e categorias**. Não captura lives, baixa gravações ou publica em TikTok/Shorts/Reels.
-- Para usar vídeo próprio ou de terceiro, o sistema de edição exige um arquivo local com manifesto de autorização separado. Criar um clipe na Twitch **não** dá licença de republicação.
-- Um arquivo privado `data/twitch_sources.json` pode documentar broadcasters com permissão declarada; não é comprovante jurídico.
-- `TWITCH_CLIENT_SECRET` permanece no PC, não no GitHub, no frontend nem em logs de atividades.
+- **GTA RP/dialogo:** preservar quem falou, a preparação da conversa, a resposta e a reação; legendas PT-BR fiéis apenas quando ajudarem, sem falas fabricadas.
+- **GTA V humor visual:** mostrar causa, ação inesperada, consequência e reação; título editorial breve, replay apenas se reforçar a piada.
+- **GTA V perseguição/ação:** mostrar perseguição e evolução, decisões e acidente/fuga; zoom acompanhando veículo, mapa/elementos relevantes e reação.
+- Em todos: marca Nexus Clips BR, crédito ao criador em letras pequenas, contexto completo, áudio legível e final seco, player online sem download obrigatório, **sem marca Descript**.
+- Planejadores em `clipforge/editorial_profiles.py` exigem tempos revisados manualmente. Ainda não implementam identificação semântica nem edição automática por evento.
 
-## API protegida
+## Limites e segurança
 
-- `GET /api/twitch/status`: modo ativo (`prelaunch_multi` ou `gta6_only`), categorias monitoradas, status OAuth e última atualização.
-- `GET /api/twitch/candidates`: até 100 candidatos, cada um com `game_name`/`game_id`.
-- `POST /api/twitch/refresh`: busca manual, requer OAuth configurado.
-- O painel local usa autenticação por token aleatório e API acessível apenas em `127.0.0.1`.
+A API entrega metadados; este monitor **não baixa vídeos nem publica automaticamente** no TikTok/Instagram/YouTube. Um clipe público não é, por si só, licença de reutilização em outras plataformas. O renderizador local usa material com manifesto de direitos. A revisão editorial é separada da autorização de republicação.
 
-## Restrições
-
-A busca mostra clipes existentes na API; não garante que as transmissões serão interessantes ou que haja permissão de reprodução comercial. O aplicativo precisa estar aberto e o PC ligado para monitoramento contínuo. Ele não cria uma transmissão, não substitui credenciais do Twitch Developer Console e não mantém um servidor público.
-
-## Para outras IAs
-
-Não modificar a política de virada automática, não confundir "popular" com "todo conteúdo da Twitch", não expor secrets e não trazer GTA V para a lista após o lançamento. Para alterar a data, confirmar notícia oficial e atualizar também o valor padrão e os testes. Antes de publicar versão Windows, testar comportamento antes e depois do limite e verificar CI principal e Windows.
+API: `GET /api/twitch/status` informa `gta5_only` ou `gta6_only`, jogo focado, credenciais, contagem e horário da última consulta; `GET /api/twitch/candidates` mostra os candidatos; `POST /api/twitch/refresh` consulta o jogo ativo.
