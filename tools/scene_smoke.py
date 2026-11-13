@@ -13,9 +13,9 @@ def main():
         movie = Path(temp) / "hard-cuts.mp4"
         subprocess.run([
             "ffmpeg", "-y", "-v", "error",
-            "-f", "lavfi", "-i", "color=c=red:s=320x180:r=15:d=2",
-            "-f", "lavfi", "-i", "color=c=blue:s=320x180:r=15:d=2",
-            "-f", "lavfi", "-i", "color=c=green:s=320x180:r=15:d=2",
+            "-f", "lavfi", "-i", "color=c=black:s=320x180:r=15:d=2",
+            "-f", "lavfi", "-i", "color=c=white:s=320x180:r=15:d=2",
+            "-f", "lavfi", "-i", "color=c=black:s=320x180:r=15:d=2",
             "-filter_complex", "[0:v][1:v][2:v]concat=n=3:v=1:a=0[v]",
             "-map", "[v]", "-c:v", "libx264", "-preset", "ultrafast",
             "-pix_fmt", "yuv420p", str(movie)
