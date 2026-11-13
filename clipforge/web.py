@@ -160,8 +160,13 @@ def main():
     host = os.getenv("HOST", "127.0.0.1")
     port = int(os.getenv("PORT", "8000"))
     token = os.getenv("DASHBOARD_TOKEN", "")
-    if host not in {"localhost", "127.0.0.1", "::1"} and not token:
-        raise SystemExit("DASHBOARD_TOKEN required for non-local binding. Use HTTPS reverse proxy.")
+    if host not in {"localhost", "127.0.0.1", "::1"} and (
+        len(token) < 24 or token.startswith(("REPLACE_", "CHANGE_ME", "example-"))
+    ):
+        raise SystemExit(
+            "Strong DASHBOARD_TOKEN (24+ characters) required for non-local binding. "
+            "Configure an HTTPS reverse proxy before exposing the service."
+        )
     runtime = Runtime(Path(os.getenv("CLIPS_DATA_DIR", "./data")))
     runtime.start_polling()
     runtime.twitch.start_polling()
