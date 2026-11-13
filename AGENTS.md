@@ -12,6 +12,10 @@
 - Aprovar no painel NÃO publica nas redes.
 - Não inventar resultados, streams, vídeos, direitos, alcance ou testes.
 
+## Padrão editorial Nexus Clips BR (13/11/2026)
+
+Para cortes de humor visual de GTA, consultar **docs/nexus-clips-br-editorial.md** antes da revisão: título curto em PT-BR, sem rótulo de replay, replay lento opcional, crédito pequeno ao criador, marca-d'água compacta Nexus Clips BR e final com corte seco. Para cenas cujo humor dependa da fala, a legenda PT-BR deve traduzir fielmente o áudio de verdade; não inventar diálogo. Aprovação editorial e direitos de publicação são gates distintos. A implementação automática do preset no aplicativo e o PNG no instalador ainda dependem de integração e testes; este documento não os configura por si só.
+
 ## Mapa dos arquivos
 
 - clipforge/core.py: ingestão, direitos, ffprobe, banco, FFmpeg e workers.
