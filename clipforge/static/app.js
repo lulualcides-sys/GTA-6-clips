@@ -66,6 +66,40 @@ function mountDesktopControls() {
       }catch(error){toast("Windows: "+error.message);}
     });
   }
+  const connectButton=byId("desktop-twitch-connect");
+  const twitchDialog=byId("twitch-oauth-modal");
+  const twitchForm=byId("twitch-oauth-form");
+  const twitchId=byId("twitch-client-id");
+  const twitchSecret=byId("twitch-client-secret");
+  const twitchSave=byId("twitch-oauth-save");
+  connectButton.addEventListener("click",()=>twitchDialog.showModal());
+  byId("twitch-oauth-cancel").addEventListener("click",()=>{
+    twitchSecret.value="";
+    twitchDialog.close();
+  });
+  twitchForm.addEventListener("submit",async(event)=>{
+    event.preventDefault();
+    if(twitchSave.disabled) return;
+    twitchSave.disabled=true;
+    try {
+      const response=await bridge.save_twitch_credentials(
+        twitchId.value.trim(),twitchSecret.value.trim()
+      );
+      if(!response?.ok) {
+        toast(response?.error||"Não foi possível salvar credenciais");
+        return;
+      }
+      twitchSecret.value="";
+      twitchId.value="";
+      twitchDialog.close();
+      toast("Credenciais salvas no PC. Feche e reabra o aplicativo para ativar a busca Twitch.");
+    } catch(error) {
+      toast("Twitch: falha na configuração local");
+    } finally {
+      twitchSecret.value="";
+      twitchSave.disabled=false;
+    }
+  });
   const updateButton=byId("desktop-update");
   const updateStatus=byId("desktop-update-status");
   let available=false;
