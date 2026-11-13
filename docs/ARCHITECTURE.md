@@ -80,6 +80,12 @@ Twitch OAuth (client credentials)
 Os streamers com permissão declarada são identificados somente se constam em `data/twitch_sources.json` com registro. Essa evidência não equivale a licença validada. Veja `docs/TWITCH.md`.
 
 
+## Mission Control / telemetria verificável
+
+Tabela SQLite agent_activity no volume de dados persistente. Eventos escritos somente nos pontos reais de execução: ingestão e manifesto, curadoria, FFmpeg, Whisper, HyperFrames, revisão e Twitch Helix. Rota privada GET /api/agents?clip_id=id com feed cronológico, estados por módulo e contadores de filas. Quando não há jobs, não são simuladas animações de trabalho.
+
+O frontend mantém módulos com statuses idle, waiting, blocked, queued, running, complete e failed; o campo publishing_connected permanece falso até integrar conta própria GTA, independentemente da aparência do painel. Testes em docs/MISSION_CONTROL.md.
+
 ## Módulo local opcional de análise de cenas e legendas
 
 Quando `SMART_SCENES=1`, a seleção inicial do trecho permanece ancorada no áudio, com pequenos ajustes para cortes detectados por PySceneDetect, dentro dos primeiros cinco minutos. O áudio/FFmpeg continua o fallback quando o pacote opcional não está instalado. Isso **não** reconhece piadas, ações ou eventos.
