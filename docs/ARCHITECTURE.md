@@ -79,3 +79,13 @@ Twitch OAuth (client credentials)
 
 Os streamers com permissão declarada são identificados somente se constam em `data/twitch_sources.json` com registro. Essa evidência não equivale a licença validada. Veja `docs/TWITCH.md`.
 
+
+## Módulo local opcional de análise de cenas e legendas
+
+Quando `SMART_SCENES=1`, a seleção inicial do trecho permanece ancorada no áudio, com pequenos ajustes para cortes detectados por PySceneDetect, dentro dos primeiros cinco minutos. O áudio/FFmpeg continua o fallback quando o pacote opcional não está instalado. Isso **não** reconhece piadas, ações ou eventos.
+
+Quando `AUTO_TRANSCRIBE=1`, o callback pós-render agenda apenas clipes técnicos `ready` para transcrição faster-whisper; com valor padrão `0`, o usuário aciona manualmente o botão de legendas. Uma fila de transcrição é isolada da fila de render. A tabela SQLite `clip_captions` registra status/modelo/idioma/hash da mídia e o arquivo SRT fica em `data/captions`. Legendas antigas são consideradas obsoletas se o conteúdo mudou.
+
+Rotas autenticadas adicionais: `GET /api/captions`, `POST /api/clips/{id}/transcribe`, `GET /api/clips/{id}/captions.srt`. O exportador HyperFrames incorpora somente o SRT ainda correspondente à mídia.
+
+Para não expor provas privadas de autorização, `GET /api/clips` omite `evidence`, `input_path` e substitui `output_path` por indicador booleano. Veja `docs/AI_PIPELINE.md` para testes e requisitos.

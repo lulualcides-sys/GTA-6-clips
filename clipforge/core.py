@@ -191,7 +191,11 @@ def render_clip(store: ClipStore, clip_id: str) -> None:
         length = min(float(item["duration_sec"]), total)
         start = item["start_sec"]
         if start is None:
-            start = choose_highlight(source, total, length)
+            if os.getenv("SMART_SCENES", "0") == "1":
+                from .smart import choose_smart_highlight
+                start, _ = choose_smart_highlight(source, total, length)
+            else:
+                start = choose_highlight(source, total, length)
             store.update(clip_id, start_sec=start, score=None)
         if start + length > total + 0.2:
             raise ValueError("Segment exceeds media duration")
@@ -233,6 +237,9 @@ class Runtime:
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="clip-render")
         from .twitch import TwitchDiscovery
         self.twitch = TwitchDiscovery(self.store.database, self.store.lock, self.store.root)
+        from .captions import CaptionService
+        self.captions = CaptionService(self.store)
+        self.auto_transcribe = os.getenv("AUTO_TRANSCRIBE", "0") == "1"
         self.auto_render = os.getenv("AUTO_RENDER", "1") == "1"
         self.auto_scan = os.getenv("AUTO_SCAN", "1") == "1"
         self.poll_seconds = max(10, int(os.getenv("POLL_SECONDS", "30")))
@@ -247,8 +254,19 @@ class Runtime:
             if not item or item["status"] not in {"detected", "failed", "rejected"}:
                 return False
             self.store.update(clip_id, status="queued", error=None)
-            self.executor.submit(render_clip, self.store, clip_id)
+            future = self.executor.submit(render_clip, self.store, clip_id)
+            if self.auto_transcribe:
+                future.add_done_callback(lambda done, cid=clip_id: self._after_render(cid))
             return True
+
+    def _after_render(self, clip_id: str):
+        """Optional opt-in transcription after successful video render."""
+        item = self.store.get(clip_id)
+        if item and item["status"] == "ready":
+            try:
+                self.captions.queue(clip_id)
+            except (ValueError, OSError) as exc:
+                print(f"Optional caption enqueue failed: {type(exc).__name__}", flush=True)
 
     def scan(self) -> dict:
         result = self.store.scan()
