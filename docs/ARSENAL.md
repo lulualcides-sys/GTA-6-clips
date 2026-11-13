@@ -8,6 +8,7 @@ Origem: [Arsenal do usuário](https://github.com/lulualcides-sys/Arsenal). O cat
 | P0 | Python stdlib + SQLite | Scanner de permissões, SHA-256, fila e histórico | Implementado |
 | P0 | HTML/CSS/JavaScript | Painel responsivo leve, sem dependências frontend | Implementado |
 | P0 | GitHub Actions + unittest | Testes de lógica, API e render sintético | Configurado, validar workflow |
+| P1 | HyperFrames (heygen-com/hyperframes) | Pacote HTML/CSS 9:16 com títulos animados, crédito e legendas SRT opcionais | **Exportador e download implementados**; render CLI é opcional e tem workflow piloto separado |
 | P1 | faster-whisper / WhisperX | Legendas PT/EN com timestamps reais | Planejado; opcional e com benchmark |
 | P1 | OpenCV + PySceneDetect | Análise visual, mudanças de cena e duplicatas | Planejado |
 | P1 | Twitch Helix + OAuth | Detectar lives e clipes por categoria/canal | Planejado, somente com direitos e termos atendidos |
