@@ -206,6 +206,7 @@ class TwitchDiscoveryTests(unittest.TestCase):
                 return [{"id":"11","name":"Just Chatting"},
                         {"id":"22","name":"League of Legends"}]
             def get_clips(self,game_id,lookback_hours=72,first=15):
+                self.requested_game = game_id
                 return [clip("clip-"+game_id, broadcaster_id=game_id)]
         fake = MixedClient([])
         discovery = TwitchDiscovery(self.db,self.lock,self.root,fake)
