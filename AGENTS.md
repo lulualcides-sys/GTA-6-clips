@@ -24,7 +24,7 @@
 - clipforge/captions.py: SRT de fala real, jobs limitados, cache e proteção de direitos.
 - clipforge/hyperframes.py: pós-produção opcional, exportação HTML/CSS + SRT, empacotamento, CLI local.
 - clipforge/templates/: presets de composição 9:16 próprios e sem dependência CDN.
-- clipforge/twitch.py: OAuth app, consulta de **metadados** de clipes e ranking heurístico; não faz download.
+- clipforge/twitch.py: OAuth app, consulta de **metadados** e ranking heurístico; não faz download. Perfil obrigatório: top 12 categorias Twitch antes de 19/11/2026 às 00:00 São Paulo, depois **apenas GTA VI**. Respeitar data oficial configurável `TWITCH_GTA6_LAUNCH_AT`. Nunca mostrar clipes antigos de jogos diferentes após a mudança de perfil.
 - clipforge/static/: interface HTML/CSS/JS sem framework.
 - tests/: testes de API, segurança e exportação HyperFrames; tools/smoke.py: render FFmpeg; tools/hyperframes_smoke.py: piloto HyperFrames.
 - docs/: arquitetura, arsenal, roadmap, operação, análise de cenas, legendas, fontes Twitch e Mission Control.
@@ -70,4 +70,4 @@
 
 ## Sequência P1
 
-Validar desempenho e qualidade da transcrição com vídeo autorizado, verificar seleção visual (não semântica), integrar dados para edição, concluir autenticação Twitch e publicação nas redes somente com canal GTA próprio. Não instalar o Arsenal completo em massa.
+Conectar OAuth Twitch real no Windows (segredos privados) e validar consulta de múltiplas categorias antes do lançamento; após o lançamento, focar exclusivamente GTA VI. Validar desempenho e qualidade da transcrição com vídeo autorizado, verificar seleção visual (não semântica), integrar dados para edição, concluir autenticação Twitch e publicação nas redes somente com canal GTA próprio. Não instalar o Arsenal completo em massa.
