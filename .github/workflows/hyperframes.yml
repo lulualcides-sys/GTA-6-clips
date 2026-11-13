@@ -32,6 +32,6 @@ jobs:
       - name: Install HyperFrames CLI
         run: npm install -g hyperframes
       - name: Install Chrome headless shell
-        run: hyperframes browser --install
+        run: hyperframes browser ensure
       - name: Run HyperFrames full end-to-end synthetic render
         run: python -m tools.hyperframes_smoke --render
