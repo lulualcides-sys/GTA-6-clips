@@ -48,8 +48,7 @@ def scene_aware_start(audio_start: float, total: float, length: float,
     return min(upper, max(0.0, max(candidates, key=value)))
 
 
-def choose_smart_highlight(path: Path, total: float, length: float,
-                           audio_baseline) -> tuple[float, dict]:
+def choose_smart_highlight(path: Path, total: float, length: float) -> tuple[float, dict]:
     """Return proposed start with enough metadata to distinguish heuristics."""
     from .core import choose_highlight
     baseline = choose_highlight(path, total, length)
