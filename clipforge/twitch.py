@@ -18,12 +18,10 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 
-ALLOWED_CATEGORY_NAMES = {"grand theft auto vi", "grand theft auto 6"}
-# Rockstar currently confirms November 19, 2026 at 00:00 in São Paulo (UTC-03).
-# Operator may adjust this value if the publisher changes the launch schedule.
-DEFAULT_GTA6_LAUNCH = "2026-11-19T03:00:00+00:00"
-PRELAUNCH_CATEGORY_LIMIT = 12
-PRELAUNCH_CLIPS_PER_CATEGORY = 15
+# No fixed game/streamer allowlist and no automatic switch to GTA VI.
+# Bounds protect Twitch API quotas; not editorial exclusions.
+DEFAULT_CATEGORY_LIMIT = 30
+DEFAULT_CLIPS_PER_CATEGORY = 15
 TWITCH_BASE = "https://api.twitch.tv/helix"
 OAUTH_URL = "https://id.twitch.tv/oauth2/token"
 
@@ -47,7 +45,10 @@ def clip_score(item: dict, now: datetime | None = None) -> int:
     popularity = min(62.0, 12 * math.log10(views + 1))
     freshness = max(0.0, 28.0 - age_hours * 0.3)
     usable = 10.0 if 18 <= duration <= 60 else (4.0 if 10 <= duration <= 90 else 0.0)
-    return max(0, min(100, round(popularity + freshness + usable)))
+    # Prefer Portuguese clips for Brazilian audiences; other languages remain eligible.
+    lang = str(item.get("language", "") or "").lower().replace("_", "-")
+    language_bonus = 7.0 if lang == "pt" or lang.startswith("pt-") else 0.0
+    return max(0, min(100, round(popularity + freshness + usable + language_bonus)))
 
 
 def twitch_clip_url(url: str) -> bool:
@@ -112,9 +113,9 @@ class TwitchClient:
                 return str(game["id"])
         raise TwitchError("GTA VI category not yet available on Twitch; configure TWITCH_GAME_ID")
 
-    def get_top_categories(self, limit: int = PRELAUNCH_CATEGORY_LIMIT) -> list[dict]:
+    def get_top_categories(self, limit: int = DEFAULT_CATEGORY_LIMIT) -> list[dict]:
         """The official Twitch top games/categories endpoint (includes IRL)."""
-        records = self._get("games/top", {"first": max(1, min(20, limit))}).get("data", [])
+        records = self._get("games/top", {"first": max(1, min(100, limit))}).get("data", [])
         return [
             {"id": str(item["id"]), "name": str(item["name"])[:100]}
             for item in records if str(item.get("id", "")).isdigit()
@@ -164,6 +165,7 @@ class TwitchDiscovery:
                 ("twitch_candidates", "game_name", "TEXT NOT NULL DEFAULT ''"),
                 ("twitch_sync", "profile", "TEXT NOT NULL DEFAULT ''"),
                 ("twitch_sync", "categories_json", "TEXT NOT NULL DEFAULT '[]'"),
+                ("twitch_candidates", "language", "TEXT NOT NULL DEFAULT ''"),
             ):
                 columns = {row["name"] for row in db.execute(f"PRAGMA table_info({table})")}
                 if name not in columns:
@@ -197,22 +199,24 @@ class TwitchDiscovery:
             raise TwitchError("Invalid Twitch sources JSON") from exc
 
     def profile(self, now: datetime | None = None) -> dict:
-        """Automatic broad discovery until GTA VI launch, then strict GTA VI focus."""
-        now = now or datetime.now(timezone.utc)
-        launch_raw = os.getenv("TWITCH_GTA6_LAUNCH_AT", DEFAULT_GTA6_LAUNCH).strip()
-        try:
-            launch = datetime.fromisoformat(launch_raw.replace("Z", "+00:00"))
-            if launch.tzinfo is None:
-                raise ValueError("Timezone required")
-            launch = launch.astimezone(timezone.utc)
-        except ValueError:
-            # Fail safe: don't unexpectedly hunt different games if a local
-            # date was malformed; official default remains authoritative.
-            launch = datetime.fromisoformat(DEFAULT_GTA6_LAUNCH)
+        """Always discover trending Twitch clips, from any streamer and category.
+
+        OAuth is needed for live data, not for filtering by GTA or creator.
+        The number of API calls remains configurable and bounded.
+        """
+        def bounded(name: str, default: int, max_value: int) -> int:
+            try:
+                return max(1, min(max_value, int(os.getenv(name, str(default)))))
+            except ValueError:
+                return default
+
         return {
-            "profile": "gta6_only" if now >= launch else "prelaunch_multi",
-            "launch_at": launch.isoformat(timespec="seconds"),
-            "focus_game": "Grand Theft Auto VI",
+            "profile": "global_trending",
+            "focus_game": None,
+            "launch_at": None,
+            "category_limit": bounded("TWITCH_TRENDING_CATEGORIES", DEFAULT_CATEGORY_LIMIT, 100),
+            "clips_per_category": bounded("TWITCH_CLIPS_PER_CATEGORY", DEFAULT_CLIPS_PER_CATEGORY, 30),
+            "lookback_hours": bounded("TWITCH_LOOKBACK_HOURS", 72, 168),
         }
 
     def status(self) -> dict:
@@ -222,13 +226,7 @@ class TwitchDiscovery:
                 "SELECT last_at,last_error,game_id,profile,categories_json "
                 "FROM twitch_sync WHERE id=1"
             ).fetchone()
-            if profile["profile"] == "gta6_only":
-                count = db.execute(
-                    "SELECT COUNT(*) FROM twitch_candidates "
-                    "WHERE lower(game_name) IN ('grand theft auto vi','grand theft auto 6')"
-                ).fetchone()[0]
-            else:
-                count = db.execute("SELECT COUNT(*) FROM twitch_candidates").fetchone()[0]
+            count = db.execute("SELECT COUNT(*) FROM twitch_candidates").fetchone()[0]
         raw_categories = sync["categories_json"] if sync else "[]"
         try:
             categories = json.loads(raw_categories or "[]")
@@ -239,7 +237,7 @@ class TwitchDiscovery:
             "auto_monitoring": self.enabled and bool(self.client or (self.client_id and self.secret)),
             "last_sync": sync["last_at"] if sync else None,
             "last_error": sync["last_error"] if sync else None,
-            "game_id": sync["game_id"] if sync and profile["profile"] == "gta6_only" else None,
+            "game_id": None,
             "count": count,
             "mode": "metadata_only",
             **profile,
@@ -248,14 +246,13 @@ class TwitchDiscovery:
         }
 
     def list_candidates(self) -> list[dict]:
-        focus = self.profile()["profile"] == "gta6_only"
+        # Recent refreshes only; stale historical viral clips cannot dominate today's radar.
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat(timespec="seconds")
         with self._db() as db:
-            query = "SELECT * FROM twitch_candidates "
-            if focus:
-                query += ("WHERE lower(game_name) IN "
-                          "('grand theft auto vi','grand theft auto 6') ")
-            query += "ORDER BY score DESC, view_count DESC LIMIT 100"
-            rows = db.execute(query).fetchall()
+            rows = db.execute(
+                "SELECT * FROM twitch_candidates WHERE seen_at>=? "
+                "ORDER BY score DESC, view_count DESC LIMIT 100", (cutoff,)
+            ).fetchall()
         return [dict(r) for r in rows]
 
     def refresh(self) -> dict:
@@ -269,24 +266,18 @@ class TwitchDiscovery:
             self.activity.append(None, "radar", "running",
                                  "Consultando metadados oficiais da Twitch")
         try:
-            if mode == "gta6_only":
-                game_id = os.getenv("TWITCH_GAME_ID", "").strip() or client.find_gta6_game()
-                if not game_id.isdigit():
-                    raise TwitchError("Invalid Twitch game ID")
-                categories = [{"id": game_id, "name": "Grand Theft Auto VI"}]
-                records_by_category = [(categories[0], client.get_clips(game_id))]
-            else:
-                # Official top categories include gaming and non-gaming streams.
-                # Avoid thousands of game-specific queries: 12 categories x 15 clips.
-                categories = client.get_top_categories(PRELAUNCH_CATEGORY_LIMIT)
-                if not categories:
-                    raise TwitchError("Twitch returned no discoverable categories")
-                records_by_category = [
-                    (category, client.get_clips(category["id"],
-                                                first=PRELAUNCH_CLIPS_PER_CATEGORY))
-                    for category in categories
-                ]
-                game_id = None
+            # Official top categories include games, Just Chatting, IRL and events.
+            # Every streamer in each sampled category is eligible regardless of date.
+            categories = client.get_top_categories(profile["category_limit"])
+            if not categories:
+                raise TwitchError("Twitch returned no discoverable categories")
+            records_by_category = [
+                (category, client.get_clips(
+                    category["id"], lookback_hours=profile["lookback_hours"],
+                    first=profile["clips_per_category"]))
+                for category in categories
+            ]
+            game_id = None
             allowlist = self.sources()
             now = datetime.now(timezone.utc).isoformat(timespec="seconds")
             inserted = 0
@@ -308,19 +299,21 @@ class TwitchDiscovery:
                             max(0.0, float(item.get("duration", 0) or 0)),
                             str(item.get("created_at", ""))[:80], clip_score(item),
                             flag, now, category["id"], category["name"],
+                            str(item.get("language", "") or "")[:16],
                         )
                         db.execute("""INSERT INTO twitch_candidates
                             (id,broadcaster_id,creator_name,title,url,view_count,
                              duration,created_at,score,consent_flag,seen_at,
-                             game_id,game_name)
-                            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                             game_id,game_name,language)
+                            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                             ON CONFLICT(id) DO UPDATE SET
                             view_count=excluded.view_count,
                             score=excluded.score, title=excluded.title,
                             consent_flag=excluded.consent_flag,
                             seen_at=excluded.seen_at,
                             game_id=excluded.game_id,
-                            game_name=excluded.game_name
+                            game_name=excluded.game_name,
+                            language=excluded.language
                         """, row)
                         inserted += 1
                 db.execute("""INSERT INTO twitch_sync
@@ -332,8 +325,7 @@ class TwitchDiscovery:
                     categories_json=excluded.categories_json""",
                     (now, None, game_id, mode,
                      json.dumps([c["name"] for c in categories], ensure_ascii=False)))
-                # Keep newest records only to bound SQLite storage. Focus
-                # filtering applies even before this cleanup runs.
+                # Retain a bounded history without excluding other games or creators.
                 db.execute("""DELETE FROM twitch_candidates WHERE id NOT IN
                     (SELECT id FROM twitch_candidates ORDER BY seen_at DESC LIMIT 5000)""")
                 db.commit()

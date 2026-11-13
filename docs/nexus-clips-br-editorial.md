@@ -34,3 +34,9 @@ Escopo: clipes de GTA e games voltados ao público brasileiro. O nome do canal, 
 
 ## Aplicação no produto
 Este documento define as diretrizes. Implementação automática no runtime depende de um preset de renderização e do asset da terceira marca efetivamente instalado no pacote do app; não confundir a existência deste documento com essa integração.
+
+## Ajustes aprovados na calibração (13/11/2026)
+- **Clipe 01 aprovado editorialmente:** xQc, GTA V, “Splat”, versão Nexus Clips BR v4 (~18,3s). Manter replay mudo de rótulos, título curto em PT-BR, marca-d'água pequena, crédito e corte seco.
+- **Entrega aprovada:** link de página de player responsiva abrindo diretamente no navegador do celular, sem obrigar download. Hospedagem de HTML no Vercel só é suficiente com vídeo acessível por URL válida e de duração conhecida. Evitar dependência de links assinados temporários que expirem; quando inevitável, avisar validade.
+- **Radar ampliado:** buscar tendências de várias categorias da Twitch, independentemente de streamer ou jogo, inclusive depois do lançamento de GTA VI. Priorizar PT-BR no ranking sem excluir idioma estrangeiro; traduzir falas quando necessário para preservar a graça.
+- **Calibração seguinte:** pelo menos três estilos para comparação: humor visual, diálogo com legenda fiel e reação. Não publicar nas redes sem checar direitos e aprovação do material específico.

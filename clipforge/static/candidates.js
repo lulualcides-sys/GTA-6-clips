@@ -9,7 +9,6 @@
   const mode = node("twitch-mode");
   const categories = node("twitch-categories");
   const heading = node("twitch-heading");
-  let focused = false;
   if (!panel || !state || !scan) return;
 
   function make(tag, text, className) {
@@ -37,7 +36,7 @@
   function displayCandidates(items) {
     panel.replaceChildren();
     if (!items.length) {
-      panel.appendChild(make("p", focused ? "Nenhum clipe GTA VI encontrado. Verifique o OAuth e a categoria exata na Twitch." : "Nenhum clipe encontrado. Configure as credenciais da Twitch e faça a primeira busca.", "hint"));
+      panel.appendChild(make("p", "Nenhum clipe encontrado. Conecte a Twitch e faça a primeira busca nas categorias em alta.", "hint"));
       return;
     }
     for (const item of items.slice(0, 40)) {
@@ -50,6 +49,7 @@
       const meta = make("small",
         (item.game_name || "Categoria não identificada") + " · " +
         (item.creator_name || "Canal desconhecido") + " · " +
+        ((item.language || "").toLowerCase().startsWith("pt") ? "PT-BR · " : "") +
         Number(item.view_count || 0).toLocaleString("pt-BR") + " visualizações · " +
         Math.round(Number(item.duration || 0)) + "s");
       left.append(tag,title,meta);
@@ -77,17 +77,13 @@
         (meta.auto_monitoring ? "Monitoramento ativo" : "Configurado · manual") :
         "OAuth não configurado";
       state.className = "tag " + (meta.configured ? "good" : "muted");
-      focused = meta.profile === "gta6_only";
-      if(heading) heading.textContent = focused ?
-        "GTA VI · monitoramento exclusivo" : "Twitch · melhores clipes de várias categorias";
-      if(mode) mode.textContent = focused ?
-        "Foco automático: somente Grand Theft Auto VI (a partir do lançamento)" :
-        "Modo atual: categorias populares da Twitch até 19/11/2026; depois, somente GTA VI";
-      if(categories) categories.textContent = focused ?
-        "Categoria monitorada: Grand Theft Auto VI" :
-        (meta.categories?.length ?
-         "Categorias da última busca: " + meta.categories.join(" · ") :
-         "A primeira busca descobrirá até 12 categorias populares, incluindo jogos e IRL.");
+      if(heading) heading.textContent = "Twitch · clipes em alta de todas as categorias";
+      if(mode) mode.textContent =
+        "Radar global: qualquer jogo, IRL ou streamer. Português recebe prioridade no ranking, não exclusividade.";
+      if(categories) categories.textContent = meta.categories?.length ?
+        "Categorias recentes: " + meta.categories.join(" · ") :
+        "A próxima busca consultará até " + (meta.category_limit || 30) +
+        " categorias populares, sem bloqueio por jogo ou por lançamento.";
       last.textContent = "Última busca: " + relativeTime(meta.last_sync) +
         (meta.last_error ? " · Erro: " + meta.last_error : "");
       displayCandidates(listing.candidates || []);

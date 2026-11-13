@@ -1,6 +1,6 @@
 # AGENTS.md — instruções para todas as IAs que alterarem este repositório
 
-**Leia primeiro.** Projeto independente GTA-6-clips. Não alterar WildVox, Pokémon Torre 2, Zumbi ou Nexus. A meta é produzir cortes autorizados de gameplay e reações, com revisão verificável, custo controlado e monitoramento móvel.
+**Leia primeiro.** Projeto independente GTA-6-clips. Não alterar WildVox, Pokémon Torre 2, Zumbi ou Nexus. A meta é descobrir clipes públicos de qualquer categoria em alta, preparar prévias para revisão e publicar apenas com direitos necessários, custo controlado e monitoramento móvel.
 
 ## Estado exato
 
@@ -10,11 +10,12 @@
 - NOVO: `clipforge/smart.py` adiciona detecção opcional de mudanças de cena via PySceneDetect (não é reconhecimento semântico); `clipforge/captions.py` enfileira faster-whisper opcional após clipes prontos e cria SRT com timestamps reais. UI permite acionar transcrição; HyperFrames pode incorporar o SRT disponível. Dependências extras em requirements-ai.txt, não instaladas no Docker padrão.
 - NÃO implementado: **baixar** lives/clipes Twitch, detecção SEMÂNTICA de melhores momentos, face tracking, Metricool conectado ao runtime, publicação social, Cloudflare hospedado. Legendas automáticas REQUEREM pacote/modelo instalado e ativação explícita. Nunca afirmar funcionamento em produção sem testes reais.
 - Aprovar no painel NÃO publica nas redes.
+- Entregas de vídeo em revisão: preferir URL HTTPS com player diretamente no navegador, sem exigir download do MP4; confirmar que a fonte da mídia não expirou.
 - Não inventar resultados, streams, vídeos, direitos, alcance ou testes.
 
 ## Padrão editorial Nexus Clips BR (13/11/2026)
 
-Para cortes de humor visual de GTA, consultar **docs/nexus-clips-br-editorial.md** antes da revisão: título curto em PT-BR, sem rótulo de replay, replay lento opcional, crédito pequeno ao criador, marca-d'água compacta Nexus Clips BR e final com corte seco. Para cenas cujo humor dependa da fala, a legenda PT-BR deve traduzir fielmente o áudio de verdade; não inventar diálogo. Aprovação editorial e direitos de publicação são gates distintos. A implementação automática do preset no aplicativo e o PNG no instalador ainda dependem de integração e testes; este documento não os configura por si só.
+Para cortes de humor visual de GTA e outros games, consultar **docs/nexus-clips-br-editorial.md** antes da revisão: título curto em PT-BR, sem rótulo de replay, replay lento opcional, crédito pequeno ao criador, marca-d'água compacta Nexus Clips BR e final com corte seco. Para cenas cujo humor dependa da fala, a legenda PT-BR deve traduzir fielmente o áudio de verdade; não inventar diálogo. Aprovação editorial e direitos de publicação são gates distintos. A implementação automática do preset no aplicativo e o PNG no instalador ainda dependem de integração e testes; este documento não os configura por si só.
 
 ## Mapa dos arquivos
 
@@ -28,7 +29,7 @@ Para cortes de humor visual de GTA, consultar **docs/nexus-clips-br-editorial.md
 - clipforge/captions.py: SRT de fala real, jobs limitados, cache e proteção de direitos.
 - clipforge/hyperframes.py: pós-produção opcional, exportação HTML/CSS + SRT, empacotamento, CLI local.
 - clipforge/templates/: presets de composição 9:16 próprios e sem dependência CDN.
-- clipforge/twitch.py: OAuth app, consulta de **metadados** e ranking heurístico; não faz download. Perfil obrigatório: top 12 categorias Twitch antes de 19/11/2026 às 00:00 São Paulo, depois **apenas GTA VI**. Respeitar data oficial configurável `TWITCH_GTA6_LAUNCH_AT`. Nunca mostrar clipes antigos de jogos diferentes após a mudança de perfil.
+- clipforge/twitch.py: OAuth de aplicativo, consulta de **metadados** e ranking de tendências de múltiplas categorias. Não faz download de vídeos. Perfil contínuo `global_trending` sem lista fixa de streamers/jogos nem bloqueio automático na estreia de GTA VI. Configurável: `TWITCH_TRENDING_CATEGORIES` (padrão 30, máximo 100), `TWITCH_CLIPS_PER_CATEGORY` (padrão 15, máximo 30) e `TWITCH_LOOKBACK_HOURS` (padrão 72, máximo 168). Português recebe bônus pequeno na pontuação; clipes de outros idiomas não são excluídos. A lista representa amostra das categorias mais populares, **não todos os clipes existentes**.
 - clipforge/static/: interface HTML/CSS/JS sem framework.
 - tests/: testes de API, segurança e exportação HyperFrames; tools/smoke.py: render FFmpeg; tools/hyperframes_smoke.py: piloto HyperFrames.
 - docs/: arquitetura, arsenal, roadmap, operação, análise de cenas, legendas, fontes Twitch e Mission Control.
