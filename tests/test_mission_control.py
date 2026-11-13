@@ -148,13 +148,14 @@ class MissionAPITests(unittest.TestCase):
         self.assertEqual(stage["state"],"failed")
 
     def test_ui_assets_exist_and_are_served(self):
-        for path in ["/","/agents.js","/agents.css"]:
+        for path in ["/","/agents.js","/agents.css","/studio-v2.css"]:
             code,body=self.request(path,False)
             self.assertEqual(code,200,path)
             self.assertTrue(len(body)>100)
         index=self.request("/",False)[1].decode()
         for required in ["id=\"agent-nodes\"","id=\"mission-feed\"",
-                         "id=\"mission-focus\"","src=\"/agents.js\""]:
+                         "id=\"mission-focus\"","src=\"/agents.js\"",
+                         "href=\"/studio-v2.css\"","id=\"production-workspace\""]:
             self.assertIn(required,index)
 
 
