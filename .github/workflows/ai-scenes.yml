@@ -1,0 +1,26 @@
+name: Optional scene detection acceptance
+on:
+  pull_request:
+    paths:
+      - "clipforge/smart.py"
+      - "tools/scene_smoke.py"
+      - "requirements-ai.txt"
+      - ".github/workflows/ai-scenes.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  scenes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install FFmpeg and PySceneDetect
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+          python -m pip install "scenedetect[opencv]>=0.6,<1"
+      - name: Detect real edits in generated synthetic video
+        run: python -m tools.scene_smoke
