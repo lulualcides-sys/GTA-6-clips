@@ -1,0 +1,33 @@
+name: Private variety clip audition
+on:
+  pull_request:
+    paths:
+      - 'tools/review_variety_sources.py'
+      - '.github/workflows/review-variety.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audition:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install ffmpeg and yt-dlp
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          python -m pip install 'yt-dlp>=2025.10.01'
+      - name: Fetch and validate source clips
+        run: python tools/review_variety_sources.py
+      - name: Private one-day artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: private-variety-clips
+          path: review-variety/
+          if-no-files-found: error
+          retention-days: 1
