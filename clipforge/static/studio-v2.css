@@ -264,3 +264,49 @@ dialog input {border-color:#52677e}
   .stat,.btn,.workspace-nav a {transition:none}
   .stat:hover,.btn:hover:not(:disabled) {transform:none}
 }
+
+/* Live execution spotlight: only server-reported running stages animate. */
+.agent-unit[data-state="running"] {
+  border-color:#7de6df;
+  background:linear-gradient(148deg,#214857,#18364c 76%);
+  animation:studio-live-card 2.3s ease-in-out infinite;
+}
+.agent-unit[data-state="running"]::before {
+  content:"";
+  position:absolute;
+  inset:-2px;
+  border:1px solid #8cfff1;
+  border-radius:inherit;
+  pointer-events:none;
+  animation:studio-live-ring 2.3s ease-in-out infinite;
+}
+.agent-unit[data-state="running"] .agent-emblem {
+  background:#245e69;
+  border-color:#72d8d9;
+  color:#e4fffa;
+}
+.agent-unit[data-state="running"] .agent-state {color:#adfff2}
+.agent-unit[data-state="running"] .agent-indicator {
+  width:9px;height:9px;
+  background:#80ffed;
+  animation:studio-live-led 1.5s ease-in-out infinite;
+}
+@keyframes studio-live-card {
+  0%,100% {box-shadow:0 0 0 1px #65dcd944,0 0 12px #4dddc52a,inset 0 0 19px #2dc6b70d}
+  50% {box-shadow:0 0 0 1px #93ffefba,0 0 27px #4dddc58c,inset 0 0 26px #2dc6b73d}
+}
+@keyframes studio-live-ring {
+  0%,100% {opacity:.3;transform:scale(1)}
+  50% {opacity:1;transform:scale(1.012)}
+}
+@keyframes studio-live-led {
+  0%,100% {opacity:.65;box-shadow:0 0 0 2px #74fff122,0 0 5px #5df4d6}
+  50% {opacity:1;box-shadow:0 0 0 6px #74fff12a,0 0 15px #5df4d6}
+}
+@media (prefers-reduced-motion:reduce) {
+  .agent-unit[data-state="running"],
+  .agent-unit[data-state="running"]::before,
+  .agent-unit[data-state="running"] .agent-indicator {animation:none}
+  .agent-unit[data-state="running"] {box-shadow:0 0 0 2px #85e6dfaa,0 0 14px #5bd6c34d}
+  .agent-unit[data-state="running"]::before {opacity:.7;transform:none}
+}
