@@ -19,8 +19,10 @@
 
 ## Etapa 2 — Coleta autorizada e autonomia
 
-- [ ] Cadastro de streamers, permissões e fonte Twitch Helix/OAuth.
-- [ ] Capturar metadados dos clipes, download somente quando licenciado e permitido.
+- [x] **Descoberta apenas de metadados** por Twitch Helix/OAuth com ranking, deduplicação e painel; sem credenciais a sincronização permanece desativada.
+- [x] Marca local de fontes com direitos **declarados** (sem validação jurídica) via arquivo privado.
+- [ ] Integrar autorização verificável de criadores e mídia licenciada; download ainda NÃO implementado.
+- [ ] Testar autenticação com credenciais reais e categoria GTA VI no dia do lançamento.
 - [ ] Job queue durável, retry seguro, backup, alertas, worker hospedado com disponibilidade.
 - [ ] Custos e limites por dia; não rodar transcrição sem necessidade.
 

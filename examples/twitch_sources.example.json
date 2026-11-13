@@ -1,0 +1,10 @@
+{
+  "broadcasters": [
+    {
+      "id": "REPLACE_WITH_NUMERIC_BROADCASTER_ID",
+      "name": "Creator with documented rights",
+      "rights_status": "permission_granted",
+      "evidence": "REPLACE_WITH_PUBLISHED_PERMISSION_OR_SIGNED_AGREEMENT_REFERENCE"
+    }
+  ]
+}

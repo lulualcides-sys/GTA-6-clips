@@ -10,7 +10,22 @@
 <aside class="panel list-panel"><div class="panel-head"><div><p class="eyebrow">BIBLIOTECA</p><h2>Clipes</h2></div><button class="btn text-btn" id="refresh">Atualizar</button></div><div class="filters"><button class="chip active" data-filter="all">Todos</button><button class="chip" data-filter="ready">Prontos</button><button class="chip" data-filter="failed">Falhas</button></div><div id="clip-list" class="clips"><p class="placeholder">Nenhum clipe importado.</p></div></aside>
 <section class="panel preview-panel"><div class="panel-head"><div><p class="eyebrow">MONITOR DE QUALIDADE</p><h2 id="detail-title">Selecione um clipe</h2></div><span id="detail-status" class="tag muted">Aguardando</span></div><div class="player-wrap"><div id="player-placeholder" class="player-placeholder"><span>▶</span><strong>Prévia indisponível</strong><small>Selecione um clipe renderizado para assistir.</small></div><video id="player" controls playsinline preload="metadata" hidden></video></div><div class="details" id="details"><p class="hint">Os detalhes de origem e permissão aparecerão aqui.</p></div><div class="review-actions"><button id="render" class="btn secondary" disabled>Renderizar</button><button id="reject" class="btn danger" disabled>Rejeitar</button><button id="approve" class="btn primary" disabled>Aprovar clipe</button></div><p class="footnote">Aprovar não publica automaticamente. Direitos de terceiros exigem verificação fora do sistema.</p></section>
 <aside class="panel guide-panel"><p class="eyebrow">OPERAÇÃO</p><h2>Como alimentar</h2><ol><li>Coloque o vídeo autorizado em <code>data/incoming</code>.</li><li>Crie o arquivo correspondente <code>.rights.json</code> com criador e autorização.</li><li>A varredura inicia o render quando <code>AUTO_RENDER=1</code>.</li><li>Assista ao resultado e aprove ou rejeite.</li></ol><div class="notice"><strong>Publicação social ainda não integrada</strong><p>Este MVP não baixa lives da Twitch nem publica automaticamente no TikTok, YouTube ou Instagram.</p></div><a class="guide-link" href="https://github.com/lulualcides-sys/GTA-6-clips" target="_blank" rel="noopener noreferrer">Abrir repositório ↗</a></aside>
+</section>
+<section class="twitch-section panel">
+  <div class="panel-head">
+    <div><p class="eyebrow">MONITORAMENTO · TWITCH HELIX</p><h2>Descoberta de clipes de GTA VI</h2>
+      <p class="hint">Ranking por metadados públicos. Visualizações não garantem qualidade; direitos precisam de verificação.</p>
+    </div>
+    <div class="twitch-actions"><span id="twitch-state" class="tag muted">Verificando</span>
+      <button id="twitch-refresh" class="btn secondary">↻ Buscar clipes</button>
+    </div>
+  </div>
+  <p id="twitch-last" class="hint">Nenhuma consulta realizada.</p>
+  <div id="twitch-results" class="candidate-grid">
+    <p class="hint">Nenhum clipe catalogado.</p>
+  </div>
+  <div class="twitch-hint">A busca consulta somente metadados pela API oficial. Não baixa vídeos nem publica. Para reutilizar conteúdo, registre autorização do criador.</div>
 </section></main>
 <div id="message" class="toast" role="status" aria-live="polite" hidden></div>
 <dialog id="login-modal"><form method="dialog" id="login-form"><p class="eyebrow">ACESSO RESTRITO</p><h2>Token do painel</h2><p class="hint">Informe DASHBOARD_TOKEN. Salvo apenas nesta aba.</p><input id="token" type="password" autocomplete="off" placeholder="Token" required><div class="dialog-actions"><button class="btn primary" type="submit">Entrar</button></div></form></dialog>
-<script src="/app.js" defer></script></body></html>
+<script src="/app.js" defer></script><script src="/candidates.js" defer></script></body></html>

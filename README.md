@@ -60,4 +60,10 @@ O smoke gera vídeo **sintético**, testa a verificação de direitos e renderiz
 - Não ingerir sem autorização de terceiros. Respeitar termos da plataforma, direitos de voz/imagem e propriedade intelectual.
 - Não hospedar mídia, banco, licenças privadas ou tokens no GitHub.
 
+## Descoberta de clipes na Twitch
+
+O painel agora tem uma área de **candidatos da Twitch**. Com `TWITCH_CLIENT_ID` e `TWITCH_CLIENT_SECRET`, ela busca até 100 registros públicos na categoria exata Grand Theft Auto VI, classifica por visualizações/recência/duração e indica se a permissão foi declarada no arquivo privado `data/twitch_sources.json`. Modo automático opcional `TWITCH_ENABLED=1` (varredura a cada 15 min).
+
+**Não baixa lives ou clipes da Twitch e não os publica**: essa etapa é apenas a descoberta de metadados. Consulte [docs/TWITCH.md](docs/TWITCH.md) e [docs/OPEN_SOURCE_DECISIONS.md](docs/OPEN_SOURCE_DECISIONS.md) antes de conectar fontes.
+
 Leia **AGENTS.md** primeiro. Arquitetura em docs/ARCHITECTURE.md; inventário filtrado em docs/ARSENAL.md; prioridades em docs/ROADMAP.md; operações em docs/RUNBOOK.md.

@@ -5,7 +5,8 @@
 ## Estado exato
 
 - MVP implementado: scanner de vídeos LOCAIS com manifesto de direitos, SHA-256, seleção heurística por intensidade de áudio, FFmpeg 1080x1920/30fps, SQLite, API, fila local e dashboard.
-- NÃO implementado: captura de lives Twitch, detecção SEMÂNTICA de melhores momentos, legendas automáticas, face tracking, Metricool conectado ao runtime, publicação social, Cloudflare hospedado. Nunca afirmar que funcionam.
+- Implementado agora: descoberta de **metadados de clipes da Twitch** por OAuth de aplicativo, ranking heurístico de visualizações/recência/duração, marcação declarativa de permissão e painel de candidatos. Sem credenciais, retorna claramente que está desconfigurado.
+- NÃO implementado: **baixar** lives/clipes Twitch, detecção SEMÂNTICA de melhores momentos, legendas automáticas, face tracking, Metricool conectado ao runtime, publicação social, Cloudflare hospedado. Nunca afirmar que funcionam.
 - Aprovar no painel NÃO publica nas redes.
 - Não inventar resultados, streams, vídeos, direitos, alcance ou testes.
 
@@ -13,9 +14,11 @@
 
 - clipforge/core.py: ingestão, direitos, ffprobe, banco, FFmpeg e workers.
 - clipforge/web.py: HTTP API e autenticação simples.
+- clipforge/twitch.py: OAuth app, consulta de **metadados** de clipes e ranking heurístico; não faz download.
 - clipforge/static/: interface HTML/CSS/JS sem framework.
 - tests/: testes e ferramentas de QA; tools/smoke.py: teste fim-a-fim sintético.
-- docs/: arquitetura, arsenal, roadmap, operação. Atualize sempre que alterar contratos.
+- docs/: arquitetura, arsenal, roadmap, operação e fontes Twitch. Atualize sempre que alterar contratos.
+- examples/: exemplos públicos sem IDs reais e sem segredos.
 - data/: mídias e banco, nunca comitar.
 
 ## Regras

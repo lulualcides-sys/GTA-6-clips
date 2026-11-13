@@ -56,3 +56,26 @@ As rotas de clipes exigem token Bearer se `DASHBOARD_TOKEN` for definido. Servid
 ## Limitações declaradas
 
 Heurística de áudio não identifica significado, piadas ou melhores jogadas. Sem transcrição/legendas automáticas. Sem download da Twitch e sem publicação social. Prévia transfere o MP4 para o browser. Worker local não garante operação 24/7. Dados SQLite e arquivos precisam de backup. Interface pública ainda não implantada.
+
+## Módulo paralelo — descoberta Twitch (implementado no código)
+
+```text
+Twitch OAuth (client credentials)
+            |
+ GET search/categories (nome exato GTA VI)
+            |
+ GET clips?game_id=ID (metadados, até 100 recentes)
+            |
+ SQLite twitch_candidates + twitch_sync
+            |
+ Score: views + recência + duração
+            |
+ API autenticada /api/twitch/*
+            |
+ Painel: abrir URL Twitch, direitos não verificados
+            |
+ [SEM DOWNLOAD OU PUBLICAÇÃO]
+```
+
+Os streamers com permissão declarada são identificados somente se constam em `data/twitch_sources.json` com registro. Essa evidência não equivale a licença validada. Veja `docs/TWITCH.md`.
+

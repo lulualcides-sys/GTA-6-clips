@@ -231,6 +231,8 @@ class Runtime:
     def __init__(self, root: Path):
         self.store = ClipStore(root)
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="clip-render")
+        from .twitch import TwitchDiscovery
+        self.twitch = TwitchDiscovery(self.store.database, self.store.lock, self.store.root)
         self.auto_render = os.getenv("AUTO_RENDER", "1") == "1"
         self.auto_scan = os.getenv("AUTO_SCAN", "1") == "1"
         self.poll_seconds = max(10, int(os.getenv("POLL_SECONDS", "30")))
