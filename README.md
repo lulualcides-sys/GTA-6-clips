@@ -81,7 +81,7 @@ Para executar render final pelo HyperFrames em uma máquina de edição com Node
 
 ```bash
 npm install -g hyperframes
-hyperframes browser --install
+hyperframes browser ensure
 python -m clipforge.hyperframes abcdef123456 --title "DESTAQUE DO STREAMER" --render
 ```
 
