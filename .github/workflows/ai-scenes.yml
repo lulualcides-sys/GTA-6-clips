@@ -21,6 +21,6 @@ jobs:
       - name: Install FFmpeg and PySceneDetect
         run: |
           sudo apt-get update -qq && sudo apt-get install -y ffmpeg
-          python -m pip install "scenedetect>=0.7,<1" "opencv-python-headless>=4.8,<5"
+          python -m pip install "scenedetect>=0.7,<1"
       - name: Detect real edits in generated synthetic video
         run: python -m tools.scene_smoke
