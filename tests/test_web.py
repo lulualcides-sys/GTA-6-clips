@@ -15,7 +15,9 @@ class ApiTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        env = patch.dict(os.environ,{"DASHBOARD_TOKEN":"example-secret","AUTO_SCAN":"0","AUTO_RENDER":"0"})
+        env = patch.dict(os.environ,{"DASHBOARD_TOKEN":"example-secret","AUTO_SCAN":"0","AUTO_RENDER":"0",
+                                     "TWITCH_CLIENT_ID":"","TWITCH_CLIENT_SECRET":"",
+                                     "TWITCH_ENABLED":"0","TWITCH_GAME_ID":""})
         env.start()
         self.addCleanup(env.stop)
         self.runtime = Runtime(Path(self.temp.name))
@@ -51,6 +53,20 @@ class ApiTests(unittest.TestCase):
         status,body=self.request("GET","/api/clips","example-secret")
         self.assertEqual(status,200)
         self.assertEqual(body["clips"],[])
+
+    def test_twitch_endpoints_are_private(self):
+        self.assertEqual(self.request("GET","/api/twitch/candidates")[0],401)
+        status,body=self.request("GET","/api/twitch/status","example-secret")
+        self.assertEqual(status,200)
+        self.assertFalse(body["configured"])
+        status,body=self.request("GET","/api/twitch/candidates","example-secret")
+        self.assertEqual(status,200)
+        self.assertEqual(body["candidates"],[])
+
+    def test_twitch_refresh_without_oauth_reports_unavailable(self):
+        status,body=self.request("POST","/api/twitch/refresh","example-secret")
+        self.assertEqual(status,503)
+        self.assertIn("TWITCH_CLIENT_ID",body["error"])
 
     def test_empty_scan(self):
         status,body=self.request("POST","/api/scan","example-secret")
