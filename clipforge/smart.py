@@ -23,7 +23,7 @@ def find_cuts(path: Path, *, limit_seconds: float = MAX_SCAN_SECONDS) -> list[fl
         manager = SceneManager()
         manager.add_detector(ContentDetector(threshold=27.0))
         manager.detect_scenes(
-            video=video, end_time=max(1.0, min(limit_seconds, MAX_SCAN_SECONDS)),
+            video=video, end_time=float(max(1.0, min(limit_seconds, MAX_SCAN_SECONDS))),
             show_progress=False
         )
         # Direct cut list, not list of scenes (which can omit the opening scene).
