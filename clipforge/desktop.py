@@ -86,13 +86,22 @@ def initialize_settings(home: Path) -> Path:
 
 def find_ffmpeg_tools() -> dict[str, str]:
     """Prefer shipped portable binaries, fall back to a user-installed FFmpeg."""
-    native = Path(__file__).resolve().parent / "bin"
+    package = Path(__file__).resolve().parent
+    roots = [
+        package / "bin",
+        Path(getattr(sys, "_MEIPASS", package.parent)) / "clipforge" / "bin",
+        Path(sys.executable).resolve().parent / "_internal" / "clipforge" / "bin",
+        Path(sys.executable).resolve().parent / "clipforge" / "bin",
+    ]
     found = {}
     for name in ("ffmpeg", "ffprobe"):
-        binary = native / (name + (".exe" if sys.platform == "win32" else ""))
-        if binary.is_file():
-            found[name] = str(binary)
-        else:
+        binary_name = name + (".exe" if sys.platform == "win32" else "")
+        for folder in roots:
+            binary = folder / binary_name
+            if binary.is_file():
+                found[name] = str(binary)
+                break
+        if name not in found:
             tool = shutil.which(name)
             if tool:
                 found[name] = tool
@@ -163,6 +172,7 @@ def self_test(destination: Path | None = None) -> dict:
         result = {
             "status": "fail", "ffmpeg": False, "ffprobe": False,
             "health": False, "protected_api": False,
+            "tool_paths": tools, "tool_errors": {},
         }
         for name in ("ffmpeg", "ffprobe"):
             path = tools.get(name)
@@ -173,6 +183,11 @@ def self_test(destination: Path | None = None) -> dict:
                 check=False
             )
             result[name] = check.returncode == 0
+            if check.returncode != 0:
+                result["tool_errors"][name] = (
+                    f"exit={check.returncode} "
+                    + check.stderr.decode("utf-8", "replace")[-180:]
+                )
         report({**result, "phase": "native_tools"})
         token = secrets.token_urlsafe(32)
         server, runtime, thread = start_backend(home / "data", token)
