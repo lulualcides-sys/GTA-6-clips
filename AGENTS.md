@@ -37,7 +37,7 @@
 2. Conservar fonte, autor e evidências. Nunca colocar tokens, dados privados ou mídias protegidas no Git.
 3. Mudança grande em branch/PR com teste de regressão e plano de rollback; preservar funcionalidades aprovadas.
 4. Priorizar ferramentas gratuitas/open source; instalar dependência somente após justificar necessidade, custo, licença e manutenção.
-5. Não chamar de IA semântica algo que é score de volume de áudio.
+5. Não chamar de IA semântica algo que é score de volume de áudio. Os nove cartões representam componentes automatizados e controles editoriais, não nove agentes de IA independentes. Não simular atividade; logar somente operações reais.
 6. Não expor dashboard sem HTTPS, autenticação, firewall e controles de acesso.
 7. Testes focados durante desenvolvimento; testes completos e smoke test antes de publicar.
 8. No frontend, usar textContent para dados do usuário e evitar innerHTML.
