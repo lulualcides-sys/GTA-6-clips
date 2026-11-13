@@ -197,6 +197,14 @@ class DesktopBridge:
             return {"ok": False, "error": "Client ID inválido; confira o Twitch Developer Console"}
         if not re.fullmatch(r"[A-Za-z0-9]{10,160}", client_secret):
             return {"ok": False, "error": "Client Secret inválido; confira o Twitch Developer Console"}
+        # Check the official Twitch OAuth application credentials BEFORE saving.
+        # Credentials are never returned in the API response or written to logs.
+        from .twitch import TwitchClient, TwitchError
+        try:
+            client = TwitchClient(client_id, client_secret)
+            client.get_top_categories(limit=1)
+        except TwitchError:
+            return {"ok": False, "error": "Não foi possível autenticar na API da Twitch; confira Client ID e Secret"}
         try:
             conf = initialize_settings(self.home)
             current = conf.read_text(encoding="utf-8-sig").splitlines()
