@@ -36,7 +36,7 @@ OAuth de aplicação usa client credentials exclusivamente para consulta oficial
 
 Criadores em `TWITCH_BROADCASTER_IDS` são verificados por `GET /helix/streams` com parâmetros `user_id` repetidos. A tabela `twitch_streamers` persiste estado, ID real da transmissão e horário da consulta. Uma resposta bem-sucedida sem um criador o marca offline; falha de rede preserva o estado anterior e seu horário. `TwitchDiscovery.list_streamers()` retorna esses registros; `status()` inclui `monitored_streamers` e `live_streams` da última consulta. Conferir `checked_at` para identificar dados antigos. Isso é polling, **não EventSub**, e requer processo aberto/PC ligado.
 
-A descoberta de clipes permanece por categoria; o cadastro de streamer monitora a live, mas ainda não faz consulta separada de clipes por criador. Não há download automático nem uso de URLs alternativas. Configurar segredos só no PC e nunca distribuí-los no executável. O segredo de aplicação local continua sendo uma limitação do fluxo atual; OAuth de usuário com concessões específicas para download exige integração adicional.
+A descoberta de clipes permanece por categoria; o cadastro de streamer monitora a live, mas ainda não faz consulta separada de clipes por criador. Não há download automático nem uso de URLs alternativas. A obtenção manual oficial e autorizada está disponível pela CLI separada: veja [TWITCH_DOWNLOAD.md](TWITCH_DOWNLOAD.md). Configurar segredos só no PC e nunca distribuí-los no executável. O segredo de aplicação local continua sendo uma limitação do fluxo atual; OAuth de usuário com concessões específicas para download exige integração adicional.
 
 ## Preparação da edição
 
@@ -58,4 +58,4 @@ API existente: `GET /api/twitch/status`, `GET /api/twitch/candidates` e `POST /a
 python -m unittest discover -s tests -p 'test_twitch*.py' -v
 ```
 
-Os testes cobrem perfis/data/override, migração SQLite, deduplicação, permissões, consulta de streams, limites e OAuth. Um servidor HTTP **local real** exercita transporte urllib, erro 401, renovação e JSON. Os demais testes de Helix usam respostas controladas, sem chamar a Twitch. Não se afirma validação com conta real sem credenciais. EventSub e obtenção oficial autorizada de mídia permanecem pendentes.
+Os testes cobrem perfis/data/override, migração SQLite, deduplicação, permissões, consulta de streams, limites e OAuth. Um servidor HTTP **local real** exercita transporte urllib, erro 401, renovação e JSON. Os demais testes de Helix usam respostas controladas, sem chamar a Twitch. Não se afirma validação com conta real sem credenciais. EventSub permanece pendente. A CLI de obtenção oficial autorizada é descrita em [TWITCH_DOWNLOAD.md](TWITCH_DOWNLOAD.md); ainda requer validação com conta real.
