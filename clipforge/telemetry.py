@@ -22,7 +22,7 @@ AGENTS = (
     ("legendas", "LEGENDAS", "Whisper · transcrição"),
     ("motion", "MOTION", "HyperFrames · composição"),
     ("revisao", "REVISÃO", "Aprovação editorial"),
-    ("publicacao", "PUBLICAÇÃO", "Redes · ainda não conectadas"),
+    ("publicacao", "PUBLICAÇÃO", "Fila e confirmação das plataformas"),
 )
 KNOWN = {entry[0] for entry in AGENTS}
 STATES = {"queued", "running", "complete", "failed", "waiting", "blocked", "idle"}
@@ -104,6 +104,11 @@ class ActivityLog:
             raise LookupError("Clip not found")
         clips = runtime.store.all()
         caption_jobs = runtime.captions.all_statuses()
+        publisher = getattr(runtime, "publishing", None)
+        publication_status = publisher.status() if publisher else {}
+        publication_jobs = publisher.all() if publisher else []
+        selected_jobs = [job for job in publication_jobs if not clip_id or job['clip_id'] == clip_id]
+        configured = any(p.get('connected') for p in publication_status.get('platforms', []))
 
         activity = self.recent(clip_id, 80)
         latest: dict[str, dict] = {}
@@ -206,8 +211,22 @@ class ActivityLog:
                     stage["state"] = "waiting"
                     stage["message"] = "Exportação HyperFrames disponível"
             elif key == "publicacao":
-                stage["state"] = "blocked"
-                stage["message"] = "Nenhuma integração de postagem GTA habilitada"
+                states = {job['status'] for job in selected_jobs}
+                if states & {'uncertain', 'failed', 'blocked'}:
+                    stage.update(state='failed', message='Publicação exige ação; conferir falhas ou envios incertos')
+                elif 'submitting' in states:
+                    stage.update(state='running', message='Envio em execução; ainda sem confirmação')
+                elif 'pending' in states:
+                    stage.update(state='waiting', message='Aguardando confirmação da plataforma')
+                elif 'queued' in states:
+                    stage.update(state='queued', message='Fila agendada' if publication_status.get('enabled')
+                                 else 'Fila pausada: envio desativado')
+                elif 'confirmed' in states:
+                    stage.update(state='complete', message='Envio confirmado; consulte a visibilidade de cada publicação')
+                elif configured:
+                    stage.update(state='waiting', message='Credenciais configuradas; autenticação depende da API')
+                else:
+                    stage.update(state='blocked', message='Nenhuma conta de publicação configurada')
             stages.append(stage)
 
         counts = {
@@ -216,6 +235,9 @@ class ActivityLog:
             "review": sum(i["status"] == "ready" for i in clips),
             "approved": sum(i["status"] == "approved" for i in clips),
             "failed": sum(i["status"] == "failed" for i in clips),
+            "publication_pending": sum(j['status'] in {'queued', 'submitting', 'pending'} for j in publication_jobs),
+            "publication_confirmed": sum(j['status'] == 'confirmed' for j in publication_jobs),
+            "publication_public": sum(j['status'] == 'confirmed' and j.get('visibility') == 'public' for j in publication_jobs),
         }
         return {
             "selected_clip": clip_id,
@@ -228,7 +250,8 @@ class ActivityLog:
             "auto_render": runtime.auto_render,
             "auto_transcribe": runtime.auto_transcribe,
             "transcription_available": runtime.captions.available(),
-            "publishing_connected": False,
+            "publishing_connected": configured,
+            "publishing_credentials_verified": False,
             "demo_enabled": runtime.demo.enabled,
             "mode": "real_activity_only",
         }

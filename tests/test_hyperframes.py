@@ -59,6 +59,14 @@ class HyperFramesTests(unittest.TestCase):
             directory = export_composition(self.store, self.clip_id)
         self.assertIn('data-fps="60"', (directory / 'index.html').read_text())
 
+    def test_export_uses_current_versioned_render(self):
+        version = self.store.output / (self.clip_id + '-version2.mp4')
+        self.media.rename(version)
+        self.store.update(self.clip_id, output_path=str(version))
+        with patch('clipforge.hyperframes.probe', return_value=self.info):
+            directory = export_composition(self.store, self.clip_id)
+        self.assertEqual((directory / 'source.mp4').read_bytes(), version.read_bytes())
+
     def test_existing_final_is_never_overwritten(self):
         directory = self.root / 'finished'
         directory.mkdir()

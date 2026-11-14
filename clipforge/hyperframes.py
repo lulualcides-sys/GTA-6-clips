@@ -134,10 +134,10 @@ def export_composition(store: ClipStore, clip_id: str, *, title: str = "",
     item = store.get(clip_id)
     if not item or item["status"] not in {"ready", "approved"}:
         raise ValueError("Only reviewed-ready or approved clips can be exported")
-    source = store.output / f"{clip_id}.mp4"
+    source = Path(item.get("output_path") or "")
     if source.is_symlink() or not source.is_file():
         raise ValueError("Expected ready video is missing")
-    if not item.get("output_path") or Path(item["output_path"]).resolve() != source.resolve():
+    if source.resolve().parent != store.output or source.suffix.lower() != '.mp4':
         raise ValueError("Video does not match the stored ready artifact")
     if source.stat().st_size > MAX_VIDEO_BYTES:
         raise ValueError("Video exceeds finishing-stage size limit")
