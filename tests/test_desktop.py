@@ -49,6 +49,17 @@ class LocalDesktopTests(unittest.TestCase):
         self.assertNotIn("UNTRUSTED_VARIABLE", os.environ)
         self.assertEqual(settings.read_text().count("TWITCH_ENABLED=1"), 1)
 
+    def test_config_loads_twitch_monitoring_controls(self):
+        settings = initialize_settings(self.home)
+        values = {"TWITCH_DISCOVERY_MODE": "trending", "TWITCH_CATEGORY_IDS": "1,2",
+                  "TWITCH_BROADCASTER_IDS": "3,4", "TWITCH_TRENDING_CATEGORIES": "12",
+                  "TWITCH_CLIPS_PER_CATEGORY": "10", "TWITCH_LOOKBACK_HOURS": "24"}
+        settings.write_text("\n".join(f"{k}={v}" for k, v in values.items()))
+        with patch.dict(os.environ, {}, clear=True):
+            initialize_settings(self.home)
+            for key, value in values.items():
+                self.assertEqual(os.environ.get(key), value)
+
     def test_config_rejects_symlink(self):
         initialize_settings(self.home)
         settings = self.home / "config.env"

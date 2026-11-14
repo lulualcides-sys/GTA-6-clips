@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+from ctypes import wintypes
 import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import uuid
 from pathlib import Path
@@ -21,10 +23,20 @@ WAIT_TIMEOUT = 0x00000102
 
 
 def wait_for_exit(pid: int, timeout_ms: int = 90000):
-    kernel = ctypes.windll.kernel32
+    # HANDLE é um ponteiro em Windows x64; ctypes usa int32 sem assinatura.
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel.OpenProcess.restype = wintypes.HANDLE
+    kernel.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+    kernel.WaitForSingleObject.restype = wintypes.DWORD
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel.CloseHandle.restype = wintypes.BOOL
     handle = kernel.OpenProcess(SYNCHRONIZE, False, pid)
-    if not handle:  # Already closed.
-        return
+    if not handle:
+        code = ctypes.get_last_error()
+        if code == 87:  # ERROR_INVALID_PARAMETER: PID já encerrado.
+            return
+        raise OSError(code, "Não foi possível abrir o processo antigo")
     try:
         outcome = kernel.WaitForSingleObject(handle, timeout_ms)
         if outcome == WAIT_TIMEOUT:
@@ -49,7 +61,7 @@ def validate_paths(home: Path, staged: Path, installed: Path):
         raise ValueError("New updater missing")
     if not (installed / "GTA6Clips.exe").is_file():
         raise ValueError("Current app folder not found")
-    if installed == home or home in installed.parents:
+    if installed == home or home in installed.parents or installed in home.parents:
         raise ValueError("Refusing to update the persistent application data directory")
     if len(installed.parts) < 2:
         raise ValueError("Application installation path is unsafe")
@@ -109,6 +121,35 @@ def install(home: Path, staged: Path, installed: Path, parent_pid: int):
     return {"ok": True, "backup": str(backup)}
 
 
+def self_test():
+    """Confere proteção de dados e, no Windows, o HANDLE do processo real."""
+    with tempfile.TemporaryDirectory(prefix="gta6-updater-test-") as tmp:
+        root = Path(tmp)
+        home = root / "profile"
+        staged = home / "updates" / "ready-v0.0.0"
+        staged.mkdir(parents=True)
+        installed = root / "program"
+        installed.mkdir()
+        for folder in (staged, installed):
+            (folder / "GTA6Clips.exe").write_bytes(b"test")
+            (folder / "GTA6ClipsUpdater.exe").write_bytes(b"test")
+        validate_paths(home, staged, installed)
+        (root / "GTA6Clips.exe").write_bytes(b"test")
+        try:
+            validate_paths(home, staged, root)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("Dados persistentes não estão protegidos")
+    if sys.platform == "win32":
+        try:
+            wait_for_exit(os.getpid(), timeout_ms=0)
+        except TimeoutError:
+            pass  # Processo atual está vivo: HANDLE real e timeout funcionam.
+        else:
+            raise AssertionError("Espera Win32 não reconheceu processo ativo")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--self-test", action="store_true")
@@ -119,6 +160,7 @@ def main():
     parser.add_argument("--parent-pid", type=int)
     args = parser.parse_args()
     if args.self_test:
+        self_test()
         print("UPDATER HELPER PASS")
         return 0
     if not args.apply or not all((args.home, args.staged, args.installed, args.parent_pid)):
