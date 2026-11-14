@@ -45,3 +45,9 @@ Get-Content $env:GTA6_SELFTEST_PATH
 ```
 
 O workflow [Windows app — build](../.github/workflows/windows-app.yml) executa essas verificações e só disponibiliza ZIP após sucesso. A execução da nova revisão deve ser identificada pelo SHA do PR; sucesso do build antigo não valida alterações novas. Aprovação do autoteste sem GUI não comprova abertura da janela WebView2 nem instalação no PC do usuário. A validação interativa Windows e atualização/rollback em uma instalação real continuam necessárias.
+
+## Configuração privada da publicação
+
+O desktop também carrega `PUBLISHING_ENABLED`, `PUBLISHING_AUTO_ENABLED`, `PUBLISHING_DAILY_LIMIT`, `PUBLISHING_MAX_POLLS`, `YOUTUBE_ACCESS_TOKEN` e `TIKTOK_ACCESS_TOKEN` de `%LOCALAPPDATA%\GTA6Clips\config.env`. Instalações novas iniciam com publicação e modo automático desativados, limites 5/20 e tokens vazios. Configurações existentes não são sobrescritas: acrescente as chaves necessárias e reinicie o app.
+
+O arquivo privado permanece fora da distribuição, mas é texto local, não um cofre criptografado. O recurso não implementa login OAuth nem renovação automática. Nenhum token real foi usado nos testes ou incluído no código. Regressão posterior à inclusão dessas chaves: 12 testes desktop passaram, incluindo carregamento da lista permitida, bloqueio de `PYTHONPATH`, preservação do arquivo e padrões desativados.

@@ -35,6 +35,8 @@ CONFIG_KEYS = frozenset({
     "TWITCH_BROADCASTER_IDS", "TWITCH_GTA5_GAME_ID", "TWITCH_TRENDING_CATEGORIES",
     "TWITCH_CLIPS_PER_CATEGORY", "TWITCH_LOOKBACK_HOURS",
     "WHISPER_MODEL", "WHISPER_LANGUAGE", "MAX_SOURCE_SECONDS",
+    "PUBLISHING_ENABLED", "PUBLISHING_AUTO_ENABLED", "PUBLISHING_DAILY_LIMIT",
+    "PUBLISHING_MAX_POLLS", "YOUTUBE_ACCESS_TOKEN", "TIKTOK_ACCESS_TOKEN",
 })
 DEFAULT_CONFIG = """# GTA VI Clips - configuracoes locais. Reinicie o app apos editar.
 # Credenciais privadas: nao envie este arquivo para o GitHub.
@@ -53,6 +55,16 @@ TWITCH_CLIENT_SECRET=
 TWITCH_POLL_SECONDS=900
 # Até o lançamento, categorias populares; depois, apenas GTA VI:
 TWITCH_GTA6_LAUNCH_AT=2026-11-19T03:00:00+00:00
+
+# Publicação desativada por padrão. Ative somente com direitos e contas válidas.
+# Tokens OAuth são privados; obtenha-os pelos fluxos oficiais das plataformas.
+# Estes campos não implementam login nem renovação automática de tokens.
+PUBLISHING_ENABLED=0
+PUBLISHING_AUTO_ENABLED=0
+PUBLISHING_DAILY_LIMIT=5
+PUBLISHING_MAX_POLLS=20
+YOUTUBE_ACCESS_TOKEN=
+TIKTOK_ACCESS_TOKEN=
 """
 
 

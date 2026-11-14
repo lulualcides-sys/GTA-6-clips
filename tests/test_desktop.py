@@ -60,6 +60,30 @@ class LocalDesktopTests(unittest.TestCase):
             for key, value in values.items():
                 self.assertEqual(os.environ.get(key), value)
 
+    def test_private_publication_settings_load_without_allowing_arbitrary_environment(self):
+        settings = initialize_settings(self.home)
+        values = {"PUBLISHING_ENABLED": "1", "PUBLISHING_AUTO_ENABLED": "0",
+                  "PUBLISHING_DAILY_LIMIT": "3", "PUBLISHING_MAX_POLLS": "12",
+                  "YOUTUBE_ACCESS_TOKEN": "synthetic-youtube-test-token",
+                  "TIKTOK_ACCESS_TOKEN": "synthetic-tiktok-test-token"}
+        original = "\n".join(f"{k}={v}" for k, v in values.items()) + "\nPYTHONPATH=untrusted\n"
+        settings.write_text(original, encoding="utf-8")
+        with patch.dict(os.environ, {}, clear=True):
+            result = initialize_settings(self.home)
+            for key, value in values.items():
+                self.assertEqual(os.environ.get(key), value)
+            self.assertNotIn("PYTHONPATH", os.environ)
+            self.assertEqual(result, self.home / "config.env")
+        self.assertEqual(settings.read_text(encoding="utf-8"), original)
+
+    def test_new_desktop_publication_settings_are_disabled_and_have_no_tokens(self):
+        with patch.dict(os.environ, {}, clear=True):
+            initialize_settings(self.home)
+            self.assertEqual(os.environ.get("PUBLISHING_ENABLED"), "0")
+            self.assertEqual(os.environ.get("PUBLISHING_AUTO_ENABLED"), "0")
+            self.assertEqual(os.environ.get("YOUTUBE_ACCESS_TOKEN"), "")
+            self.assertEqual(os.environ.get("TIKTOK_ACCESS_TOKEN"), "")
+
     def test_config_rejects_symlink(self):
         initialize_settings(self.home)
         settings = self.home / "config.env"
