@@ -48,6 +48,27 @@ class HyperFramesTests(unittest.TestCase):
         self.assertAlmostEqual(cues[0][0], .2)
         self.assertEqual(cues[1][1], 9)
 
+    def test_default_title_does_not_invent_game(self):
+        markup = composition_html(12, "Criador", "")
+        self.assertNotIn("GTA VI", markup)
+        self.assertIn("DESTAQUE DO CRIADOR", markup)
+
+    def test_export_preserves_sixty_fps(self):
+        self.info['streams'][0]['avg_frame_rate'] = '60000/1001'
+        with patch('clipforge.hyperframes.probe', return_value=self.info):
+            directory = export_composition(self.store, self.clip_id)
+        self.assertIn('data-fps="60"', (directory / 'index.html').read_text())
+
+    def test_existing_final_is_never_overwritten(self):
+        directory = self.root / 'finished'
+        directory.mkdir()
+        (directory / 'index.html').write_text('composition')
+        (directory / 'source.mp4').write_bytes(b'source')
+        (directory / 'final.mp4').write_bytes(b'approved-render')
+        with self.assertRaisesRegex(ValueError, 'already exists'):
+            render_composition(directory)
+        self.assertEqual((directory / 'final.mp4').read_bytes(), b'approved-render')
+
     def test_valid_export_is_self_contained_and_escapes_untrusted_text(self):
         with patch("clipforge.hyperframes.probe", return_value=self.info):
             directory = export_composition(self.store, self.clip_id,

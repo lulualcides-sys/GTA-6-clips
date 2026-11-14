@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import tempfile
 import zipfile
+from fractions import Fraction
 from pathlib import Path
 
 from .core import ClipStore, duration_of, probe
@@ -66,11 +67,14 @@ def parse_srt(text: str, duration: float) -> list[tuple[float, float, str]]:
 
 
 def composition_html(duration: float, creator: str, title: str,
-                     captions: list[tuple[float, float, str]] | None = None) -> str:
+                     captions: list[tuple[float, float, str]] | None = None,
+                     *, fps: int = 30) -> str:
     """Pure HTML writer; all externally sourced strings are escaped."""
     if not (1 <= duration <= 60):
         raise ValueError("Final video must last between 1 and 60 seconds")
-    safe_title = html.escape(title.strip()[:72] or "GTA VI • DESTAQUES", quote=True)
+    if fps not in (30, 60):
+        raise ValueError("Expected 30 or 60 FPS")
+    safe_title = html.escape(title.strip()[:72] or "DESTAQUE DO CRIADOR", quote=True)
     safe_creator = html.escape(creator.strip()[:90], quote=True)
     if not safe_creator:
         raise ValueError("Creator attribution required")
@@ -100,19 +104,19 @@ def composition_html(duration: float, creator: str, title: str,
 <body>
 <div id="root" data-composition-id="gta6-clips" data-start="0"
      data-duration="{safe_duration}" data-width="1080" data-height="1920"
-     data-fps="30" data-no-timeline="true">
+     data-fps="{fps}" data-no-timeline="true">
   <video id="gameplay" class="clip" src="./source.mp4"
          data-start="0" data-duration="{safe_duration}"
          data-track-index="0" data-has-audio="true" playsinline preload="auto"></video>
   <section id="header" class="clip headline" data-start="0"
            data-duration="{title_length}" data-track-index="1">
-    <div class="kicker">GTA VI <span class="kicker-bullet">/</span> CLIP</div>
+    <div class="kicker">CLIP <span class="kicker-bullet">/</span> DESTAQUE</div>
     <h1>{safe_title}</h1>
     <div class="headline-line"></div>
   </section>
   <div id="credit" class="clip credit" data-start="0"
        data-duration="{safe_duration}" data-track-index="2">
-    <span class="credit-mark">SOURCE</span>
+    <span class="credit-mark">FONTE</span>
     <span class="credit-creator">{safe_creator}</span>
   </div>
   {caption_html}
@@ -172,7 +176,12 @@ def export_composition(store: ClipStore, clip_id: str, *, title: str = "",
     finally:
         temporary.unlink(missing_ok=True)
 
-    markup = composition_html(duration, item["creator"], title, captions)
+    # A composição acompanha o MP4 real, sem presumir jogo ou acontecimento.
+    try:
+        fps = 60 if float(Fraction(video.get("avg_frame_rate", "30/1"))) >= 50 else 30
+    except (ValueError, ZeroDivisionError):
+        fps = 30
+    markup = composition_html(duration, item["creator"], title, captions, fps=fps)
     (final_dir / "index.html").write_text(markup, encoding="utf-8")
     (final_dir / "style.css").write_text(CSS_TEMPLATE.read_text(encoding="utf-8"),
                                          encoding="utf-8")
@@ -183,6 +192,7 @@ def export_composition(store: ClipStore, clip_id: str, *, title: str = "",
         "status_at_export": item["status"],
         "engine": "HyperFrames (optional post-production)",
         "duration_sec": round(duration, 3),
+        "fps": fps,
         "captions_count": len(captions),
         "rights_status": item["rights_status"],
         "rendered": False,
@@ -203,6 +213,8 @@ def render_composition(directory: Path, *, timeout: int = 1200) -> Path:
     directory = directory.resolve()
     if not (directory / "index.html").is_file() or not (directory / "source.mp4").is_file():
         raise ValueError("Incomplete HyperFrames composition")
+    if (directory / "final.mp4").exists():
+        raise ValueError("Final output already exists; preserve it and use a new composition")
     if shutil.which("node") is None:
         raise RuntimeError("Install Node.js 22+ before HyperFrames rendering")
     cli_path = shutil.which("hyperframes")
@@ -243,7 +255,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Prepare an authorized clip for HyperFrames")
     parser.add_argument("clip_id", help="12-character ID shown in the clip database")
     parser.add_argument("--data-dir", default=os.getenv("CLIPS_DATA_DIR", "./data"))
-    parser.add_argument("--title", default="GTA VI • DESTAQUES")
+    parser.add_argument("--title", default="DESTAQUE DO CRIADOR")
     parser.add_argument("--srt", type=Path, help="Optional real subtitle SRT, not generated")
     parser.add_argument("--render", action="store_true",
                         help="Use installed local HyperFrames CLI after exporting")
