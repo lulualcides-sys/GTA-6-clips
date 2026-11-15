@@ -13,7 +13,17 @@ try {
   await page.goto(base);
   await page.locator("#token").fill(token);
   await page.locator("#login-form button[type=submit]").click();
-  await page.waitForFunction(()=>document.querySelector("#player").readyState>=2);
+  try {
+    await page.waitForFunction(()=>document.querySelector("#player").readyState>=2);
+  } catch(error) {
+    console.error("Diagnóstico de mídia",await page.locator("#player").evaluate(v=>({
+      readyState:v.readyState,networkState:v.networkState,error:v.error?.message,
+      h264:v.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"'),
+      hasSource:Boolean(v.src),status:document.querySelector("#detail-status").textContent
+    })),errors);
+    await page.screenshot({path:"ui-artifacts/editor-failure.png",fullPage:true});
+    throw error;
+  }
   assert.equal(await page.locator("#player").evaluate(v=>v.videoWidth),1080);
   assert.equal(await page.locator("#player-placeholder").isHidden(),true,"Aviso de prévia deve desaparecer quando o vídeo carrega");
   assert.equal(await page.locator("#edit-title").isDisabled(),true,"Aprovado deve ficar protegido");

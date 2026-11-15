@@ -65,7 +65,11 @@ jobs:
       - name: Verify original and edited video, render and batch approval in browser
         env:
           MISSION_URL: http://127.0.0.1:8012
-        run: node tools/browser_editor_smoke.mjs
+          # Chrome do runner inclui codecs H.264/AAC usados pelo MP4 do aplicativo.
+          PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: /usr/bin/google-chrome
+        run: |
+          /usr/bin/google-chrome --version
+          node tools/browser_editor_smoke.mjs
       - name: Upload visual QA artifacts
         if: always()
         uses: actions/upload-artifact@v4

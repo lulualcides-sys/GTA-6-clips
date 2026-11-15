@@ -68,7 +68,7 @@ def parse_srt(text: str, duration: float) -> list[tuple[float, float, str]]:
 
 def composition_html(duration: float, creator: str, title: str,
                      captions: list[tuple[float, float, str]] | None = None,
-                     *, fps: int = 30) -> str:
+                     *, fps: int = 30, baked_overlays: bool = False) -> str:
     """Pure HTML writer; all externally sourced strings are escaped."""
     if not (1 <= duration <= 60):
         raise ValueError("Final video must last between 1 and 60 seconds")
@@ -93,6 +93,18 @@ def composition_html(duration: float, creator: str, title: str,
             f'<span>{cleaned}</span></div>'
         )
     caption_html = "\n".join(subtitle)
+    graphics = "" if baked_overlays else f"""
+  <section id="header" class="clip headline" data-start="0"
+           data-duration="{title_length}" data-track-index="1">
+    <div class="kicker">CLIP <span class="kicker-bullet">/</span> DESTAQUE</div>
+    <h1>{safe_title}</h1>
+    <div class="headline-line"></div>
+  </section>
+  <div id="credit" class="clip credit" data-start="0"
+       data-duration="{safe_duration}" data-track-index="2">
+    <span class="credit-mark">FONTE</span>
+    <span class="credit-creator">{safe_creator}</span>
+  </div>"""
     return f"""<!doctype html>
 <html lang="pt-BR">
 <head>
@@ -108,17 +120,7 @@ def composition_html(duration: float, creator: str, title: str,
   <video id="gameplay" class="clip" src="./source.mp4"
          data-start="0" data-duration="{safe_duration}"
          data-track-index="0" data-has-audio="true" playsinline preload="auto"></video>
-  <section id="header" class="clip headline" data-start="0"
-           data-duration="{title_length}" data-track-index="1">
-    <div class="kicker">CLIP <span class="kicker-bullet">/</span> DESTAQUE</div>
-    <h1>{safe_title}</h1>
-    <div class="headline-line"></div>
-  </section>
-  <div id="credit" class="clip credit" data-start="0"
-       data-duration="{safe_duration}" data-track-index="2">
-    <span class="credit-mark">FONTE</span>
-    <span class="credit-creator">{safe_creator}</span>
-  </div>
+  {graphics}
   {caption_html}
 </div>
 </body>
@@ -151,6 +153,13 @@ def export_composition(store: ClipStore, clip_id: str, *, title: str = "",
         raise ValueError("Unexpected source duration")
 
     duration = min(duration, 60.0)
+    edit = store.get_edit(clip_id)
+    # O QA Astra só é gravado após render que já incorpora título e crédito.
+    # Exportações legadas, sem esse QA, continuam recebendo os gráficos HTML.
+    baked_overlays = bool((edit.get('qa') or {}).get('full_decode'))
+    baked_title = edit.get('title') or 'DESTAQUE DO STREAMER'
+    if baked_overlays and title.strip() and title.strip() != baked_title:
+        raise ValueError('O título já está no MP4; altere no painel e renderize uma nova versão')
     captions = []
     if captions_file is not None:
         if captions_file.is_symlink() or captions_file.suffix.lower() != ".srt":
@@ -181,7 +190,8 @@ def export_composition(store: ClipStore, clip_id: str, *, title: str = "",
         fps = 60 if float(Fraction(video.get("avg_frame_rate", "30/1"))) >= 50 else 30
     except (ValueError, ZeroDivisionError):
         fps = 30
-    markup = composition_html(duration, item["creator"], title, captions, fps=fps)
+    markup = composition_html(duration, item["creator"], title, captions, fps=fps,
+                              baked_overlays=baked_overlays)
     (final_dir / "index.html").write_text(markup, encoding="utf-8")
     (final_dir / "style.css").write_text(CSS_TEMPLATE.read_text(encoding="utf-8"),
                                          encoding="utf-8")
@@ -193,6 +203,7 @@ def export_composition(store: ClipStore, clip_id: str, *, title: str = "",
         "engine": "HyperFrames (optional post-production)",
         "duration_sec": round(duration, 3),
         "fps": fps,
+        "overlays_baked_in_source": baked_overlays,
         "captions_count": len(captions),
         "rights_status": item["rights_status"],
         "rendered": False,
@@ -255,7 +266,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Prepare an authorized clip for HyperFrames")
     parser.add_argument("clip_id", help="12-character ID shown in the clip database")
     parser.add_argument("--data-dir", default=os.getenv("CLIPS_DATA_DIR", "./data"))
-    parser.add_argument("--title", default="DESTAQUE DO CRIADOR")
+    parser.add_argument("--title", default="")
     parser.add_argument("--srt", type=Path, help="Optional real subtitle SRT, not generated")
     parser.add_argument("--render", action="store_true",
                         help="Use installed local HyperFrames CLI after exporting")

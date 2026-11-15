@@ -67,6 +67,20 @@ class HyperFramesTests(unittest.TestCase):
             directory = export_composition(self.store, self.clip_id)
         self.assertEqual((directory / 'source.mp4').read_bytes(), version.read_bytes())
 
+    def test_astra_render_does_not_duplicate_baked_title_and_credit(self):
+        self.store.save_analysis(self.clip_id, qa={'full_decode': True})
+        with patch('clipforge.hyperframes.probe', return_value=self.info):
+            directory = export_composition(self.store, self.clip_id)
+        markup = (directory / 'index.html').read_text()
+        self.assertNotIn('id="header"', markup)
+        self.assertNotIn('id="credit"', markup)
+        self.assertIn('id="gameplay"', markup)
+
+    def test_baked_title_cannot_be_replaced_by_duplicate_overlay(self):
+        self.store.save_analysis(self.clip_id, qa={'full_decode': True})
+        with patch('clipforge.hyperframes.probe', return_value=self.info), self.assertRaisesRegex(ValueError, 'painel'):
+            export_composition(self.store, self.clip_id, title='OUTRO TÍTULO')
+
     def test_existing_final_is_never_overwritten(self):
         directory = self.root / 'finished'
         directory.mkdir()
