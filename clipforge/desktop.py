@@ -24,7 +24,7 @@ from urllib.parse import quote
 from .core import Runtime
 from .updater import UpdateService, UpdateError
 from .version import VERSION
-from .web import ThreadingHTTPServer, make_handler
+from .web import ThreadingHTTPServer, make_handler, start_publishing, stop_publishing
 
 APP_NAME = "GTA6Clips"
 CONFIG_KEYS = frozenset({
@@ -259,6 +259,7 @@ def start_backend(data_dir: Path, token: str):
     server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(runtime))
     runtime.start_polling()
     runtime.twitch.start_polling()
+    start_publishing(runtime)
     thread = threading.Thread(
         target=server.serve_forever, name="gta6-local-http", daemon=True
     )
@@ -272,6 +273,7 @@ def shutdown_backend(server, runtime, thread) -> None:
     thread.join(timeout=8)
     runtime.executor.shutdown(wait=False)
     runtime.captions.stop()
+    stop_publishing(runtime)
 
 
 def self_test(destination: Path | None = None) -> dict:

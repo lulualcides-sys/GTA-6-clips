@@ -121,6 +121,18 @@ class LocalDesktopTests(unittest.TestCase):
         finally:
             shutdown_backend(server, runtime, thread)
 
+    def test_publication_worker_starts_without_dashboard_request_and_stops(self):
+        with patch.dict(os.environ, {'PUBLISHING_ENABLED': '1',
+                                     'YOUTUBE_ACCESS_TOKEN': '', 'TIKTOK_ACCESS_TOKEN': ''}):
+            server, runtime, thread = start_backend(self.home / 'data', 'test-private-token')
+            try:
+                self.assertTrue(hasattr(runtime, 'publishing'))
+                self.assertTrue(runtime.publishing._thread.is_alive())
+            finally:
+                shutdown_backend(server, runtime, thread)
+            runtime.publishing._thread.join(timeout=3)
+            self.assertFalse(runtime.publishing._thread.is_alive())
+
     def test_gui_http_server_works_without_any_stderr_console(self):
         # PyInstaller --windowed normally sets sys.stderr=None on Windows.
         # The standard BaseHTTPRequestHandler logger must not crash requests.
