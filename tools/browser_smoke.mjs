@@ -1,11 +1,12 @@
 /* Visual QA for the real Mission Control page, not a simulated dashboard. */
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { chromium } from "playwright";
+import { createRequire } from "node:module";
+const { chromium } = createRequire(import.meta.url)("playwright");
 
 const base=process.env.MISSION_URL || "http://127.0.0.1:8000";
 const token=process.env.DASHBOARD_TOKEN || "mission-test-token-0123456789";
-const browser=await chromium.launch({headless:true});
+const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined});
 const out="ui-artifacts";
 fs.mkdirSync(out,{recursive:true});
 try {

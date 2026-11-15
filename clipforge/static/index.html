@@ -81,8 +81,22 @@
 </section>
 <section class="workspace" id="production-workspace" aria-label="Biblioteca e revisão de clipes">
 <aside class="panel list-panel"><div class="panel-head"><div><p class="eyebrow">BIBLIOTECA</p><h2>Clipes</h2></div><button class="btn text-btn" id="refresh">Atualizar</button></div><div class="filters"><button class="chip active" data-filter="all">Todos</button><button class="chip" data-filter="ready">Prontos</button><button class="chip" data-filter="failed">Falhas</button></div><div id="clip-list" class="clips"><p class="placeholder">Nenhum clipe importado.</p></div></aside>
-<section class="panel preview-panel"><div class="panel-head"><div><p class="eyebrow">MONITOR DE QUALIDADE</p><h2 id="detail-title">Selecione um clipe</h2></div><span id="detail-status" class="tag muted">Aguardando</span></div><div class="player-wrap"><div id="player-placeholder" class="player-placeholder"><span>▶</span><strong>Prévia indisponível</strong><small>Selecione um clipe renderizado para assistir.</small></div><video id="player" controls playsinline preload="metadata" hidden></video></div><div class="details" id="details"><p class="hint">Os detalhes de origem e permissão aparecerão aqui.</p></div><div class="review-actions"><button id="render" class="btn secondary" disabled>Renderizar</button><button id="transcribe" class="btn secondary" disabled>Gerar legendas IA</button><button id="hyperframes" class="btn secondary" disabled>Exportar HyperFrames</button><button id="reject" class="btn danger" disabled>Rejeitar</button><button id="approve" class="btn primary" disabled>Aprovar clipe</button></div><p class="footnote">Aprovar não publica automaticamente. Direitos de terceiros exigem verificação fora do sistema.</p></section>
-<aside class="panel guide-panel"><p class="eyebrow">OPERAÇÃO</p><h2>Como alimentar</h2><ol><li>Coloque o vídeo autorizado em <code>data/incoming</code>.</li><li>Crie o arquivo correspondente <code>.rights.json</code> com criador e autorização.</li><li>A varredura inicia o render quando <code>AUTO_RENDER=1</code>.</li><li>Assista ao resultado e aprove ou rejeite.</li></ol><div class="notice"><strong>Publicação social ainda não integrada</strong><p>Este MVP não baixa lives da Twitch nem publica automaticamente no TikTok, YouTube ou Instagram.</p></div><a class="guide-link" href="https://github.com/lulualcides-sys/GTA-6-clips" target="_blank" rel="noopener noreferrer">Abrir repositório ↗</a></aside>
+<section class="panel preview-panel"><div class="panel-head"><div><p class="eyebrow">MONITOR DE QUALIDADE</p><h2 id="detail-title">Selecione um clipe</h2></div><span id="detail-status" class="tag muted">Aguardando</span></div><div class="player-wrap"><div id="player-placeholder" class="player-placeholder"><span>▶</span><strong>Prévia indisponível</strong><small>Selecione um clipe renderizado para assistir.</small></div><video id="player" controls playsinline preload="metadata" hidden></video></div><div class="details" id="details"><p class="hint">Os detalhes de origem e permissão aparecerão aqui.</p></div><div class="review-actions"><button id="render" class="btn secondary" disabled>Renderizar</button><button id="transcribe" class="btn secondary" disabled>Gerar legendas IA</button><button id="hyperframes" class="btn secondary" disabled>Exportar HyperFrames</button><button id="reject" class="btn danger" disabled>Rejeitar</button><button id="approve" class="btn primary" disabled>Aprovar clipe</button></div><label class="check-label"><input type="checkbox" id="hyperframes-captions"> Incluir transcrição disponível no HyperFrames (opcional)</label><p class="footnote">Aprovar não publica automaticamente. Direitos de terceiros exigem verificação fora do sistema.</p></section>
+<section class="panel editor-panel" aria-label="Editor do corte">
+<div class="panel-head"><div><p class="eyebrow">REVISÃO EDITORIAL</p><h2>Original e ajustes</h2></div><button id="load-original" class="btn secondary" disabled>Ver original</button></div>
+<video id="original-player" controls playsinline preload="metadata" hidden></video>
+<form id="edit-form"><fieldset id="edit-fields" disabled>
+<div class="edit-grid"><label>Início (segundos)<input id="edit-start" type="number" min="0" step="0.1" required></label><label>Duração (10–60 s)<input id="edit-duration" type="number" min="10" max="60" step="0.1" required></label></div>
+<label>Título curto e contextual<input id="edit-title" maxlength="72" placeholder="Deixe vazio se não houver contexto suficiente"></label>
+<label class="check-label"><input id="edit-verified" type="checkbox"> Conferi que o título corresponde ao vídeo</label>
+<label>Enquadramento<select id="edit-layout"><option value="preserve">Preservar imagem completa</option><option value="focus">Foco manual na ação</option><option value="facecam">Facecam real em destaque</option></select></label>
+<div class="edit-grid"><label>Foco horizontal (0–1)<input id="edit-focus-x" type="number" min="0" max="1" step="0.01" value="0.5"></label><label>Foco vertical (0–1)<input id="edit-focus-y" type="number" min="0" max="1" step="0.01" value="0.5"></label></div>
+<label>Região da facecam: x, y, largura, altura (pixels)<input id="edit-facecam" placeholder="0, 0, 320, 180" aria-describedby="facecam-help"></label><p id="facecam-help" class="hint">Coordenadas em pixels da câmera presente na fonte. Este ajuste é manual.</p>
+<button class="btn primary" type="submit">Salvar ajustes</button></fieldset></form>
+<p id="edit-state" class="hint">Selecione um clipe. Salvar exige nova renderização e revisão; aprovados ficam protegidos.</p>
+<details><summary>Aprovação em lote</summary><div id="batch-clips" class="batch-clips"></div><button id="approve-batch" class="btn secondary" type="button">Aprovar selecionados</button></details>
+</section>
+<aside class="panel guide-panel"><p class="eyebrow">OPERAÇÃO</p><h2>Como alimentar</h2><ol><li>Coloque o vídeo autorizado em <code>data/incoming</code>.</li><li>Crie o arquivo correspondente <code>.rights.json</code> com criador e autorização.</li><li>A varredura inicia o render quando <code>AUTO_RENDER=1</code>.</li><li>Assista ao resultado e aprove ou rejeite.</li></ol><div class="notice"><strong>Publicação com confirmação</strong><p>A fila exige conta conectada e autorização. Aprovação editorial não significa publicação. A busca Twitch consulta metadados, sem baixar vídeos.</p></div><a class="guide-link" href="https://github.com/lulualcides-sys/GTA-6-clips" target="_blank" rel="noopener noreferrer">Abrir repositório ↗</a></aside>
 </section>
 <section class="twitch-section panel" id="twitch-monitor">
   <div class="panel-head">
@@ -96,10 +110,16 @@
   <p id="twitch-mode" class="hint">Aguardando modo da Twitch...</p>
   <p id="twitch-categories" class="hint">Categorias ainda não consultadas.</p>
   <p id="twitch-last" class="hint">Nenhuma consulta realizada.</p>
-  <div id="twitch-results" class="candidate-grid">
+  <div id="twitch-streamers" aria-live="polite"></div>
+<div id="twitch-results" class="candidate-grid">
     <p class="hint">Nenhum clipe catalogado.</p>
   </div>
   <div class="twitch-hint">A busca consulta somente metadados pela API oficial. Não baixa vídeos nem publica. Para reutilizar conteúdo, registre autorização do criador.</div>
+</section>
+<section class="panel publishing-panel" aria-label="Fila de publicação"><div class="panel-head"><div><p class="eyebrow">DISTRIBUIÇÃO</p><h2>Publicações</h2></div><button id="publication-process" type="button" class="btn secondary">Processar próximo</button></div>
+<p id="publication-state" class="hint">Consultando conexões e limites…</p>
+<form id="publication-form" class="edit-grid"><label>Plataforma<select id="publication-platform"><option value="youtube">YouTube Shorts</option><option value="tiktok">TikTok</option><option value="instagram">Instagram Reels</option></select></label><label>Título<input id="publication-title" maxlength="100" required></label><label>Agendar (seu horário local)<input id="publication-schedule" type="datetime-local"></label><button type="submit" class="btn secondary">Enfileirar clipe aprovado</button></form>
+<div id="publication-jobs" class="publication-jobs" aria-live="polite"></div>
 </section></main>
 <dialog id="twitch-oauth-modal">
   <form id="twitch-oauth-form" method="dialog">
@@ -110,7 +130,7 @@
     <input id="twitch-client-id" type="text" maxlength="80" autocomplete="off" spellcheck="false" placeholder="Client ID" required>
     <label for="twitch-client-secret">Client Secret</label>
     <input id="twitch-client-secret" type="password" maxlength="160" autocomplete="off" spellcheck="false" placeholder="Client Secret" required>
-    <p class="hint">Até 18/11: apenas GTA V, incluindo GTA RP, de qualquer streamer. A partir de 19/11: GTA VI. Português tem prioridade. Reinicie o aplicativo após salvar.</p>
+    <p class="hint">Até o lançamento: até 12 categorias configuráveis. Na data configurada: prioridade GTA VI. Português tem prioridade. Reinicie o aplicativo após salvar.</p>
     <div class="dialog-actions">
       <button type="button" class="btn secondary" id="twitch-oauth-cancel">Cancelar</button>
       <button type="submit" class="btn primary" id="twitch-oauth-save">Salvar no PC</button>
@@ -119,4 +139,4 @@
 </dialog>
 <div id="message" class="toast" role="status" aria-live="polite" hidden></div>
 <dialog id="login-modal"><form method="dialog" id="login-form"><p class="eyebrow">ACESSO RESTRITO</p><h2>Token do painel</h2><p class="hint">Informe DASHBOARD_TOKEN. Salvo apenas nesta aba.</p><input id="token" type="password" autocomplete="off" placeholder="Token" required><div class="dialog-actions"><button class="btn primary" type="submit">Entrar</button></div></form></dialog>
-<script src="/app.js" defer></script><script src="/candidates.js" defer></script><script src="/agents.js" defer></script></body></html>
+<script src="/app.js" defer></script><script src="/editor.js" defer></script><script src="/candidates.js" defer></script><script src="/agents.js" defer></script></body></html>

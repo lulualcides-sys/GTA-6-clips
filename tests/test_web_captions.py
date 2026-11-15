@@ -102,6 +102,12 @@ class CaptionEndpointsTests(unittest.TestCase):
         archive=(self.runtime.store.root/"hyperframes"/self.cid/"hyperframes-project.zip")
         with zipfile.ZipFile(archive) as bundle:
             markup=bundle.read("index.html").decode("utf-8")
+        self.assertNotIn("Acertou!",markup)
+        with patch("clipforge.hyperframes.probe",return_value=info):
+            code,data=self.send("POST",f"/api/clips/{self.cid}/hyperframes?captions=1")
+        self.assertEqual(code,201,data)
+        with zipfile.ZipFile(archive) as bundle:
+            markup=bundle.read("index.html").decode("utf-8")
         self.assertIn("Acertou!",markup)
         self.assertEqual(self.runtime.store.get(self.cid)["status"],"ready")
 

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import subprocess
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit, parse_qs
@@ -12,8 +14,33 @@ from .core import Runtime
 STATIC = Path(__file__).with_name("static")
 
 
+def start_publishing(runtime):
+    """Inicia fila somente quando habilitada, compartilhada com painel e desktop."""
+    with runtime.store.lock:
+        if not hasattr(runtime, "publishing"):
+            from .publishing import PublishingService
+            runtime.publishing = PublishingService(runtime.store)
+        runtime.publishing.start()
+        return runtime.publishing
+
+
+def stop_publishing(runtime):
+    """Interrompe polling sem apagar trabalhos persistidos."""
+    service = getattr(runtime, "publishing", None)
+    if service is not None:
+        service.stop()
+
+
 def make_handler(runtime: Runtime):
     token = os.getenv("DASHBOARD_TOKEN", "")
+
+    def publishing():
+        # Serviço compartilhado; inicialização não inicia postagens.
+        with runtime.store.lock:
+            if not hasattr(runtime, "publishing"):
+                from .publishing import PublishingService
+                runtime.publishing = PublishingService(runtime.store)
+        return runtime.publishing
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, format, *args):
@@ -38,16 +65,74 @@ def make_handler(runtime: Runtime):
             self.wfile.write(payload)
 
         def _file(self, path: Path, mime: str):
-            if not path.is_file():
+            if not path.is_file() or path.is_symlink():
                 return self._reply(404, {"error": "Not found"})
-            self.send_response(200)
+            size = path.stat().st_size
+            start, end = 0, size - 1
+            requested = self.headers.get("Range")
+            if requested:
+                match = re.fullmatch(r"bytes=(\d*)-(\d*)", requested)
+                try:
+                    if not match or not any(match.groups()) or size == 0:
+                        raise ValueError
+                    left, right = match.groups()
+                    if left:
+                        start = int(left)
+                        end = min(int(right), size - 1) if right else size - 1
+                    else:
+                        count = int(right)
+                        if count <= 0:
+                            raise ValueError
+                        start = max(0, size - count)
+                    if start > end or start >= size:
+                        raise ValueError
+                except ValueError:
+                    self.send_response(416)
+                    self.send_header("Content-Range", f"bytes */{size}")
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
+            self.send_response(206 if requested else 200)
             self.send_header("Content-Type", mime)
-            self.send_header("Content-Length", str(path.stat().st_size))
+            self.send_header("Content-Length", str(max(0, end - start + 1)))
+            self.send_header("Accept-Ranges", "bytes")
+            if requested:
+                self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
             self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
             self.end_headers()
-            with path.open("rb") as stream:
-                for part in iter(lambda: stream.read(1024 * 1024), b""):
-                    self.wfile.write(part)
+            try:
+                with path.open("rb") as stream:
+                    stream.seek(start)
+                    remaining = end - start + 1
+                    while remaining > 0:
+                        part = stream.read(min(1024 * 1024, remaining))
+                        if not part:
+                            break
+                        self.wfile.write(part)
+                        remaining -= len(part)
+            except (BrokenPipeError, ConnectionResetError):
+                pass  # O player pode cancelar uma leitura ao buscar outro instante.
+
+        def _body(self):
+            if self.headers.get("Transfer-Encoding"):
+                raise ValueError("Transfer-Encoding não aceito")
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                raise ValueError("Content-Length inválido") from None
+            if not 0 < length <= 16384:
+                raise ValueError("JSON deve ter entre 1 e 16384 bytes")
+            if self.headers.get_content_type() != "application/json":
+                raise ValueError("Content-Type application/json obrigatório")
+            self.connection.settimeout(10)
+            try:
+                body = json.loads(self.rfile.read(length), parse_constant=lambda _: (_ for _ in ()).throw(ValueError("Número não finito")))
+            except (ValueError, UnicodeDecodeError, TimeoutError):
+                raise ValueError("JSON inválido") from None
+            if not isinstance(body, dict):
+                raise ValueError("Objeto JSON obrigatório")
+            return body
 
         def _clip_id(self, pieces: list[str]) -> str | None:
             return pieces[2] if len(pieces) >= 3 and pieces[2].isalnum() else None
@@ -57,6 +142,7 @@ def make_handler(runtime: Runtime):
             if route in ("/", "/index.html"):
                 return self._file(STATIC / "index.html", "text/html; charset=utf-8")
             assets = {"/app.js": ("app.js", "text/javascript; charset=utf-8"),
+                      "/editor.js": ("editor.js", "text/javascript; charset=utf-8"),
                       "/styles.css": ("styles.css", "text/css; charset=utf-8"),
                       "/candidates.js": ("candidates.js", "text/javascript; charset=utf-8"),
                       "/agents.js": ("agents.js", "text/javascript; charset=utf-8"),
@@ -86,6 +172,11 @@ def make_handler(runtime: Runtime):
                 return self._reply(200, runtime.twitch.status())
             if route == "/api/twitch/candidates":
                 return self._reply(200, {"candidates": runtime.twitch.list_candidates()})
+            if route == "/api/twitch/streamers":
+                return self._reply(200, {"streamers": runtime.twitch.list_streamers()})
+            if route == "/api/publishing":
+                service = publishing()
+                return self._reply(200, {**service.status(), "jobs": service.all()})
             if route == "/api/captions":
                 return self._reply(200, {"captions": runtime.captions.all_statuses(),
                                          "transcription_available": runtime.captions.available(),
@@ -99,6 +190,18 @@ def make_handler(runtime: Runtime):
                     item["output_path"] = bool(item.get("output_path"))
                 return self._reply(200, {"clips": clips})
             pieces = route.strip("/").split("/")
+            if len(pieces) == 4 and pieces[:2] == ["api", "clips"] and pieces[-1] in {"original", "edit"}:
+                item_id = self._clip_id(pieces)
+                item = runtime.store.get(item_id or "")
+                if not item:
+                    return self._reply(404, {"error": "Clip not found"})
+                if pieces[-1] == "edit":
+                    return self._reply(200, runtime.store.get_edit(item_id))
+                target = Path(item["input_path"])
+                if target.is_symlink() or target.parent.resolve() != runtime.store.incoming:
+                    return self._reply(403, {"error": "Invalid source"})
+                mime = {".webm": "video/webm", ".mov": "video/quicktime", ".mkv": "video/x-matroska"}.get(target.suffix.lower(), "video/mp4")
+                return self._file(target, mime)
             if len(pieces) == 4 and pieces[:2] == ["api", "clips"] and pieces[-1] == "captions.srt":
                 clip_id = self._clip_id(pieces)
                 subtitle = runtime.captions.captions_file(clip_id or "")
@@ -128,7 +231,45 @@ def make_handler(runtime: Runtime):
             route = urlsplit(self.path).path
             if not self._auth():
                 return self._reply(401, {"error": "Unauthorized"})
-            if self.headers.get("Content-Length", "0") not in ("", "0"):
+            pieces = route.strip("/").split("/")
+            json_action = (route == "/api/clips/approve-batch" or
+                           (len(pieces) == 4 and pieces[:2] == ["api", "clips"] and pieces[-1] in {"edit", "publish"}))
+            if json_action:
+                try:
+                    body = self._body()
+                except ValueError as exc:
+                    return self._reply(400, {"error": str(exc)})
+                if route == "/api/clips/approve-batch":
+                    ids = body.get("clip_ids")
+                    if set(body) != {"clip_ids"} or not isinstance(ids, list) or not 1 <= len(ids) <= 100 or any(not isinstance(i, str) or not i.isalnum() for i in ids):
+                        return self._reply(400, {"error": "Selecione de 1 a 100 clipes válidos"})
+                    approved, skipped = [], []
+                    with runtime.store.lock:
+                        for clip_id in dict.fromkeys(ids):
+                            item = runtime.store.get(clip_id)
+                            if item and item["status"] == "ready":
+                                runtime.store.update(clip_id, status="approved")
+                                approved.append(clip_id)
+                            else:
+                                skipped.append(clip_id)
+                    return self._reply(200, {"approved": approved, "skipped": skipped})
+                item_id = self._clip_id(pieces)
+                if not runtime.store.get(item_id or ""):
+                    return self._reply(404, {"error": "Clip not found"})
+                try:
+                    if pieces[-1] == "edit":
+                        result = runtime.store.edit(item_id, **body)
+                        return self._reply(200, result)
+                    allowed = {"platform", "title", "description", "scheduled_at"}
+                    if set(body) - allowed or not {"platform", "title"} <= set(body):
+                        raise ValueError("Plataforma e título obrigatórios")
+                    result = publishing().enqueue(item_id, **body)
+                    return self._reply(202, result)
+                except (ValueError, TypeError, PermissionError, OSError, subprocess.SubprocessError) as exc:
+                    return self._reply(409, {"error": str(exc)[:240]})
+            if route == "/api/publishing/process" and self.headers.get("Content-Length", "0") in ("", "0"):
+                return self._reply(200, {"job": publishing().process_one()})
+            if self.headers.get("Transfer-Encoding") or self.headers.get("Content-Length", "0") not in ("", "0"):
                 return self._reply(400, {"error": "Body not accepted"})
             if route == "/api/twitch/refresh":
                 from .twitch import TwitchError
@@ -176,9 +317,12 @@ def make_handler(runtime: Runtime):
                     item_id, "motion", "running", "Preparando pacote editável HyperFrames"
                 )
                 try:
+                    settings = runtime.store.get_edit(item_id)
+                    include_captions = parse_qs(urlsplit(self.path).query).get("captions") == ["1"]
                     export_composition(
                         runtime.store, item_id,
-                        captions_file=runtime.captions.captions_file(item_id)
+                        title=settings.get("title", "") if settings.get("title_verified") else "",
+                        captions_file=runtime.captions.captions_file(item_id) if include_captions else None
                     )
                 except (ValueError, OSError) as exc:
                     runtime.store.activity.append(
@@ -197,9 +341,12 @@ def make_handler(runtime: Runtime):
                 queued = runtime.queue(item_id)
                 return self._reply(202 if queued else 409, {"queued": queued})
             if action in ("approve", "reject"):
-                if item["status"] not in ({"ready"} if action == "approve" else {"ready", "approved"}):
-                    return self._reply(409, {"error": "Invalid state"})
-                runtime.store.update(item_id, status="approved" if action == "approve" else "rejected")
+                # Releitura protegida evita aprovar versão invalidada por edição concorrente.
+                with runtime.store.lock:
+                    item = runtime.store.get(item_id)
+                    if not item or item["status"] not in ({"ready"} if action == "approve" else {"ready", "approved"}):
+                        return self._reply(409, {"error": "Invalid state"})
+                    runtime.store.update(item_id, status="approved" if action == "approve" else "rejected")
                 return self._reply(200, {"status": action})
             return self._reply(404, {"error": "Not found"})
 
@@ -220,6 +367,7 @@ def main():
     runtime = Runtime(Path(os.getenv("CLIPS_DATA_DIR", "./data")))
     runtime.start_polling()
     runtime.twitch.start_polling()
+    start_publishing(runtime)
     httpd = ThreadingHTTPServer((host, port), make_handler(runtime))
     print(f"GTA6 Clips dashboard listening at http://{host}:{port}", flush=True)
     try:
@@ -228,6 +376,7 @@ def main():
         httpd.server_close()
         runtime.executor.shutdown(wait=False)
         runtime.captions.stop()
+        stop_publishing(runtime)
 
 
 if __name__ == "__main__":
