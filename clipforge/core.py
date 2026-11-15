@@ -8,6 +8,7 @@ import os
 import sqlite3
 import subprocess
 import threading
+import tempfile
 import time
 import uuid
 from array import array
@@ -23,7 +24,7 @@ STATUSES = {"detected", "queued", "rendering", "ready", "approved", "rejected", 
 def probe(path: Path) -> dict:
     result = subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries",
-         "format=duration:stream=codec_type,width,height", "-of", "json", str(path)],
+         "format=duration:stream=codec_type,width,height,avg_frame_rate,codec_name,sample_aspect_ratio", "-of", "json", str(path)],
         check=True, capture_output=True, text=True, timeout=45,
     )
     return json.loads(result.stdout)
@@ -33,10 +34,11 @@ def duration_of(info: dict) -> float:
     return float(info.get("format", {}).get("duration", 0) or 0)
 
 
-def choose_highlight(path: Path, total: float, length: float = 35.0) -> float:
-    """Heuristic: find a lively AUDIO window. This is NOT semantic AI highlight detection."""
+def analyze_highlight(path: Path, total: float, length: float = 35.0) -> tuple[float, dict]:
+    """Extrai sinais acústicos e conserva pontuações auditáveis, sem semântica."""
+    analysis = {"method": "audio-heuristic", "semantic_understanding": False, "candidates": []}
     if total <= length + 1:
-        return 0.0
+        return 0.0, {**analysis, "reason": "source_fits_single_window"}
     analysis_seconds = min(total, 900.0)
     try:
         audio = subprocess.run(
@@ -54,20 +56,18 @@ def choose_highlight(path: Path, total: float, length: float = 35.0) -> float:
             if len(chunk) < samples_per_sec // 2:
                 continue
             powers.append(math.sqrt(sum(v * v for v in chunk) / len(chunk)))
-        window = max(1, min(int(length), len(powers)))
-        if len(powers) < window:
-            return 0.0
-        baseline = sum(powers) / len(powers)
-        best_score, best_start = -1.0, 0
-        # Favor sustained activity AND a burst, not the loudest single second.
-        for start in range(len(powers) - window + 1):
-            section = powers[start:start + window]
-            score = sum(section) / window + 0.5 * max(section) - 0.2 * baseline
-            if score > best_score:
-                best_score, best_start = score, start
-        return float(min(best_start, max(0, total - length)))
+        from .editing import rank_audio_windows
+        ranked = rank_audio_windows(powers, length)
+        analysis["candidates"] = ranked
+        start = float(min(ranked[0]["start_sec"], max(0, total - length))) if ranked else 0.0
+        return start, analysis
     except (OSError, subprocess.SubprocessError, ValueError):
-        return 0.0
+        return 0.0, {**analysis, "reason": "audio_unavailable"}
+
+
+def choose_highlight(path: Path, total: float, length: float = 35.0) -> float:
+    """Interface compatível para consumidores que precisam apenas do timestamp."""
+    return analyze_highlight(path, total, length)[0]
 
 
 class ClipStore:
@@ -88,6 +88,13 @@ class ClipStore:
                 start_sec REAL, duration_sec REAL NOT NULL, score REAL,
                 status TEXT NOT NULL, error TEXT, created_at TEXT NOT NULL
             )""")
+            db.execute("""CREATE TABLE IF NOT EXISTS clip_edits (
+                clip_id TEXT PRIMARY KEY, settings TEXT NOT NULL,
+                analysis TEXT, qa TEXT
+            )""")
+            db.execute("""CREATE TABLE IF NOT EXISTS render_recovery (
+                clip_id TEXT PRIMARY KEY, attempts INTEGER NOT NULL DEFAULT 0
+            )""")
             db.commit()
         from .telemetry import ActivityLog
         self.activity = ActivityLog(self.database, self.lock)
@@ -105,6 +112,66 @@ class ClipStore:
         with self._db() as db:
             row = db.execute("SELECT * FROM clips WHERE id=?", (clip_id,)).fetchone()
         return dict(row) if row else None
+
+    def get_edit(self, clip_id: str) -> dict:
+        """Ajustes persistidos separados do vídeo original e de sua proveniência."""
+        from .editing import DEFAULT_EDIT
+        item = self.get(clip_id)
+        if not item:
+            raise ValueError("Clipe não encontrado")
+        with self._db() as db:
+            row = db.execute("SELECT * FROM clip_edits WHERE clip_id=?", (clip_id,)).fetchone()
+        result = {**DEFAULT_EDIT, "start_sec": item["start_sec"], "duration_sec": item["duration_sec"]}
+        if row:
+            result.update(json.loads(row["settings"]))
+            result["analysis"] = json.loads(row["analysis"]) if row["analysis"] else None
+            result["qa"] = json.loads(row["qa"]) if row["qa"] else None
+        # A seleção automática atualiza clips; settings pode conter o None original.
+        result.update(start_sec=item["start_sec"], duration_sec=item["duration_sec"])
+        return result
+
+    def edit(self, clip_id: str, **fields) -> dict:
+        """Salva revisão manual; versões prontas ficam em disco, aprovadas são imutáveis."""
+        from .editing import DEFAULT_EDIT, validate_edit
+        allowed = set(DEFAULT_EDIT) | {"start_sec", "duration_sec"}
+        if not fields or any(name not in allowed for name in fields):
+            raise ValueError("Ajuste editorial desconhecido")
+        with self.lock:
+            item = self.get(clip_id)
+            if not item or item["status"] not in {"detected", "failed", "rejected", "ready"}:
+                raise ValueError("Clipe aprovado ou em estado que não permite edição")
+            current = self.get_edit(clip_id)
+            settings = {key: value for key, value in current.items() if key in allowed}
+            # Alterar título exige nova conferência, não herda a de uma frase anterior.
+            if "title" in fields and fields["title"] != settings["title"]:
+                settings["title_verified"] = False
+            settings.update(fields)
+            if settings.get("title") and settings.get("title_verified") is not True:
+                raise ValueError("Título exige conferência editorial do acontecimento real")
+            settings = validate_edit(settings, item, probe(Path(item["input_path"])))
+            with self._db() as db:
+                db.execute("INSERT INTO clip_edits (clip_id,settings) VALUES (?,?) "
+                           "ON CONFLICT(clip_id) DO UPDATE SET settings=excluded.settings,qa=NULL,analysis=NULL",
+                           (clip_id, json.dumps(settings, ensure_ascii=False, allow_nan=False)))
+                db.execute("UPDATE clips SET start_sec=?,duration_sec=?,status='detected',error=NULL,output_path=NULL WHERE id=?",
+                           (settings["start_sec"], settings["duration_sec"], clip_id))
+                db.commit()
+            self.activity.append(clip_id, "revisao", "complete", "Ajustes salvos; nova renderização necessária")
+            return self.get_edit(clip_id)
+
+    def save_analysis(self, clip_id: str, *, analysis=None, qa=None) -> None:
+        """Persiste evidências técnicas sem confundi-las com aprovação editorial."""
+        settings = self.get_edit(clip_id)
+        settings.pop("analysis", None)
+        settings.pop("qa", None)
+        with self.lock, self._db() as db:
+            db.execute("INSERT OR IGNORE INTO clip_edits (clip_id, settings) VALUES (?,?)",
+                       (clip_id, json.dumps(settings, ensure_ascii=False)))
+            if analysis is not None:
+                db.execute("UPDATE clip_edits SET analysis=? WHERE clip_id=?", (json.dumps(analysis), clip_id))
+            if qa is not None:
+                db.execute("UPDATE clip_edits SET qa=? WHERE clip_id=?", (json.dumps(qa), clip_id))
+            db.commit()
 
     def update(self, clip_id: str, **fields) -> None:
         allowed = {"status", "error", "output_path", "start_sec", "score"}
@@ -154,7 +221,7 @@ class ClipStore:
         length = float(meta.get("duration_sec", 35))
         if not 10 <= length <= 60:
             raise ValueError("Output duration must be 10–60 seconds")
-        if start is not None and (start < 0 or start + length > total + 0.1):
+        if start is not None and (not math.isfinite(start) or start < 0 or start + length > total + 0.1):
             raise ValueError("Timestamp outside source duration")
         length = min(length, total)
         sha = hashlib.sha256()
@@ -171,12 +238,19 @@ class ClipStore:
             "status": "detected", "error": None,
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         }
+        from .editing import DEFAULT_EDIT, validate_edit
+        settings = {**DEFAULT_EDIT, "start_sec": start, "duration_sec": length}
+        settings.update({key: meta[key] for key in DEFAULT_EDIT if key in meta})
+        settings = validate_edit(settings, item, info)
         with self.lock, self._db() as db:
             db.execute(
                 "INSERT OR IGNORE INTO clips VALUES (" + ",".join("?" for _ in item) + ")",
                 tuple(item.values()),
             )
             inserted = db.execute("SELECT changes()").fetchone()[0]
+            if inserted:
+                db.execute("INSERT INTO clip_edits (clip_id,settings) VALUES (?,?)",
+                           (item["id"], json.dumps(settings, ensure_ascii=False)))
             db.commit()
         if inserted:
             self.activity.append(item["id"], "ingestao", "complete",
@@ -202,23 +276,40 @@ def render_clip(store: ClipStore, clip_id: str) -> None:
     if not item or item["status"] != "queued":
         return
     store.update(clip_id, status="rendering", error=None)
-    target = store.output / f"{clip_id}.mp4"
+    target = store.output / f"{clip_id}-{uuid.uuid4().hex[:8]}.mp4"
     try:
         source = Path(item["input_path"])
         if not source.is_file() or source.is_symlink():
             raise ValueError("Source no longer available")
-        total = duration_of(probe(source))
+        # Não renderizar bytes substituídos depois da autorização/ingestão.
+        digest = hashlib.sha256()
+        with source.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        if digest.hexdigest() != item["sha256"]:
+            raise ValueError("Source changed after rights verification")
+        if item["rights_status"] not in RIGHTS:
+            raise ValueError("Source lacks rights authorization")
+        source_info = probe(source)
+        total = duration_of(source_info)
+        from .editing import validate_edit, source_fps, video_filter
+        settings = validate_edit(store.get_edit(clip_id), item, source_info)
         length = min(float(item["duration_sec"]), total)
         start = item["start_sec"]
         if start is None:
             store.activity.append(clip_id, "curadoria", "running",
                                   "Analisando atividade de áudio e cenas opcionais")
+            start, analysis = analyze_highlight(source, total, length)
             if os.getenv("SMART_SCENES", "0") == "1":
-                from .smart import choose_smart_highlight
-                start, _ = choose_smart_highlight(source, total, length)
-            else:
-                start = choose_highlight(source, total, length)
-            store.update(clip_id, start_sec=start, score=None)
+                from .smart import find_cuts, scene_aware_start, MAX_SCAN_SECONDS
+                cuts = find_cuts(source, limit_seconds=min(total, MAX_SCAN_SECONDS))
+                start = scene_aware_start(start, total, length, cuts)
+                analysis.update(method="audio+scene-boundaries" if cuts else "audio-fallback",
+                                visual_analysis=bool(cuts), cuts=cuts)
+            candidates = analysis.get("candidates", [])
+            score = candidates[0]["score"] if candidates else None
+            store.update(clip_id, start_sec=start, score=score)
+            store.save_analysis(clip_id, analysis={**analysis, "selected_start": start})
             store.activity.append(clip_id, "curadoria", "complete",
                                   "Trecho sugerido por heurística técnica, sem análise semântica")
         else:
@@ -226,31 +317,50 @@ def render_clip(store: ClipStore, clip_id: str) -> None:
                                   "Trecho marcado explicitamente no manifesto")
         if start + length > total + 0.2:
             raise ValueError("Segment exceeds media duration")
-        # Blur background, keep full landscape gameplay centered (no destructive crop).
-        filt = (
-            "[0:v]split=2[bg][fg];"
-            "[bg]scale=1080:1920:force_original_aspect_ratio=increase,"
-            "crop=1080:1920,boxblur=24:2[blur];"
-            "[fg]scale=1080:1920:force_original_aspect_ratio=decrease[sharp];"
-            "[blur][sharp]overlay=(W-w)/2:(H-h)/2:shortest=1,"
-            "fps=30,format=yuv420p[out]"
-        )
-        cmd = [
-            "ffmpeg", "-y", "-nostdin", "-v", "error",
-            "-ss", str(start), "-i", str(source), "-t", str(length),
-            "-filter_complex", filt,
-            "-map", "[out]", "-map", "0:a?",
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "25",
-            "-threads", "2", "-c:a", "aac", "-b:a", "128k",
-            "-movflags", "+faststart", str(target)
-        ]
-        subprocess.run(cmd, check=True, capture_output=True, timeout=900)
+        fps = source_fps(source_info)
+        has_audio = any(s.get("codec_type") == "audio" for s in source_info.get("streams", []))
+        with tempfile.TemporaryDirectory(prefix="clipforge-text-") as text_dir:
+            text_path = Path(text_dir)
+            title = settings.get("title") or "DESTAQUE DO STREAMER"
+            # Limites tipográficos evitam transbordamento e nunca executam expressões.
+            lines = []
+            for word in title.split():
+                if not lines or len(lines[-1]) + len(word) + 1 > 34:
+                    lines.append(word)
+                else:
+                    lines[-1] += " " + word
+            (text_path / "title.txt").write_text("\n".join(lines), encoding="utf-8")
+            creator = " ".join(str(item["creator"]).split())[:64]
+            (text_path / "credit.txt").write_text("Fonte: " + creator, encoding="utf-8")
+            cmd = [
+                "ffmpeg", "-n", "-nostdin", "-v", "error",
+                "-ss", str(start), "-i", str(source), "-t", str(length),
+                "-filter_complex_threads", "1", "-filter_complex", video_filter(settings, fps),
+                "-map", "[out]", "-map", "0:a:0?",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
+                "-threads", "2", "-c:a", "aac", "-b:a", "192k",
+            ]
+            if has_audio:
+                cmd += ["-af", "loudnorm=I=-16:TP=-1.5:LRA=11", "-ar", "48000"]
+            cmd += ["-movflags", "+faststart", str(target)]
+            subprocess.run(cmd, check=True, capture_output=True, timeout=900, cwd=text_dir)
         info = probe(target)
         video = next((s for s in info.get("streams", []) if s["codec_type"] == "video"), None)
         if not video or (video.get("width"), video.get("height")) != (1080, 1920):
             raise ValueError("QA failed: invalid portrait dimensions")
-        if duration_of(info) < 9:
-            raise ValueError("QA failed: output too short")
+        if abs(duration_of(info) - length) > 0.35:
+            raise ValueError("QA failed: unexpected output duration")
+        output_audio = any(s.get("codec_type") == "audio" for s in info.get("streams", []))
+        if has_audio and not output_audio:
+            raise ValueError("QA failed: source audio was lost")
+        # Decodificação integral detecta MP4 truncado ou quadros corrompidos.
+        subprocess.run(["ffmpeg", "-v", "error", "-xerror", "-i", str(target),
+                        "-f", "null", "-"], check=True, capture_output=True, timeout=300)
+        store.save_analysis(clip_id, qa={"width": 1080, "height": 1920,
+                            "duration_sec": duration_of(info), "fps": fps,
+                            "audio_preserved": has_audio and output_audio,
+                            "source_has_audio": has_audio, "full_decode": True,
+                            "editorial_approval": False})
         store.update(clip_id, status="ready", output_path=str(target.resolve()))
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
         target.unlink(missing_ok=True)
@@ -273,16 +383,39 @@ class Runtime:
         self.poll_seconds = max(10, int(os.getenv("POLL_SECONDS", "30")))
         from .demo import SyntheticDemo
         self.demo = SyntheticDemo(self)
-        with self.store._db() as db:
-            db.execute("UPDATE clips SET status='failed', error='Interrupted by restart' "
-                       "WHERE status IN ('queued','rendering')")
+        # Retoma somente jobs que já estavam autorizados/enfileirados. Após três
+        # reinícios interrompidos, exige ação manual em vez de loop de render caro.
+        resume = []
+        with self.store.lock, self.store._db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            interrupted = db.execute("SELECT id FROM clips WHERE status IN ('queued','rendering')").fetchall()
+            for row in interrupted:
+                cid = row["id"]
+                db.execute("INSERT OR IGNORE INTO render_recovery (clip_id,attempts) VALUES (?,0)", (cid,))
+                attempts = db.execute("SELECT attempts FROM render_recovery WHERE clip_id=?", (cid,)).fetchone()[0]
+                if attempts >= 3:
+                    db.execute("UPDATE clips SET status='failed',error=? WHERE id=?",
+                               ("Retomada automática atingiu limite de 3 tentativas; revise e reenvie manualmente.", cid))
+                else:
+                    db.execute("UPDATE render_recovery SET attempts=attempts+1 WHERE clip_id=?", (cid,))
+                    db.execute("UPDATE clips SET status='queued',error=NULL WHERE id=?", (cid,))
+                    resume.append(cid)
             db.commit()
+        for cid in resume:
+            self.store.activity.append(cid, "edicao", "queued", "Retomada após reinício; tentativa limitada")
+            future = self.executor.submit(render_clip, self.store, cid)
+            if self.auto_transcribe:
+                future.add_done_callback(lambda done, clip_id=cid: self._after_render(clip_id))
 
     def queue(self, clip_id: str) -> bool:
         with self.store.lock:
             item = self.store.get(clip_id)
             if not item or item["status"] not in {"detected", "failed", "rejected"}:
                 return False
+            with self.store._db() as db:
+                db.execute("INSERT INTO render_recovery (clip_id,attempts) VALUES (?,0) "
+                           "ON CONFLICT(clip_id) DO UPDATE SET attempts=0", (clip_id,))
+                db.commit()
             self.store.update(clip_id, status="queued", error=None)
             future = self.executor.submit(render_clip, self.store, clip_id)
             if self.auto_transcribe:
