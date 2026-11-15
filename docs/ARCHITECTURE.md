@@ -1,4 +1,24 @@
-# Arquitetura v0.1
+# Arquitetura — evolução Astra
+
+## Fluxo atual (14/11/2026)
+
+`Twitch Helix → metadados SQLite → direitos + token de usuário → CLI de download oficial → incoming + manifesto → SHA-256 → ajustes/heurística → FFmpeg → QA → revisão HTTP → fila de publicação → consulta de confirmação → histórico`.
+
+O download oficial é CLI independente; ainda não há orquestração automática entre candidato e download no painel. APIs sociais reais dependem de contas/autorização. Simulação fica exclusivamente nos testes, não no runtime de produção.
+
+- `clipforge/editing.py` valida título conferido, região de facecam e evidência manual de reação GTA; calcula sugestões acústicas explicáveis. Não é compreensão semântica nem face tracking.
+- `clip_edits` guarda ajustes, análise e QA. Edição invalida a aprovação corrente; MP4 anteriores permanecem em disco. Fonte é revalidada por SHA e saídas recebem nomes únicos.
+- FFmpeg normaliza áudio, mantém crédito e título curto, gera 1080×1920 a 30/60 FPS conforme configuração/fonte. FFprobe e decodificação integral verificam saída.
+- HTTP protegido fornece original e versão editada com suporte Range; ajustes JSON têm validação e limite. Aprovação em lote só opera em IDs explícitos.
+- `publishing.py` guarda `publication_jobs` e `publication_events`: agendamento, unicidade por clipe/plataforma e hash/plataforma, revalidação de direitos/arquivo, limites e backoff de consultas. Envio incerto não é repetido; upload e confirmação são etapas distintas.
+- `social_connectors.py` separa contratos oficiais de transporte e armazenamento. Tokens chegam do ambiente/configuração privada; login interativo e renovação ainda não implementados. Visibilidade privada não equivale a publicação pública.
+- Mission Control consulta estados reais. Presença de token significa configurado, não autenticação confirmada. Serviços externos e render pesado continuam separados.
+
+Consulte [relatório de aceitação](ASTRA_REPORT.md), [publicação](PUBLISHING.md), [download Twitch](TWITCH_DOWNLOAD.md) e [plano](superpowers/plans/2026-11-14-astra.md).
+
+## Base histórica v0.1
+
+Os diagramas abaixo descrevem a base anterior; os pontos alterados acima prevalecem.
 
 ```text
 Vídeo local autorizado + *.rights.json

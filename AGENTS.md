@@ -2,6 +2,18 @@
 
 **Leia primeiro.** Projeto independente GTA-6-clips. Não alterar WildVox, Pokémon Torre 2, Zumbi ou Nexus. A meta é descobrir clipes públicos de qualquer categoria em alta, preparar prévias para revisão e publicar apenas com direitos necessários, custo controlado e monitoramento móvel.
 
+## Atualização Astra — 14/11/2026 (prevalece sobre inventário histórico abaixo)
+
+O pedido atual do usuário substitui a antiga restrição pré-lançamento `gta5_only`: até 12 categorias configuráveis/populares, prioridade GTA VI na data configurada e override manual. Não alterar a data com base em suposição.
+
+Edição agora usa ajustes persistentes, títulos conferidos, crédito FFmpeg, layouts manuais, saída versionada, SHA da fonte e QA de decodificação. A heurística acústica não detecta semanticamente gritos, risos ou acontecimentos. Facecam é região manual, não rastreamento automático. Preservar gate GTA de reação da mesma fonte.
+
+Publicação possui fila e adaptadores oficiais, mas credenciais configuradas não comprovam conexão válida. Testes locais de contrato não comprovam publicação externa; diferenciar `pending`, `confirmed`, visibilidade privada e envio incerto. Não reenviar upload incerto. Consulte `docs/PUBLISHING.md` e `docs/ASTRA_REPORT.md` para limitações atuais.
+
+Antes de afirmar conclusão, rodar suíte, smoke FFmpeg, smoke cenas (dependência opcional), integração Astra e browser. Testes Windows da revisão precisam de GitHub Actions; testes Python Linux não substituem instalação/execução nativa.
+
+O restante deste arquivo registra a base anterior e suas restrições editoriais; descrições de recursos ausentes devem ser conferidas contra o relatório Astra.
+
 ## Estado exato
 
 - MVP implementado: scanner de vídeos LOCAIS com manifesto de direitos, SHA-256, seleção heurística por intensidade de áudio, FFmpeg 1080x1920/30fps, SQLite, API, fila local e dashboard.
