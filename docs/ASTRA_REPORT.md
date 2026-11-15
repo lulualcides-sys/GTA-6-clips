@@ -4,6 +4,8 @@ Data: 14/11/2026 (São Paulo). Base: `364a04dffed42f861ad9d8626fe258550ae8a0cb`,
 
 Verificação consolidada em 15/11/2026: **188 testes passaram** (`python -m unittest discover -s tests -v`, 20,455 s). Compilação Python, sintaxe dos quatro scripts do painel e `git diff --check` passaram. Resultados de navegador e CI são registrados separadamente abaixo.
 
+**Navegador:** Chromium real validou painel vazio em desktop/tablet/mobile e editor com MP4 original/editado, campos protegidos após aprovação, salvar ajuste, render FFmpeg acionado pela interface, aprovação em lote, ID/visibilidade da simulação e ausência de overflow mobile. O teste visual revelou aviso de prévia indevidamente visível; o CSS foi corrigido com regressão RED→GREEN. Capturas em `ui-artifacts/editor-desktop.png` e `editor-mobile.png` (não versionadas; CI publica artefato).
+
 Esta entrega é um incremento funcional amplo; **não satisfaz ainda todos os critérios de operação em produção**. Não houve postagem real, instalação no computador do usuário ou avaliação editorial de filmagem real de streamer.
 
 ## Auditoria e implementação

@@ -15,6 +15,7 @@ try {
   await page.locator("#login-form button[type=submit]").click();
   await page.waitForFunction(()=>document.querySelector("#player").readyState>=2);
   assert.equal(await page.locator("#player").evaluate(v=>v.videoWidth),1080);
+  assert.equal(await page.locator("#player-placeholder").isHidden(),true,"Aviso de prévia deve desaparecer quando o vídeo carrega");
   assert.equal(await page.locator("#edit-title").isDisabled(),true,"Aprovado deve ficar protegido");
   await page.locator("#load-original").click();
   await page.waitForFunction(()=>document.querySelector("#original-player").readyState>=2);

@@ -7,6 +7,8 @@
   --v2-shadow:0 12px 40px rgba(0,0,0,.19);
 }
 html {scroll-behavior:smooth;scroll-padding-top:108px}
+/* Regras display do tema não podem reexibir controles/avisos ocultos pelo app. */
+[hidden] {display:none !important}
 body {background:radial-gradient(ellipse at 78% 0%,rgba(35,75,107,.19),transparent 42%),radial-gradient(ellipse at 2% 43%,rgba(47,64,103,.11),transparent 35%),#080e18;line-height:1.45}
 body::before {content:"";position:absolute;inset:68px 0 auto;height:390px;pointer-events:none;z-index:-1;background:linear-gradient(180deg,rgba(25,44,70,.15),transparent)}
 ::selection {background:#466e80;color:#fff}
