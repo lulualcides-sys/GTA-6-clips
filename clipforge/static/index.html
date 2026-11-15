@@ -89,9 +89,10 @@
 <div class="edit-grid"><label>Início (segundos)<input id="edit-start" type="number" min="0" step="0.1" required></label><label>Duração (10–60 s)<input id="edit-duration" type="number" min="10" max="60" step="0.1" required></label></div>
 <label>Título curto e contextual<input id="edit-title" maxlength="72" placeholder="Deixe vazio se não houver contexto suficiente"></label>
 <label class="check-label"><input id="edit-verified" type="checkbox"> Conferi que o título corresponde ao vídeo</label>
-<label>Enquadramento<select id="edit-layout"><option value="preserve">Preservar imagem completa</option><option value="focus">Foco manual na ação</option><option value="facecam">Facecam real em destaque</option></select></label>
+<label>Enquadramento<select id="edit-layout"><option value="preserve">Preservar imagem completa</option><option value="focus">Foco manual na ação</option><option value="facecam">Facecam real em destaque</option><option value="shorts">Shorts — ação + reação</option></select></label>
 <div class="edit-grid"><label>Foco horizontal (0–1)<input id="edit-focus-x" type="number" min="0" max="1" step="0.01" value="0.5"></label><label>Foco vertical (0–1)<input id="edit-focus-y" type="number" min="0" max="1" step="0.01" value="0.5"></label></div>
 <label>Região da facecam: x, y, largura, altura (pixels)<input id="edit-facecam" placeholder="0, 0, 320, 180" aria-describedby="facecam-help"></label><p id="facecam-help" class="hint">Coordenadas em pixels da câmera presente na fonte. Este ajuste é manual.</p>
+<label>Região da ação: x, y, largura, altura (pixels)<input id="edit-action" placeholder="400, 0, 1008, 1080"></label><p class="hint">Preset Shorts: informe ação e facecam da fonte. Confira o impacto e a reação na prévia; não há rastreamento automático. Mantém áudio original, título conferido e crédito.</p>
 <button class="btn primary" type="submit">Salvar ajustes</button></fieldset></form>
 <p id="edit-state" class="hint">Selecione um clipe. Salvar exige nova renderização e revisão; aprovados ficam protegidos.</p>
 <details><summary>Aprovação em lote</summary><div id="batch-clips" class="batch-clips"></div><button id="approve-batch" class="btn secondary" type="button">Aprovar selecionados</button></details>

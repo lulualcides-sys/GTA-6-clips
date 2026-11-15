@@ -143,3 +143,26 @@ class SelectionPersistenceTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+class ShortsPresetTests(unittest.TestCase):
+    setUp = EditingTests.setUp
+
+    def test_preset_requires_both_real_regions(self):
+        with patch('clipforge.core.probe', return_value=self.info):
+            for fields in ({}, {'facecam_region': [0, 0, 100, 80]}):
+                with self.subTest(fields=fields), self.assertRaises(ValueError):
+                    self.store.edit(self.item['id'], layout='shorts', **fields)
+
+    def test_preset_persists_and_validates_action_bounds(self):
+        with patch('clipforge.core.probe', return_value=self.info):
+            saved = self.store.edit(self.item['id'], layout='shorts',
+                facecam_region=[0, 0, 100, 80], action_region=[100, 0, 300, 360])
+            self.assertEqual(ClipStore(self.store.root).get_edit(self.item['id'])['action_region'], saved['action_region'])
+            for region in ([600, 0, 300, 360], [0, 0, -1, 100], [True, 0, 100, 100], '0,0,100,100'):
+                with self.subTest(region=region), self.assertRaises(ValueError):
+                    self.store.edit(self.item['id'], action_region=region)
+
+    def test_shorts_still_requires_gta_reaction_evidence(self):
+        with patch('clipforge.core.probe', return_value=self.info), self.assertRaisesRegex(ValueError, 'reação|Reação'):
+            self.store.edit(self.item['id'], layout='shorts', game='GTA VI',
+                facecam_region=[0, 0, 100, 80], action_region=[100, 0, 300, 360])

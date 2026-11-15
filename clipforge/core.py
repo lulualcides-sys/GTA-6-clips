@@ -321,7 +321,7 @@ def render_clip(store: ClipStore, clip_id: str) -> None:
         has_audio = any(s.get("codec_type") == "audio" for s in source_info.get("streams", []))
         with tempfile.TemporaryDirectory(prefix="clipforge-text-") as text_dir:
             text_path = Path(text_dir)
-            title = settings.get("title") or "DESTAQUE DO STREAMER"
+            title = settings.get("title") or ("" if settings["layout"] == "shorts" else "DESTAQUE DO STREAMER")
             # Limites tipográficos evitam transbordamento e nunca executam expressões.
             lines = []
             for word in title.split():

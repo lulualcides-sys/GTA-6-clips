@@ -6,7 +6,7 @@ from pathlib import Path
 
 DEFAULT_EDIT = {'title': '', 'title_verified': False, 'layout': 'preserve',
                 'focus_x': 0.5, 'focus_y': 0.5, 'facecam_region': None,
-                'game': '', 'reaction_review': None}
+                'game': '', 'reaction_review': None, 'action_region': None}
 
 
 def rank_audio_windows(powers: list[float], length: float) -> list[dict]:
@@ -62,7 +62,7 @@ def validate_edit(edit: dict, item: dict, info: dict) -> dict:
         raise ValueError('Título exige conferência editorial do acontecimento real')
     if result.get('title_verified') not in (True, False):
         raise ValueError('Conferência de título inválida')
-    if result['layout'] not in {'preserve', 'focus', 'facecam'}:
+    if result['layout'] not in {'preserve', 'focus', 'facecam', 'shorts'}:
         raise ValueError('Enquadramento desconhecido')
     for key in ('focus_x', 'focus_y'):
         value = result[key]
@@ -76,8 +76,17 @@ def validate_edit(edit: dict, item: dict, info: dict) -> dict:
         x, y, w, h = region
         if min(x, y) < 0 or min(w, h) < 2 or x + w > video.get('width', 0) or y + h > video.get('height', 0):
             raise ValueError('Facecam fora da imagem original')
-    if result['layout'] == 'facecam' and region is None:
+    if result['layout'] in {'facecam', 'shorts'} and region is None:
         raise ValueError('Facecam exige região revisada manualmente')
+    action = result.get('action_region')
+    if action is not None:
+        if not isinstance(action, (list, tuple)) or len(action) != 4 or any(isinstance(v, bool) or not isinstance(v, int) for v in action):
+            raise ValueError('Ação exige retângulo real em pixels da fonte')
+        ax, ay, aw, ah = action
+        if min(ax, ay) < 0 or min(aw, ah) < 2 or ax + aw > video.get('width', 0) or ay + ah > video.get('height', 0):
+            raise ValueError('Região da ação fora da imagem original')
+    if result['layout'] == 'shorts' and action is None:
+        raise ValueError('Preset Shorts exige região da ação revisada manualmente')
     game = result.get('game', '')
     if not isinstance(game, str) or len(game) > 100:
         raise ValueError('Jogo inválido')
@@ -99,7 +108,7 @@ def validate_edit(edit: dict, item: dict, info: dict) -> dict:
         # O crop de ação não pode ocultar a câmera aprovada.
         if result['layout'] == 'focus':
             raise ValueError('GTA com reação exige enquadramento preserve ou facecam')
-        if result['layout'] == 'facecam' and list(region) != list(review['facecam_region']):
+        if result['layout'] in {'facecam', 'shorts'} and list(region) != list(review['facecam_region']):
             raise ValueError('Facecam deve corresponder à região da revisão')
     return result
 
@@ -121,6 +130,17 @@ def video_filter(edit: dict, fps: int) -> str:
     if edit['layout'] == 'focus':
         base = ('[0:v]scale=1080:1920:force_original_aspect_ratio=increase,'
                 f"crop=1080:1920:(iw-ow)*{edit['focus_x']}:(ih-oh)*{edit['focus_y']}[composed];")
+    elif edit['layout'] == 'shorts':
+        # Regiões revisadas; sem esticar a imagem nem rastreamento fictício.
+        x, y, w, h = edit['facecam_region']
+        ax, ay, aw, ah = edit['action_region']
+        base = ('[0:v]split=3[bg][fg][cam];'
+                '[bg]scale=270:480:force_original_aspect_ratio=increase,crop=270:480,'
+                'boxblur=12:2,eq=brightness=-0.30,scale=1080:1920[blur];'
+                f'[fg]crop={aw}:{ah}:{ax}:{ay},scale=1080:1158:force_original_aspect_ratio=decrease[sharp];'
+                '[blur][sharp]overlay=(W-w)/2:762+(1158-h)/2:shortest=1[game];'
+                f'[cam]crop={w}:{h}:{x}:{y},scale=720:500:force_original_aspect_ratio=decrease[camera];'
+                '[game][camera]overlay=(W-w)/2:60+(500-h)/2:shortest=1[composed];')
     elif edit['layout'] == 'facecam':
         x, y, w, h = edit['facecam_region']
         base = (f'[0:v]split=3[bg][fg][cam];[bg]scale=1080:1920:force_original_aspect_ratio=increase,'
@@ -140,8 +160,10 @@ def video_filter(edit: dict, fps: int) -> str:
     if os.name == 'nt' and windows_font.is_file():
         escaped = windows_font.as_posix().replace(':', r'\:')
         font = f"fontfile='{escaped}':"
+    title_y = 600 if edit['layout'] == 'shorts' else 72
+    credit_y = '714' if edit['layout'] == 'shorts' else 'h-70'
     return (base + f'[composed]setsar=1,fps={fps},'
             f'drawtext={font}textfile=title.txt:expansion=none:fontcolor=white:fontsize=40:'
-            'x=(w-tw)/2:y=72:box=1:boxcolor=black@0.55:boxborderw=12,'
+            f'x=(w-tw)/2:y={title_y}:box=1:boxcolor=black@0.55:boxborderw=12,'
             f'drawtext={font}textfile=credit.txt:expansion=none:fontcolor=white:fontsize=24:'
-            'x=(w-tw)/2:y=h-70:box=1:boxcolor=black@0.55:boxborderw=8,format=yuv420p[out]')
+            f'x=(w-tw)/2:y={credit_y}:box=1:boxcolor=black@0.55:boxborderw=8,format=yuv420p[out]')

@@ -34,7 +34,9 @@ try {
   await page.waitForFunction(()=>!document.querySelector("#edit-fields").disabled);
   await page.locator("#edit-title").fill("CORES EM MOVIMENTO — TESTE PRÓPRIO");
   await page.locator("#edit-verified").check();
-  await page.locator("#edit-layout").selectOption("preserve");
+  await page.locator("#edit-layout").selectOption("shorts");
+  await page.locator("#edit-facecam").fill("0, 0, 240, 180");
+  await page.locator("#edit-action").fill("240, 0, 500, 540");
   await page.locator("#edit-form button[type=submit]").click();
   await page.waitForFunction(()=>document.querySelector("#detail-status").textContent==="Detectado");
   await page.locator("#render").click();

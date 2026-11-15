@@ -76,7 +76,8 @@ def main():
     first = Path(item['output_path'])
     first_hash = hashlib.sha256(first.read_bytes()).hexdigest()
     # Compare duas composições reais da mesma fonte, preservando a primeira.
-    store.edit(clip_id, layout='focus', focus_x=0.5, focus_y=0.5)
+    store.edit(clip_id, layout='shorts', facecam_region=[0, 0, 240, 180],
+               action_region=[240, 0, 500, 540])
     store.update(clip_id, status='queued')
     render_clip(store, clip_id)
     item = store.get(clip_id)
