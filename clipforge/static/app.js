@@ -160,4 +160,63 @@ function mountDesktopControls() {
 window.addEventListener("pywebviewready",mountDesktopControls);
 mountDesktopControls();
 
+
+/* AutoClip: execução local opcional, sugestões isoladas da aprovação. */
+let autoclipPreviewUrl="";
+function clearAutoclipPreview(){
+  const player=byId("autoclip-preview");
+  player.pause();player.hidden=true;player.removeAttribute("src");
+  if(autoclipPreviewUrl)URL.revokeObjectURL(autoclipPreviewUrl);
+  autoclipPreviewUrl="";
+}
+async function refreshAutoclip(){
+  const selected=activeId;
+  const stateNode=byId("autoclip-status"), results=byId("autoclip-results");
+  try{
+    const data=await api("/api/autoclip");
+    if(selected!==activeId)return;
+    const job=(data.jobs||{})[selected]||null;
+    const ready=Boolean(data.enabled&&data.installed);
+    byId("autoclip-run").disabled=!selected||!ready||data.running;
+    stateNode.textContent=!data.enabled?"AutoClip desativado (AUTOCLIP_ENABLED=0).":
+      !data.installed?"AutoClip não instalado neste servidor. Rode autoclip doctor após instalar a CLI.":
+      job?"AutoClip: "+job.status+" · apenas sugestões, sem aprovação automática.":
+      "AutoClip pronto para analisar fonte autorizada (até 3 sugestões).";
+    results.replaceChildren();
+    if(job&&job.error)results.appendChild(el("p","hint",job.error));
+    const clipsToPreview=(job?.status==="complete"&&Array.isArray(job.suggestions))?job.suggestions:[];
+    clipsToPreview.forEach((name,index)=>{
+      const button=el("button","btn secondary","Assistir sugestão "+(index+1));
+      button.type="button";
+      button.addEventListener("click",async()=>{
+        clearAutoclipPreview();
+        try{
+          const blob=await api("/api/clips/"+selected+"/autoclip-preview/"+index,"GET",true);
+          if(selected!==activeId)return;
+          autoclipPreviewUrl=URL.createObjectURL(blob);
+          const player=byId("autoclip-preview");
+          player.src=autoclipPreviewUrl;player.hidden=false;player.load();
+        }catch(err){toast("AutoClip: "+err.message);}
+      });
+      results.appendChild(button);
+    });
+    if(!clipsToPreview.length)clearAutoclipPreview();
+  }catch(e){
+    stateNode.textContent="AutoClip: "+e.message;
+    byId("autoclip-run").disabled=true;
+  }
+}
+byId("autoclip-run").addEventListener("click",async()=>{
+  if(!activeId)return;
+  byId("autoclip-run").disabled=true;
+  try{
+    await api("/api/clips/"+activeId+"/autoclip","POST");
+    toast("AutoClip iniciado. Os resultados ficarão disponíveis apenas para revisão.");
+  }catch(e){toast("AutoClip: "+e.message);}
+  await refreshAutoclip();
+});
+window.addEventListener("gta:clip-selected",()=>{clearAutoclipPreview();refreshAutoclip();});
+setInterval(refreshAutoclip,10000);
+refreshAutoclip();
+
 setInterval(()=>refresh(),6000);refresh();
