@@ -1,4 +1,4 @@
-# AutoClip + Postiz dentro do Nexus Clips BR — integração de runtime
+> Atualização v0.4.1 (16/11/2026): a política de edição exclusiva vigente está em [AUTOCLIP_ONLY.md](AUTOCLIP_ONLY.md). A partir desta versão, o AutoClip é o único motor de vídeo; as propostas importadas são promovidas diretamente a `ready` após QA, sem nova renderização FFmpeg. Referências antigas abaixo descrevem a v0.4.0.\n\n# AutoClip + Postiz dentro do Nexus Clips BR — integração de runtime
 
 Implementado na branch de integração, baseada em `astra/platform-reliability` da PR #25.
 **Não afirmar que o AutoClip está instalado, que existe conta Postiz conectada, ou que
