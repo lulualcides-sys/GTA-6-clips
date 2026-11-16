@@ -114,9 +114,9 @@ class PostizConnector:
         if self.provider == "youtube":
             return {"__type": "youtube", "title": title, "type": "private",
                     "selfDeclaredMadeForKids": "no", "tags": []}
-        return {"__type": "tiktok", "privacy_level": "SELF_ONLY",
+        return {"__type": "tiktok", "title": "", "privacy_level": "SELF_ONLY",
                 "duet": False, "stitch": False, "comment": True,
-                "autoAddMusic": False, "brand_content_toggle": False,
+                "autoAddMusic": "no", "brand_content_toggle": False,
                 "brand_organic_toggle": False, "content_posting_method": "DIRECT_POST"}
 
     def submit(self, job, path):
@@ -164,7 +164,7 @@ class PostizConnector:
                 return {"state": "failed"}
             if row.get("state") == "PUBLISHED" and row.get("releaseURL"):
                 return {"state": "confirmed", "remote_id": str(row["releaseURL"]),
-                        "visibility": "private"}
+                        "visibility": "unknown"}
             break
         return {"state": "pending"}
 
