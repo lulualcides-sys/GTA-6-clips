@@ -70,7 +70,7 @@ class EditingTests(unittest.TestCase):
 
 
 class RecoveryTests(unittest.TestCase):
-    def test_restart_resubmits_interrupted_jobs_with_limit(self):
+    def test_restart_never_resumes_legacy_ffmpeg(self):
         import os
         from clipforge.core import Runtime
         with tempfile.TemporaryDirectory() as temp, patch.dict(os.environ, {
@@ -84,19 +84,9 @@ class RecoveryTests(unittest.TestCase):
             with patch('clipforge.core.render_clip') as renderer:
                 runtime = Runtime(Path(temp))
                 runtime.executor.shutdown(wait=True)
-            renderer.assert_called_once_with(runtime.store, 'interrupted1')
-            self.assertEqual(runtime.store.get('interrupted1')['status'], 'queued')
-            for _ in range(2):
-                with patch('clipforge.core.render_clip') as renderer:
-                    runtime = Runtime(Path(temp))
-                    runtime.executor.shutdown(wait=True)
-                    renderer.assert_called_once()
-            with patch('clipforge.core.render_clip') as renderer:
-                runtime = Runtime(Path(temp))
-                runtime.executor.shutdown(wait=True)
-                renderer.assert_not_called()
+            renderer.assert_not_called()
             self.assertEqual(runtime.store.get('interrupted1')['status'], 'failed')
-            self.assertIn('limite', runtime.store.get('interrupted1')['error'])
+            self.assertIn('AutoClip', runtime.store.get('interrupted1')['error'])
 
     def test_immutable_source_is_checked_before_rendering(self):
         from clipforge.core import render_clip
@@ -110,7 +100,8 @@ class RecoveryTests(unittest.TestCase):
                 item = store.ingest(manifest)
             source.write_bytes(b'changed after authorization')
             store.update(item['id'], status='queued')
-            render_clip(store, item['id'])
+            with patch.dict('os.environ', {'NEXUS_LEGACY_TEST_RENDER': '1'}):
+                render_clip(store, item['id'])
             self.assertEqual(store.get(item['id'])['status'], 'failed')
             self.assertIn('changed', store.get(item['id'])['error'])
 

@@ -1,5 +1,7 @@
 # AGENTS.md — instruções para todas as IAs que alterarem este repositório
 
+**REGRA DE EDIÇÃO (16/11/2026): SOMENTE AUTOCLIP.** Todos os novos vídeos devem ser editados exclusivamente pela CLI real AutoClip (artbyjazi/autoclip). Não fazer edição de substituição com FFmpeg, Remotion, HyperFrames, heurísticas acústicas, cortes manuais ou código próprio quando a CLI falhar ou não estiver instalada. FFmpeg/ffprobe são permitidos apenas para validação/decodificação, mídia sintética dos testes e dependências internas do próprio AutoClip. Importar a saída AutoClip validada diretamente para revisão; não re-renderizar pelo Nexus. Preservar saídas anteriores e aprovações. Testar pipeline e informar bloqueio verdadeiro caso CLI ausente. Publicar somente após testes verdes e edição real verificada.
+
 **Leia primeiro.** Projeto independente GTA-6-clips. Não alterar WildVox, Pokémon Torre 2, Zumbi ou Nexus. A meta é descobrir clipes públicos de qualquer categoria em alta, preparar prévias para revisão e publicar apenas com direitos necessários, custo controlado e monitoramento móvel.
 
 ## Atualização Astra — 14/11/2026 (prevalece sobre inventário histórico abaixo)

@@ -277,8 +277,7 @@ def make_handler(runtime: Runtime):
                     return self._reply(404, {"error": "Clip not found"})
                 try:
                     if pieces[-1] == "edit":
-                        result = runtime.store.edit(item_id, **body)
-                        return self._reply(200, result)
+                        return self._reply(409, {"error": "Edição manual desativada. Somente AutoClip edita novos vídeos."})
                     allowed = {"platform", "title", "description", "scheduled_at"}
                     if set(body) - allowed or not {"platform", "title"} <= set(body):
                         raise ValueError("Plataforma e título obrigatórios")
@@ -318,10 +317,9 @@ def make_handler(runtime: Runtime):
                 if not clip_id or not runtime.store.get(clip_id):
                     return self._reply(404, {"error": "Clipe não encontrado"})
                 try:
+                    # A saída AutoClip é validada e disponibilizada diretamente
+                    # para revisão; jamais reencaminhar ao renderizador FFmpeg.
                     result = autoclip().import_suggestion(clip_id, int(pieces[4]))
-                    if result["created"] and runtime.auto_render:
-                        runtime.queue(result["clip_id"])
-                        result["status"] = runtime.store.get(result["clip_id"])["status"]
                     return self._reply(201 if result["created"] else 200, result)
                 except PermissionError as exc:
                     return self._reply(403, {"error": str(exc)[:200]})
@@ -379,8 +377,14 @@ def make_handler(runtime: Runtime):
                     "download_path": f"/api/clips/{item_id}/hyperframes.zip"
                 })
             if action == "render":
-                queued = runtime.queue(item_id)
-                return self._reply(202 if queued else 409, {"queued": queued})
+                try:
+                    queued = runtime.queue(item_id)
+                    return self._reply(202 if queued else 409, {"queued": queued,
+                                                                  "engine": "autoclip"})
+                except PermissionError as exc:
+                    return self._reply(403, {"error": str(exc)[:200]})
+                except (ValueError, OSError) as exc:
+                    return self._reply(409, {"error": str(exc)[:200]})
             if action in ("approve", "reject"):
                 # Releitura protegida evita aprovar versão invalidada por edição concorrente.
                 with runtime.store.lock:

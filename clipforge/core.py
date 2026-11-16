@@ -272,6 +272,9 @@ class ClipStore:
 
 
 def render_clip(store: ClipStore, clip_id: str) -> None:
+    # Retido apenas para smoke/regressão sintéticos, nunca no pipeline Nexus.
+    if os.getenv("NEXUS_LEGACY_TEST_RENDER", "0") != "1":
+        raise RuntimeError("Renderizador legado bloqueado: somente AutoClip pode editar vídeos.")
     item = store.get(clip_id)
     if not item or item["status"] != "queued":
         return
@@ -383,44 +386,34 @@ class Runtime:
         self.poll_seconds = max(10, int(os.getenv("POLL_SECONDS", "30")))
         from .demo import SyntheticDemo
         self.demo = SyntheticDemo(self)
-        # Retoma somente jobs que já estavam autorizados/enfileirados. Após três
-        # reinícios interrompidos, exige ação manual em vez de loop de render caro.
-        resume = []
+        from .autoclip_bridge import AutoClipBridge
+        self.autoclip_bridge = AutoClipBridge(self.store)
+        # Jobs herdados de FFmpeg NÃO podem ser retomados: preservamos fontes
+        # e MP4s existentes, e falhamos fechado em vez de renderizar novamente.
         with self.store.lock, self.store._db() as db:
-            db.execute("BEGIN IMMEDIATE")
-            interrupted = db.execute("SELECT id FROM clips WHERE status IN ('queued','rendering')").fetchall()
+            interrupted = db.execute(
+                "SELECT id FROM clips WHERE status IN ('queued','rendering')"
+            ).fetchall()
             for row in interrupted:
-                cid = row["id"]
-                db.execute("INSERT OR IGNORE INTO render_recovery (clip_id,attempts) VALUES (?,0)", (cid,))
-                attempts = db.execute("SELECT attempts FROM render_recovery WHERE clip_id=?", (cid,)).fetchone()[0]
-                if attempts >= 3:
-                    db.execute("UPDATE clips SET status='failed',error=? WHERE id=?",
-                               ("Retomada automática atingiu limite de 3 tentativas; revise e reenvie manualmente.", cid))
-                else:
-                    db.execute("UPDATE render_recovery SET attempts=attempts+1 WHERE clip_id=?", (cid,))
-                    db.execute("UPDATE clips SET status='queued',error=NULL WHERE id=?", (cid,))
-                    resume.append(cid)
+                db.execute(
+                    "UPDATE clips SET status='failed',error=? WHERE id=?",
+                    ("Renderizador antigo desativado. Reprocessar somente com AutoClip.", row["id"])
+                )
             db.commit()
-        for cid in resume:
-            self.store.activity.append(cid, "edicao", "queued", "Retomada após reinício; tentativa limitada")
-            future = self.executor.submit(render_clip, self.store, cid)
-            if self.auto_transcribe:
-                future.add_done_callback(lambda done, clip_id=cid: self._after_render(clip_id))
+        for row in interrupted:
+            self.store.activity.append(row["id"], "edicao", "failed",
+                                       "Render legado não retomado; AutoClip obrigatório")
 
     def queue(self, clip_id: str) -> bool:
+        """Garante AutoClip exclusivo; nunca tenta FFmpeg se indisponível."""
         with self.store.lock:
             item = self.store.get(clip_id)
             if not item or item["status"] not in {"detected", "failed", "rejected"}:
                 return False
-            with self.store._db() as db:
-                db.execute("INSERT INTO render_recovery (clip_id,attempts) VALUES (?,0) "
-                           "ON CONFLICT(clip_id) DO UPDATE SET attempts=0", (clip_id,))
-                db.commit()
-            self.store.update(clip_id, status="queued", error=None)
-            future = self.executor.submit(render_clip, self.store, clip_id)
-            if self.auto_transcribe:
-                future.add_done_callback(lambda done, cid=clip_id: self._after_render(cid))
-            return True
+        self.autoclip_bridge.queue(clip_id)
+        self.store.activity.append(clip_id, "edicao", "queued",
+                                   "Solicitação enviada exclusivamente ao AutoClip")
+        return True
 
     def _after_render(self, clip_id: str):
         """Optional opt-in transcription after successful video render."""
@@ -435,7 +428,13 @@ class Runtime:
         result = self.store.scan()
         if self.auto_render:
             for clip_id in result["added"]:
-                self.queue(clip_id)
+                try:
+                    self.queue(clip_id)
+                except (ValueError, PermissionError, OSError) as exc:
+                    # Nunca usar FFmpeg como fallback. A ingestão permanece válida.
+                    item = self.store.get(clip_id)
+                    result["errors"].append({"file": item["filename"] if item else clip_id,
+                                             "error": str(exc)[:200]})
         return result
 
     def start_polling(self) -> None:

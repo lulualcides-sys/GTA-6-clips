@@ -14,6 +14,7 @@ import subprocess
 import threading
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from unittest.mock import patch
 
 from clipforge.core import Runtime, probe, render_clip
 from clipforge.hyperframes import export_composition
@@ -70,7 +71,9 @@ def main():
     clip_id = found['added'][0]
     assert store.scan()['added'] == [], 'Ingestão duplicada'
     store.update(clip_id, status='queued')
-    render_clip(store, clip_id)
+    # Teste sintético isolado; este renderizador nunca roda pelo Nexus.
+    with patch.dict(os.environ, {"NEXUS_LEGACY_TEST_RENDER": "1"}):
+        render_clip(store, clip_id)
     item = store.get(clip_id)
     assert item['status'] == 'ready', item
     first = Path(item['output_path'])
@@ -79,7 +82,9 @@ def main():
     store.edit(clip_id, layout='shorts', facecam_region=[0, 0, 240, 180],
                action_region=[240, 0, 500, 540])
     store.update(clip_id, status='queued')
-    render_clip(store, clip_id)
+    # Teste sintético isolado; este renderizador nunca roda pelo Nexus.
+    with patch.dict(os.environ, {"NEXUS_LEGACY_TEST_RENDER": "1"}):
+        render_clip(store, clip_id)
     item = store.get(clip_id)
     assert item['status'] == 'ready', item
     assert hashlib.sha256(first.read_bytes()).hexdigest() == first_hash

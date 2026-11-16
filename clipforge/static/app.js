@@ -22,7 +22,7 @@ function clearPreview(){byId("player").pause();byId("player").hidden=true;byId("
 async function showPreview(c){const key=c.id+":"+c.output_path;if(previewKey===key)return;clearPreview();previewKey=key;try{const b=await api("/api/clips/"+c.id+"/video","GET",true);if(activeId!==c.id)return;previewUrl=URL.createObjectURL(b);byId("player").src=previewUrl;byId("player").hidden=false;byId("player-placeholder").hidden=true;}catch(e){previewKey="";toast("Prévia: "+e.message);}}
 function renderDetail(){const c=clips.find(x=>x.id===activeId);if(!c){byId("detail-title").textContent="Selecione um clipe";status(byId("detail-status"),"detected");byId("details").replaceChildren(el("p","hint","Os detalhes de origem e permissão aparecerão aqui."));["render","approve","reject","hyperframes","transcribe"].forEach(id=>byId(id).disabled=true);clearPreview();return;}byId("detail-title").textContent=c.filename;status(byId("detail-status"),c.status);byId("details").replaceChildren(field("CRIADOR",c.creator),field("DURAÇÃO",Math.round(c.duration_sec)+"s"),field("DIREITOS DECLARADOS",c.rights_status),field("INÍCIO DO TRECHO",c.start_sec===null?"Seleção automática":c.start_sec+"s"),field("REFERÊNCIA DE ORIGEM",c.source_url),field("ERRO / AVISO",c.error),field("LEGENDAS",captionStates[c.id] ? ({"ready":"Geradas","queued":"Na fila","processing":"Transcrevendo","failed":"Falhou","stale":"Desatualizadas"}[captionStates[c.id].status]||captionStates[c.id].status) : "Não iniciadas"));byId("render").disabled=!["detected","failed","rejected"].includes(c.status);byId("hyperframes").disabled=!(c.output_path&&["ready","approved"].includes(c.status));byId("transcribe").disabled=!whisperAvailable||!(c.output_path&&["ready","approved"].includes(c.status))||["queued","processing"].includes((captionStates[c.id]||{}).status);byId("approve").disabled=c.status!=="ready";byId("reject").disabled=!["ready","approved"].includes(c.status);if(c.output_path&&["ready","approved"].includes(c.status))showPreview(c);else clearPreview();}
 async function refresh(silent=true){try{const [data,captions]=await Promise.all([api("/api/clips"),api("/api/captions")]);clips=data.clips||[];captionStates=captions.captions||{};whisperAvailable=Boolean(captions.transcription_available);byId("transcribe").title=whisperAvailable?"Transcrever localmente":"Instale requirements-ai.txt no servidor para ativar legendas";byId("connection").textContent="Serviço online";byId("connection").className="tag good";const previousId=activeId;if(!clips.find(c=>c.id===activeId))activeId=clips.length?clips[0].id:null;stats();renderList();renderDetail();window.dispatchEvent(new Event("gta:clips-updated"));if(previousId!==activeId)window.dispatchEvent(new Event("gta:clip-selected"));}catch(e){byId("connection").textContent="Sem conexão";byId("connection").className="tag bad";if(!silent)toast(e.message);}}
-async function action(name){if(!activeId)return;try{await api("/api/clips/"+activeId+"/"+name,"POST");toast(name==="render"?"Renderização enviada à fila.":"Estado atualizado.");await refresh();if(window.GTAAgents)window.GTAAgents.refresh();}catch(e){toast(e.message);}}
+async function action(name){if(!activeId)return;try{await api("/api/clips/"+activeId+"/"+name,"POST");toast(name==="render"?"AutoClip iniciado; escolha uma sugestão e revise antes de aprovar.":"Estado atualizado.");await refresh();if(window.GTAAgents)window.GTAAgents.refresh();}catch(e){toast(e.message);}}
 byId("refresh").addEventListener("click",()=>refresh(false));
 byId("scan").addEventListener("click",async()=>{try{const r=await api("/api/scan","POST");toast(r.added.length+" novo(s) clipe(s). "+r.errors.length+" erro(s).");if(r.errors.length)console.warn("Manifestos inválidos:",r.errors);await refresh();}catch(e){toast(e.message);}});
 byId("render").addEventListener("click",()=>action("render"));
@@ -178,10 +178,12 @@ async function refreshAutoclip(){
     const job=(data.jobs||{})[selected]||null;
     const ready=Boolean(data.enabled&&data.installed);
     byId("autoclip-run").disabled=!selected||!ready||data.running;
+    byId("render").disabled=!selected||!ready||data.running||
+      !["detected","failed","rejected"].includes((clips.find(c=>c.id===selected)||{}).status);
     stateNode.textContent=!data.enabled?"AutoClip desativado (AUTOCLIP_ENABLED=0).":
       !data.installed?"AutoClip não instalado neste servidor. Rode autoclip doctor após instalar a CLI.":
-      job?"AutoClip: "+job.status+" · apenas sugestões, sem aprovação automática.":
-      "AutoClip pronto para analisar fonte autorizada (até 3 sugestões).";
+      job?"AutoClip: "+job.status+" · motor exclusivo; escolha uma sugestão para revisar.":
+      "AutoClip é o único editor de vídeos; gera até 3 sugestões para revisão.";
     results.replaceChildren();
     if(job&&job.error)results.appendChild(el("p","hint",job.error));
     const clipsToPreview=(job?.status==="complete"&&Array.isArray(job.suggestions))?job.suggestions:[];
@@ -206,7 +208,7 @@ async function refreshAutoclip(){
         try{
           const result=await api("/api/clips/"+selected+"/autoclip-import/"+index,"POST");
           activeId=result.clip_id;
-          toast("Sugestão importada na biblioteca. Verifique origem, edição e reação antes de aprovar.");
+          toast("MP4 criado pelo AutoClip importado sem reedição. Revise antes de aprovar.");
           clearAutoclipPreview();
           await refresh(false);
         }catch(err){toast("Importação AutoClip: "+err.message);}

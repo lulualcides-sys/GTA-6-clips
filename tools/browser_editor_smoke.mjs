@@ -30,29 +30,36 @@ try {
   await page.locator("#load-original").click();
   await page.waitForFunction(()=>document.querySelector("#original-player").readyState>=2);
   assert.equal(await page.locator("#original-player").evaluate(v=>v.videoWidth),960);
+  // Nunca acionar FFmpeg quando a CLI AutoClip está ausente.
+  assert.equal(await page.locator("#edit-fields").getAttribute("hidden"),"","Formulário manual deve estar oculto");
+  await page.waitForFunction(()=>document.querySelector("#autoclip-status").textContent.includes("desativado"));
+  await page.waitForFunction(()=>document.querySelector("#render").disabled);
+  const videoId=await page.evaluate(()=>activeId);
+  assert(videoId,"Clipe de teste não localizado");
+  // Rejeitar versão anterior para permitir tentativa explícita de reedição.
   await page.locator("#reject").click();
-  await page.waitForFunction(()=>!document.querySelector("#edit-fields").disabled);
-  await page.locator("#edit-title").fill("CORES EM MOVIMENTO — TESTE PRÓPRIO");
-  await page.locator("#edit-verified").check();
-  await page.locator("#edit-layout").selectOption("shorts");
-  await page.locator("#edit-facecam").fill("0, 0, 240, 180");
-  await page.locator("#edit-action").fill("240, 0, 500, 540");
-  await page.locator("#edit-form button[type=submit]").click();
-  await page.waitForFunction(()=>document.querySelector("#detail-status").textContent==="Detectado");
-  await page.locator("#render").click();
-  await page.waitForFunction(()=>document.querySelector("#detail-status").textContent==="Pronto para revisar",null,{timeout:180000});
-  await page.waitForFunction(()=>document.querySelector("#player").readyState>=2);
-  await page.locator(".editor-panel details").evaluate(e=>e.open=true);
-  await page.locator("#batch-clips input").check();
-  await page.locator("#approve-batch").click();
-  await page.waitForFunction(()=>document.querySelector("#detail-status").textContent==="Aprovado");
+  await page.waitForFunction(()=>document.querySelector("#detail-status").textContent==="Rejeitado");
+  const preserved=await page.request.get(base+"/api/clips/"+videoId+"/video",{
+    headers:{"Authorization":"Bearer "+token}
+  });
+  assert.equal(preserved.status(),200,"O MP4 antigo deve permanecer preservado");
+  const renderDenied=await page.request.post(base+"/api/clips/"+videoId+"/render",{
+    headers:{"Authorization":"Bearer "+token}
+  });
+  assert.equal(renderDenied.status(),409,"Render deve falhar sem AutoClip");
+  assert.match((await renderDenied.json()).error,/AutoClip|desativado/i);
+  const manualDenied=await page.request.post(base+"/api/clips/"+videoId+"/edit",{
+    headers:{"Authorization":"Bearer "+token},
+    data:{"layout":"focus"}
+  });
+  assert.equal(manualDenied.status(),409,"API de edição manual deve ser bloqueada");
+  assert.match((await manualDenied.json()).error,/AutoClip/);
+  assert.equal(await page.locator("#detail-status").textContent(),"Rejeitado");
   assert.equal(await page.locator("#hyperframes-captions").isChecked(),false);
-  assert.match(await page.locator("#publication-jobs").textContent(),/SIMULATED-NOT-A-PUBLICATION/);
-  assert.match(await page.locator("#publication-jobs").textContent(),/local-test-only/);
   await page.screenshot({path:"ui-artifacts/editor-desktop.png",fullPage:true});
   await page.setViewportSize({width:390,height:844});
   assert(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)<=2,"Editor mobile sem overflow horizontal");
   await page.screenshot({path:"ui-artifacts/editor-mobile.png",fullPage:true});
   assert.deepEqual(errors,[]);
-  console.log("EDITOR BROWSER PASS: MP4 original/editado, proteção aprovado, edição salva, render real, aprovação em lote, IDs/visibilidade, mobile");
+  console.log("EDITOR BROWSER PASS: vídeo anterior preservado, original acessível, edição manual e fallback FFmpeg bloqueados, mobile");
 } finally {await browser.close();}

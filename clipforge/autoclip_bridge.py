@@ -138,8 +138,8 @@ class AutoClipBridge:
         original = self.store.get(clip_id)
         from .core import duration_of, probe
         seconds = duration_of(probe(candidate))
-        if not 10 <= seconds <= 7200:
-            raise ValueError("Sugestão AutoClip tem duração inválida.")
+        if not 10 <= seconds <= 60:
+            raise ValueError("Sugestão AutoClip precisa ter entre 10 e 60 segundos.")
         digest = hashlib.sha256()
         with candidate.open("rb") as stream:
             for block in iter(lambda: stream.read(1024 * 1024), b""):
@@ -180,8 +180,61 @@ class AutoClipBridge:
                         break
             if not imported:
                 raise ValueError("Arquivo já existe sem identificação válida.")
-            return {"clip_id": imported["id"], "status": imported["status"],
+            # Não existe segundo render: o MP4 criado pelo AutoClip vira a
+            # versão revisável diretamente. FFmpeg só verifica a decodificação.
+            if getattr(self.store, "output", None) is not None and imported["status"] not in {"approved", "ready"}:
+                self._promote_autoclip_result(imported["id"], target, digest.hexdigest(), Path(original["input_path"]))
+            updated = self.store.get(imported["id"])
+            return {"clip_id": imported["id"], "status": updated["status"] if updated else imported["status"],
                     "created": freshly_imported}
+
+    def _promote_autoclip_result(self, clip_id, source: Path, expected_sha: str, original_source: Path):
+        """QA de vídeo real e cópia sem qualquer edição pelo pipeline Nexus."""
+        from .core import duration_of, probe
+        import subprocess
+        item = self.store.get(clip_id)
+        if not item or item["sha256"] != expected_sha:
+            raise ValueError("Hash da sugestão AutoClip divergente.")
+        info = probe(source)
+        seconds = duration_of(info)
+        video = next((v for v in info.get("streams", []) if v.get("codec_type") == "video"), None)
+        if not video:
+            raise ValueError("Resultado AutoClip sem trilha de vídeo.")
+        width, height = int(video.get("width", 0)), int(video.get("height", 0))
+        if width < 360 or height < 640 or abs(width / height - 9 / 16) > 0.035:
+            raise ValueError("Resultado AutoClip não está em vídeo vertical 9:16.")
+        if not 10 <= seconds <= 60:
+            raise ValueError("Duração AutoClip fora do intervalo 10–60 s.")
+        source_has_audio = any(v.get("codec_type") == "audio" for v in
+                               probe(original_source).get("streams", []))
+        result_has_audio = any(v.get("codec_type") == "audio" for v in info.get("streams", []))
+        if source_has_audio and not result_has_audio:
+            raise ValueError("AutoClip removeu o áudio da fonte.")
+        # Este comando apenas decodifica e descarta quadros; não produz vídeo.
+        subprocess.run(["ffmpeg", "-v", "error", "-xerror", "-i", str(source),
+                        "-f", "null", "-"], capture_output=True, check=True, timeout=300)
+        destination = self.store.output / f"{clip_id}-autoclip-{expected_sha[:12]}.mp4"
+        temp = destination.with_suffix(".mp4.partial")
+        try:
+            if destination.exists():
+                if destination.is_symlink() or hashlib.sha256(destination.read_bytes()).hexdigest() != expected_sha:
+                    raise ValueError("Saída AutoClip preexistente tem conteúdo inesperado.")
+            else:
+                shutil.copyfile(source, temp)
+                if hashlib.sha256(temp.read_bytes()).hexdigest() != expected_sha:
+                    raise ValueError("Cópia AutoClip falhou verificação de hash.")
+                temp.replace(destination)
+            self.store.save_analysis(clip_id, analysis={
+                "engine": "autoclip", "source_sha256": expected_sha,
+                "method": "autoclip-export-no-nexus-render"
+            }, qa={
+                "engine": "autoclip", "width": width, "height": height,
+                "duration_sec": seconds, "audio_preserved": result_has_audio,
+                "full_decode": True, "editorial_approval": False
+            })
+            self.store.update(clip_id, status="ready", output_path=str(destination.resolve()))
+        finally:
+            temp.unlink(missing_ok=True)
 
     def preview(self, clip_id, index):
         with self.lock:
