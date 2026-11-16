@@ -1,5 +1,7 @@
 # GTA-6-clips — Operação Astra
 
+**Política nova v0.4.1:** o AutoClip é o único editor de NOVOS vídeos. O Nexus não substitui com FFmpeg. Se não houver CLI AutoClip instalada e habilitada, nenhum novo vídeo é editado. Veja [AUTOCLIP_ONLY](docs/AUTOCLIP_ONLY.md).
+
 Plataforma local-first para fontes autorizadas, edição vertical, revisão e fila de publicação. Python 3.11+, SQLite, FFmpeg e painel sem framework. A evolução preserva o aplicativo Windows existente.
 
 **Estado da entrega:** veja [relatório Astra](docs/ASTRA_REPORT.md). Testes sintéticos comprovam o pipeline técnico; não comprovam qualidade editorial de clipes reais nem publicação pública. As contas sociais e a Twitch exigem credenciais e permissões próprias.
