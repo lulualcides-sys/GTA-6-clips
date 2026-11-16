@@ -199,6 +199,20 @@ async function refreshAutoclip(){
         }catch(err){toast("AutoClip: "+err.message);}
       });
       results.appendChild(button);
+      const importButton=el("button","btn secondary","Importar sugestão "+(index+1)+" para revisão");
+      importButton.type="button";
+      importButton.addEventListener("click",async()=>{
+        importButton.disabled=true;
+        try{
+          const result=await api("/api/clips/"+selected+"/autoclip-import/"+index,"POST");
+          activeId=result.clip_id;
+          toast("Sugestão importada na biblioteca. Verifique origem, edição e reação antes de aprovar.");
+          clearAutoclipPreview();
+          await refresh(false);
+        }catch(err){toast("Importação AutoClip: "+err.message);}
+        finally{importButton.disabled=false;}
+      });
+      results.appendChild(importButton);
     });
     if(!clipsToPreview.length)clearAutoclipPreview();
   }catch(e){
