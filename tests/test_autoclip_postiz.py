@@ -91,6 +91,7 @@ class AutoClipBridgeTests(unittest.TestCase):
         self.media = incoming / "clip.mp4"
         self.media.write_bytes(b"authorized fake source")
         self.item = {"input_path": str(self.media), "sha256": hashlib.sha256(self.media.read_bytes()).hexdigest(),
+                     "creator": "Criador autorizado", "source_url": "https://www.twitch.tv/creator/clip/valid",
                      "rights_status": "permission_granted", "evidence": "creator signed license"}
         self.store = SimpleNamespace(root=root, incoming=incoming,
                                      get=lambda clip_id: self.item if clip_id == "valid" else None)
