@@ -65,7 +65,7 @@ class ExclusiveEngineTests(unittest.TestCase):
                                      "TWITCH_ENABLED": "0"}):
             runtime = Runtime(self.store.root)
             self.addCleanup(runtime.executor.shutdown, wait=True)
-            with patch.object(runtime.autoclip_bridge, "queue", return_value={"status": "queued"}) as bridge, \\
+            with patch.object(runtime.autoclip_bridge, "queue", return_value={"status": "queued"}) as bridge, \
                  patch("clipforge.core.render_clip") as legacy:
                 self.assertTrue(runtime.queue(self.clip["id"]))
                 bridge.assert_called_once_with(self.clip["id"])
@@ -81,7 +81,7 @@ class ExclusiveEngineTests(unittest.TestCase):
         bridge.jobs[self.clip["id"]] = {
             "status": "complete", "suggestions": ["job/final.mp4"]
         }
-        with patch("clipforge.core.probe", side_effect=self.probe), \\
+        with patch("clipforge.core.probe", side_effect=self.probe), \
              patch("clipforge.autoclip_bridge.subprocess.run", return_value=SimpleNamespace(returncode=0)) as decode:
             result = bridge.import_suggestion(self.clip["id"], 0)
         self.assertTrue(result["created"])
