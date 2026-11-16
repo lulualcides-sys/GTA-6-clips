@@ -9,7 +9,7 @@ o serviço Postiz nem incorpora a base de código AGPL no aplicativo.
 
 - A ponte `clipforge/autoclip_bridge.py` fornece status por `GET /api/autoclip`,
   execução por `POST /api/clips/{id}/autoclip` e
-  visualização de propostas por `GET /api/clips/{id}/autoclip-preview/{index}`.
+  visualização de propostas por `GET /api/clips/{id}/autoclip-preview/{index}` e\n  importação explícita por `POST /api/clips/{id}/autoclip-import/{index}`.
 - Botão **AutoClip · sugerir cortes** na revisão. Analisa **a mídia fonte local**
   de clipes importados com direitos, nunca vídeos de Twitch sem autorização.
 - Confere localização dentro de `incoming`, SHA-256 e evidência de direitos.
