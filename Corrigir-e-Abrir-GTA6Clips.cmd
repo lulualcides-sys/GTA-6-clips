@@ -18,8 +18,11 @@ echo Esta operacao remove a marca de arquivo baixado da internet
 echo apenas de _internal\pythonnet\runtime\Python.Runtime.dll.
 echo NAO desativa Windows Defender, SmartScreen ou politicas do sistema.
 echo.
+REM O modo sem interface abaixo existe apenas para o teste automatizado em CI.
+if /I "%GITHUB_ACTIONS%"=="true" if /I "%GTA6CLIPS_REPAIR_ONLY%"=="1" goto repair
 choice /c SN /n /m "Confirmar reparo desta DLL? [S/N] "
 if errorlevel 2 exit /b 3
+:repair
 powershell.exe -NoProfile -NonInteractive -Command "Unblock-File -LiteralPath $env:GTA6CLIPS_DLL -ErrorAction Stop"
 if errorlevel 1 (
   echo.
