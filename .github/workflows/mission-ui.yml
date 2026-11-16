@@ -5,13 +5,19 @@ on:
       - "clipforge/static/**"
       - "clipforge/telemetry.py"
       - "tools/browser_smoke.mjs"
+      - "tools/browser_editor_smoke.mjs"
+      - "tools/astra_smoke.py"
+      - "clipforge/editing.py"
+      - "clipforge/core.py"
+      - "clipforge/web.py"
       - ".github/workflows/mission-ui.yml"
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   dashboard:
-    runs-on: ubuntu-latest
+    # Playwright 1.56.1 não suporta Ubuntu 26.04; manter runner compatível.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       DASHBOARD_TOKEN: mission-test-token-0123456789
