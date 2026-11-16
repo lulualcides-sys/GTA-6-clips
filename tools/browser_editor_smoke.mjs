@@ -31,7 +31,7 @@ try {
   await page.waitForFunction(()=>document.querySelector("#original-player").readyState>=2);
   assert.equal(await page.locator("#original-player").evaluate(v=>v.videoWidth),960);
   // Nunca acionar FFmpeg quando a CLI AutoClip está ausente.
-  assert.equal(await page.locator("#edit-fields").isDisabled(),true);
+  assert.equal(await page.locator("#edit-fields").getAttribute("hidden"),"","Formulário manual deve estar oculto");
   await page.waitForFunction(()=>document.querySelector("#autoclip-status").textContent.includes("desativado"));
   await page.waitForFunction(()=>document.querySelector("#render").disabled);
   const videoId=await page.evaluate(()=>activeId);
