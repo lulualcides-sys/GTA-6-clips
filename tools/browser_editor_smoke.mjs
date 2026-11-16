@@ -36,6 +36,13 @@ try {
   await page.waitForFunction(()=>document.querySelector("#render").disabled);
   const videoId=await page.evaluate(()=>activeId);
   assert(videoId,"Clipe de teste não localizado");
+  // Rejeitar versão anterior para permitir tentativa explícita de reedição.
+  await page.locator("#reject").click();
+  await page.waitForFunction(()=>document.querySelector("#detail-status").textContent==="Rejeitado");
+  const preserved=await page.request.get(base+"/api/clips/"+videoId+"/video",{
+    headers:{"Authorization":"Bearer "+token}
+  });
+  assert.equal(preserved.status(),200,"O MP4 antigo deve permanecer preservado");
   const renderDenied=await page.request.post(base+"/api/clips/"+videoId+"/render",{
     headers:{"Authorization":"Bearer "+token}
   });
@@ -47,7 +54,7 @@ try {
   });
   assert.equal(manualDenied.status(),409,"API de edição manual deve ser bloqueada");
   assert.match((await manualDenied.json()).error,/AutoClip/);
-  assert.equal(await page.locator("#detail-status").textContent(),"Aprovado");
+  assert.equal(await page.locator("#detail-status").textContent(),"Rejeitado");
   assert.equal(await page.locator("#hyperframes-captions").isChecked(),false);
   await page.screenshot({path:"ui-artifacts/editor-desktop.png",fullPage:true});
   await page.setViewportSize({width:390,height:844});
