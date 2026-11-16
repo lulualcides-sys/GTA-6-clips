@@ -5,7 +5,7 @@ function clearOriginal(){const player=byId("original-player");player.pause();pla
 async function loadEdit(){
   const c=clips.find(x=>x.id===activeId);
   byId("load-original").disabled=!c;
-  byId("edit-fields").disabled=!c||["approved","queued","rendering"].includes(c.status);
+  byId("edit-fields").disabled=true; // Apenas AutoClip pode produzir nova edição.
   if(!c){editClipId=null;clearOriginal();return;}
   if(editClipId===c.id)return;
   editClipId=c.id;clearOriginal();
