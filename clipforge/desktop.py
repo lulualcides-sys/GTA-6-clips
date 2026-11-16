@@ -307,6 +307,19 @@ def self_test(destination: Path | None = None) -> dict:
                     + check.stderr.decode("utf-8", "replace")[-180:]
                 )
         report({**result, "phase": "native_tools"})
+        # CI previously tested the backend only, while pywebview imported
+        # pythonnet only when opening the GUI. Exercise the CLR bridge without
+        # creating a window so a broken/missing DLL blocks Windows releases.
+        if sys.platform == "win32" and getattr(sys, "frozen", False):
+            result["pythonnet"] = False
+            try:
+                import clr  # noqa: F401 - triggers pythonnet DLL initialization
+                result["pythonnet"] = True
+            except Exception as exc:
+                result["pythonnet_error"] = (
+                    f"{type(exc).__name__}: {str(exc)[:350]}"
+                )
+            report({**result, "phase": "pythonnet_checked"})
         token = secrets.token_urlsafe(32)
         server, runtime, thread = start_backend(home / "data", token)
         errors = []
@@ -343,10 +356,10 @@ def self_test(destination: Path | None = None) -> dict:
                     "handler_error": errors[-1][-2800:] if errors else ""})
             shutdown_backend(server, runtime, thread)
             report({**result, "phase": "server_stopped"})
-        result["status"] = ("pass" if
-                            all(result.get(k) for k in (
-                                "ffmpeg", "ffprobe", "health", "protected_api"
-                            )) else "fail")
+        required = ["ffmpeg", "ffprobe", "health", "protected_api"]
+        if sys.platform == "win32" and getattr(sys, "frozen", False):
+            required.append("pythonnet")
+        result["status"] = "pass" if all(result.get(k) for k in required) else "fail"
         report({**result, "phase": "complete"})
         return result
 
