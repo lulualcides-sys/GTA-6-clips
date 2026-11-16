@@ -4,6 +4,7 @@ import json
 import subprocess
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 from clipforge.core import ClipStore, render_clip
 
 
@@ -24,7 +25,9 @@ def main():
         assert len(result["added"])==1 and not result["errors"],result
         clip_id=result["added"][0]
         store.update(clip_id,status="queued")
-        render_clip(store,clip_id)
+        # FFmpeg render is test-only and never invoked by Nexus production APIs.
+        with patch.dict('os.environ', {'NEXUS_LEGACY_TEST_RENDER': '1'}):
+            render_clip(store,clip_id)
         item=store.get(clip_id)
         assert item["status"]=="ready",item.get("error")
         assert Path(item["output_path"]).is_file()
