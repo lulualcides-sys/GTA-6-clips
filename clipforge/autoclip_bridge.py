@@ -183,12 +183,12 @@ class AutoClipBridge:
             # Não existe segundo render: o MP4 criado pelo AutoClip vira a
             # versão revisável diretamente. FFmpeg só verifica a decodificação.
             if getattr(self.store, "output", None) is not None and imported["status"] not in {"approved", "ready"}:
-                self._promote_autoclip_result(imported["id"], target, digest.hexdigest())
+                self._promote_autoclip_result(imported["id"], target, digest.hexdigest(), Path(original["input_path"]))
             updated = self.store.get(imported["id"])
             return {"clip_id": imported["id"], "status": updated["status"] if updated else imported["status"],
                     "created": freshly_imported}
 
-    def _promote_autoclip_result(self, clip_id, source: Path, expected_sha: str):
+    def _promote_autoclip_result(self, clip_id, source: Path, expected_sha: str, original_source: Path):
         """QA de vídeo real e cópia sem qualquer edição pelo pipeline Nexus."""
         from .core import duration_of, probe
         import subprocess
@@ -206,7 +206,7 @@ class AutoClipBridge:
         if not 10 <= seconds <= 60:
             raise ValueError("Duração AutoClip fora do intervalo 10–60 s.")
         source_has_audio = any(v.get("codec_type") == "audio" for v in
-                               probe(Path(self.store.get(item["id"])["input_path"])).get("streams", []))
+                               probe(original_source).get("streams", []))
         result_has_audio = any(v.get("codec_type") == "audio" for v in info.get("streams", []))
         if source_has_audio and not result_has_audio:
             raise ValueError("AutoClip removeu o áudio da fonte.")
