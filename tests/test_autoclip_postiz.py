@@ -132,5 +132,33 @@ class AutoClipBridgeTests(unittest.TestCase):
             self.bridge.preview("valid", 55)
 
 
+    def test_explicit_import_creates_new_review_manifest(self):
+        import threading
+        self.store.lock = threading.RLock()
+        self.store.all = lambda: []
+        self.store.ingest = lambda sidecar: {
+            "id": "review123", "status": "detected", "filename": sidecar.name.removesuffix(".rights.json")
+        }
+        candidate = self.bridge.exports / "job" / "candidate.mp4"
+        candidate.parent.mkdir(parents=True)
+        candidate.write_bytes(b"synthetic candidate")
+        self.bridge.jobs["valid"] = {
+            "status": "complete", "suggestions": ["job/candidate.mp4"]
+        }
+        with patch("clipforge.core.probe", return_value={}), \
+             patch("clipforge.core.duration_of", return_value=32.0):
+            result = self.bridge.import_suggestion("valid", 0)
+        self.assertEqual("review123", result["clip_id"])
+        self.assertTrue(result["created"])
+        self.assertEqual(self.media.read_bytes(), b"authorized fake source")
+        sidecars = list(self.store.incoming.glob("autoclip-*.rights.json"))
+        self.assertEqual(1, len(sidecars))
+        manifest = json.loads(sidecars[0].read_text(encoding="utf-8"))
+        self.assertEqual("permission_granted", manifest["rights_status"])
+        self.assertEqual("valid", manifest["derived_from"])
+        self.assertEqual(32.0, manifest["duration_sec"])
+        self.assertTrue(manifest["review_required"])
+
+
 if __name__ == "__main__":
     unittest.main()
