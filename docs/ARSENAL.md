@@ -12,7 +12,9 @@ Origem: [Arsenal do usuário](https://github.com/lulualcides-sys/Arsenal). O cat
 | P1 | faster-whisper / WhisperX | SRT e marcas de palavras detectadas; modelo local opt-in | **faster-whisper implementado como opcional**, dependência não instalada no Docker básico; WhisperX continua apenas referência |
 | P1 | OpenCV + PySceneDetect | Detecção de cortes e ajuste conservador do início | **PySceneDetect implementado como opcional**; benchmark e detecção semântica ainda pendentes |
 | P1 | Twitch Helix + OAuth | Descobrir metadados por categoria/canal | **Implementado em código**, requer credenciais reais; captura de mídia não implementada |
+| P1 | [AutoClip (artbyjazi)](https://github.com/artbyjazi/autoclip) | Piloto opcional para análise contextual, reenquadramento e legendas em 9:16 | **Catalogado; NÃO instalado ou integrado**. Benchmark antes de adotar; MIT |
 | P1 | Metricool | Publicar/agendar nas contas conectadas | Planejado, NÃO integrado ao código |
+| P1/P2 | [Postiz](https://github.com/gitroomhq/postiz-app) | Distribuição por API/CLI e agendamento, se vantajoso frente à fila existente | **Catalogado; NÃO conectado**. AGPL-3.0, self-host e custos de infraestrutura; prevenir envio duplicado |
 | P2 | Remotion | Templates em React com timeline reprodutível | Referência, não instalado |
 | P2 | GSAP / SVG.js / Friction | Cartelas, chamadas visuais, overlays animados | Referência, não instalado |
 | P2 | Descript | Criar cortes/legendas com agente editor | Conector disponível; não integrado ao pipeline |
@@ -35,3 +37,7 @@ Origem: [Arsenal do usuário](https://github.com/lulualcides-sys/Arsenal). O cat
 ## Critérios para instalar
 
 Problema medido, repositório oficial, licença, versão fixada, custo, teste comparativo, plano de rollback. Não instalar o Arsenal completo de uma só vez.
+
+## Avaliação AutoClip/Postiz para Astra
+
+Consultar [avaliação e critérios de piloto](AUTOCLIP_POSTIZ_EVALUATION.md). Preservar o editor e a fila da PR #25, além dos gates de direitos/aprovação; nenhum componente será ativado apenas por constar no catálogo.
