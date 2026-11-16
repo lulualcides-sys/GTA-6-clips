@@ -42,6 +42,13 @@ def make_handler(runtime: Runtime):
                 runtime.publishing = PublishingService(runtime.store)
         return runtime.publishing
 
+    def autoclip():
+        with runtime.store.lock:
+            if not hasattr(runtime, "autoclip_bridge"):
+                from .autoclip_bridge import AutoClipBridge
+                runtime.autoclip_bridge = AutoClipBridge(runtime.store)
+        return runtime.autoclip_bridge
+
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, format, *args):
             """The Windows --windowed executable has sys.stderr=None.
@@ -174,6 +181,8 @@ def make_handler(runtime: Runtime):
                 return self._reply(200, {"candidates": runtime.twitch.list_candidates()})
             if route == "/api/twitch/streamers":
                 return self._reply(200, {"streamers": runtime.twitch.list_streamers()})
+            if route == "/api/autoclip":
+                return self._reply(200, autoclip().status())
             if route == "/api/publishing":
                 service = publishing()
                 return self._reply(200, {**service.status(), "jobs": service.all()})
@@ -190,6 +199,16 @@ def make_handler(runtime: Runtime):
                     item["output_path"] = bool(item.get("output_path"))
                 return self._reply(200, {"clips": clips})
             pieces = route.strip("/").split("/")
+            if (len(pieces) == 5 and pieces[:2] == ["api", "clips"] and
+                    pieces[3] == "autoclip-preview" and pieces[4].isdigit()):
+                clip_id = self._clip_id(pieces)
+                if not clip_id:
+                    return self._reply(404, {"error": "Clipe não encontrado"})
+                try:
+                    target = autoclip().preview(clip_id, int(pieces[4]))
+                except ValueError as exc:
+                    return self._reply(404, {"error": str(exc)})
+                return self._file(target, "video/mp4")
             if len(pieces) == 4 and pieces[:2] == ["api", "clips"] and pieces[-1] in {"original", "edit"}:
                 item_id = self._clip_id(pieces)
                 item = runtime.store.get(item_id or "")
@@ -293,6 +312,21 @@ def make_handler(runtime: Runtime):
                     )
                 return self._reply(200, result)
             pieces = route.strip("/").split("/")
+            if (len(pieces) == 5 and pieces[:2] == ["api", "clips"] and
+                    pieces[3] == "autoclip-import" and pieces[4].isdigit()):
+                clip_id = self._clip_id(pieces)
+                if not clip_id or not runtime.store.get(clip_id):
+                    return self._reply(404, {"error": "Clipe não encontrado"})
+                try:
+                    result = autoclip().import_suggestion(clip_id, int(pieces[4]))
+                    if result["created"] and runtime.auto_render:
+                        runtime.queue(result["clip_id"])
+                        result["status"] = runtime.store.get(result["clip_id"])["status"]
+                    return self._reply(201 if result["created"] else 200, result)
+                except PermissionError as exc:
+                    return self._reply(403, {"error": str(exc)[:200]})
+                except (ValueError, OSError, subprocess.SubprocessError) as exc:
+                    return self._reply(409, {"error": str(exc)[:200]})
             if len(pieces) != 4 or pieces[:2] != ["api", "clips"]:
                 return self._reply(404, {"error": "Not found"})
             item_id = self._clip_id(pieces)
@@ -300,6 +334,13 @@ def make_handler(runtime: Runtime):
             if not item:
                 return self._reply(404, {"error": "Clip not found"})
             action = pieces[-1]
+            if action == "autoclip":
+                try:
+                    return self._reply(202, autoclip().queue(item_id))
+                except PermissionError as exc:
+                    return self._reply(403, {"error": str(exc)[:180]})
+                except ValueError as exc:
+                    return self._reply(409, {"error": str(exc)[:180]})
             if action == "transcribe":
                 try:
                     queued = runtime.captions.queue(item_id)
