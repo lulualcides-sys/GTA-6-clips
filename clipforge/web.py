@@ -312,6 +312,21 @@ def make_handler(runtime: Runtime):
                     )
                 return self._reply(200, result)
             pieces = route.strip("/").split("/")
+            if (len(pieces) == 5 and pieces[:2] == ["api", "clips"] and
+                    pieces[3] == "autoclip-import" and pieces[4].isdigit()):
+                clip_id = self._clip_id(pieces)
+                if not clip_id or not runtime.store.get(clip_id):
+                    return self._reply(404, {"error": "Clipe não encontrado"})
+                try:
+                    result = autoclip().import_suggestion(clip_id, int(pieces[4]))
+                    if result["created"] and runtime.auto_render:
+                        runtime.queue(result["clip_id"])
+                        result["status"] = runtime.store.get(result["clip_id"])["status"]
+                    return self._reply(201 if result["created"] else 200, result)
+                except PermissionError as exc:
+                    return self._reply(403, {"error": str(exc)[:200]})
+                except (ValueError, OSError, subprocess.SubprocessError) as exc:
+                    return self._reply(409, {"error": str(exc)[:200]})
             if len(pieces) != 4 or pieces[:2] != ["api", "clips"]:
                 return self._reply(404, {"error": "Not found"})
             item_id = self._clip_id(pieces)
