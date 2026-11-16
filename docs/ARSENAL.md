@@ -35,3 +35,9 @@ Origem: [Arsenal do usuário](https://github.com/lulualcides-sys/Arsenal). O cat
 ## Critérios para instalar
 
 Problema medido, repositório oficial, licença, versão fixada, custo, teste comparativo, plano de rollback. Não instalar o Arsenal completo de uma só vez.
+
+## Integrações com código (branch de runtime)
+
+- AutoClip (artbyjazi, MIT): `clipforge/autoclip_bridge.py` + painel; execução CLI isolada **opt-in**. CLI não incluída no EXE/Docker e nenhum corte real foi validado por estes mocks.
+- Postiz (AGPL-3.0, via API HTTP documentada sem copiar código): `clipforge/postiz_connector.py` + destinos privados da fila; depende da conta Postiz/API key/integrações reais, desabilitado por padrão.
+- Instruções, riscos e limites: [AUTOCLIP_POSTIZ_RUNTIME.md](AUTOCLIP_POSTIZ_RUNTIME.md). Não equivale a deploy de conta nem a publicação real.
