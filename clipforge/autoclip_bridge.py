@@ -147,9 +147,10 @@ class AutoClipBridge:
         basename = f"autoclip-{clip_id}-{index}-{digest.hexdigest()[:12]}.mp4"
         target = self.store.incoming / basename
         sidecar = self.store.incoming / (basename + ".rights.json")
+        from .publishing import media_digest
         with self.store.lock:
             if target.exists():
-                if target.is_symlink() or hashlib.sha256(target.read_bytes()).hexdigest() != digest.hexdigest():
+                if target.is_symlink() or media_digest(target) != digest.hexdigest():
                     raise ValueError("Arquivo de importação já existe com outro conteúdo.")
             else:
                 temporary = target.with_suffix(".mp4.partial")
@@ -171,6 +172,7 @@ class AutoClipBridge:
             if not sidecar.exists():
                 sidecar.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
             imported = self.store.ingest(sidecar)
+            freshly_imported = imported is not None
             if not imported:
                 for item in self.store.all():
                     if item.get("sha256") == digest.hexdigest():
@@ -179,7 +181,7 @@ class AutoClipBridge:
             if not imported:
                 raise ValueError("Arquivo já existe sem identificação válida.")
             return {"clip_id": imported["id"], "status": imported["status"],
-                    "created": imported["filename"] == basename and imported.get("status") == "detected"}
+                    "created": freshly_imported}
 
     def preview(self, clip_id, index):
         with self.lock:
