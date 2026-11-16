@@ -144,6 +144,7 @@ class InstagramUnavailable:
 
 
 def configured_connectors():
+    from .postiz_connector import postiz_connectors
     return {'youtube':YouTubeConnector(os.getenv('YOUTUBE_ACCESS_TOKEN','')),
             'tiktok':TikTokConnector(os.getenv('TIKTOK_ACCESS_TOKEN','')),
-            'instagram':InstagramUnavailable()}
+            'instagram':InstagramUnavailable(), **postiz_connectors()}
