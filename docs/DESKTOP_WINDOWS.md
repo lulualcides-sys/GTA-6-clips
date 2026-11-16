@@ -26,6 +26,41 @@ Para desenvolvedores, atualizar `clipforge/version.py` e mesclar uma PR testada 
 
 **Importante:** o programa gerado em CI não é assinado digitalmente. Windows Defender/SmartScreen pode solicitar verificação. Verifique a origem no repositório e o histórico da compilação; não ignore alertas de segurança sem verificar a procedência.
 
+## Erro de inicialização: Python.Runtime.Loader.Initialize
+
+Se a janela mostrar `Failed to resolve Python.Runtime.Loader.Initialize` no caminho
+`_internal\\pythonnet\\runtime\\Python.Runtime.dll`, o Windows pode ter marcado
+a DLL extraída do ZIP como arquivo de origem da internet (Zone.Identifier).
+Esse problema não implica falha do Python instalado no PC e **não exige formatar**.
+
+**Reparo do pacote oficial v0.4.2 ou posterior (recomendado):**
+
+1. Confira que o ZIP veio do [GitHub Releases oficial](https://github.com/lulualcides-sys/GTA-6-clips/releases).
+2. Extraia **todos** os arquivos. Na mesma pasta do `GTA6Clips.exe`, execute
+   `Corrigir-e-Abrir-GTA6Clips.cmd`.
+3. Leia o aviso; confirme `S` somente se confiar na origem do download.
+   O script utiliza `Unblock-File` **exclusivamente em**
+   `_internal\\pythonnet\\runtime\\Python.Runtime.dll`, sem elevar permissões,
+   desativar Defender/SmartScreen ou alterar configurações do sistema.
+4. O script abre o programa após o reparo. Seus vídeos e `config.env` ficam intactos.
+
+**Reparo manual (também funciona nas versões anteriores):**
+
+Abra o PowerShell na pasta onde extraiu o pacote e execute:
+
+```powershell
+Unblock-File -LiteralPath ".\\_internal\\pythonnet\\runtime\\Python.Runtime.dll"
+```
+
+Se persistir, confira se a DLL está presente e se o Windows 10/11 possui o
+.NET Framework e Microsoft Edge WebView2 necessários ao pywebview. Não baixe
+DLLs de sites de terceiros nem copie DLLs aleatórias para `System32`.
+
+O CI passou a verificar a inicialização de `pythonnet` no próprio EXE congelado
+e a simular a marcação `Zone.Identifier` para testar o reparador.
+Isso **não substitui um teste na máquina do usuário**, pois as políticas Windows
+podem variar.
+
 ## Dados permanentes no próprio PC
 
 Todos os originais, cortes, históricos, legendas e credenciais locais ficam no diretório do usuário:

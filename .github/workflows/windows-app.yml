@@ -92,8 +92,8 @@ jobs:
           }
           if ($process.ExitCode -ne 0) { throw "Packaged EXE returned $($process.ExitCode)" }
           if ($result.status -ne "pass") { throw "Packaged EXE self-test failed" }
-          if (-not $result.ffmpeg -or -not $result.ffprobe -or -not $result.protected_api) {
-            throw "Required native tools or protected API missing"
+          if (-not $result.ffmpeg -or -not $result.ffprobe -or -not $result.protected_api -or -not $result.pythonnet) {
+            throw "Required native tools, pythonnet GUI loader or protected API missing"
           }
       - name: Preserve frozen validation report
         if: always()
@@ -110,6 +110,27 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Windows update helper failed its own self-test" }
           if (-not (Test-Path "./dist/GTA6Clips/GTA6ClipsUpdater.exe")) {
             throw "Windows update helper missing"
+          }
+      - name: Verify downloaded-file repair without disabling Windows protections
+        shell: pwsh
+        run: |
+          $dll = Resolve-Path "./dist/GTA6Clips/_internal/pythonnet/runtime/Python.Runtime.dll" -ErrorAction Stop
+          $repair = Resolve-Path "./Corrigir-e-Abrir-GTA6Clips.cmd" -ErrorAction Stop
+          Set-Content -LiteralPath $dll.Path -Stream Zone.Identifier -Value "[ZoneTransfer]`nZoneId=3" -ErrorAction Stop
+          if (-not (Get-Item -LiteralPath $dll.Path -Stream Zone.Identifier -ErrorAction SilentlyContinue)) {
+            throw "Could not simulate Windows downloaded-file block on Python.Runtime.dll"
+          }
+          $env:GTA6CLIPS_REPAIR_ONLY = "1"
+          try {
+            $folder = "./dist/GTA6Clips"
+            Copy-Item $repair.Path "$folder/Corrigir-e-Abrir-GTA6Clips.cmd"
+            & "$folder/Corrigir-e-Abrir-GTA6Clips.cmd"
+            if ($LASTEXITCODE -ne 0) { throw "Repair command failed with exit $LASTEXITCODE" }
+            if (Get-Item -LiteralPath $dll.Path -Stream Zone.Identifier -ErrorAction SilentlyContinue) {
+              throw "Downloaded-file mark remains on Python.Runtime.dll"
+            }
+          } finally {
+            Remove-Item Env:GTA6CLIPS_REPAIR_ONLY -ErrorAction SilentlyContinue
           }
       - name: Create portable ZIP
         shell: pwsh
