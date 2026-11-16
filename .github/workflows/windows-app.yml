@@ -95,6 +95,14 @@ jobs:
           if (-not $result.ffmpeg -or -not $result.ffprobe -or -not $result.protected_api) {
             throw "Required native tools or protected API missing"
           }
+      - name: Preserve frozen validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-selftest-report
+          path: ${{ runner.temp }}/gta6-desktop-selftest.json
+          if-no-files-found: warn
+          retention-days: 14
       - name: Verify standalone update helper
         shell: pwsh
         run: |
@@ -108,13 +116,21 @@ jobs:
         run: |
           Copy-Item docs/DESKTOP_WINDOWS.md dist/GTA6Clips/LEIA-ME-PRIMEIRO.md
           Copy-Item LICENSES.md dist/GTA6Clips/LICENSES.md
+          $forbidden = Get-ChildItem dist/GTA6Clips -Recurse -File | Where-Object {
+            $_.Name -match '^(config\.env|\.env|.*\.rights\.json|.*\.sqlite3?)$'
+          }
+          if ($forbidden) { throw "Private runtime data found in distribution" }
           Compress-Archive -Path "dist/GTA6Clips/*" -DestinationPath "dist/GTA6Clips-Windows-portable.zip" -Force
           if ((Get-Item "dist/GTA6Clips-Windows-portable.zip").Length -lt 1000000) { throw "Suspiciously small ZIP" }
+          $digest = (Get-FileHash dist/GTA6Clips-Windows-portable.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$digest  GTA6Clips-Windows-portable.zip" | Set-Content dist/GTA6Clips-Windows-portable.zip.sha256
       - name: Upload Windows app ZIP
         uses: actions/upload-artifact@v4
         with:
           name: GTA6Clips-Windows-Portable
-          path: dist/GTA6Clips-Windows-portable.zip
+          path: |
+            dist/GTA6Clips-Windows-portable.zip
+            dist/GTA6Clips-Windows-portable.zip.sha256
           compression-level: 0
           retention-days: 14
 

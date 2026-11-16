@@ -24,15 +24,19 @@ from urllib.parse import quote
 from .core import Runtime
 from .updater import UpdateService, UpdateError
 from .version import VERSION
-from .web import ThreadingHTTPServer, make_handler
+from .web import ThreadingHTTPServer, make_handler, start_publishing, stop_publishing
 
 APP_NAME = "GTA6Clips"
 CONFIG_KEYS = frozenset({
     "AUTO_RENDER", "AUTO_SCAN", "AUTO_TRANSCRIBE", "ENABLE_SYNTHETIC_DEMO",
     "SMART_SCENES", "POLL_SECONDS", "TWITCH_ENABLED", "TWITCH_POLL_SECONDS",
     "TWITCH_CLIENT_ID", "TWITCH_CLIENT_SECRET", "TWITCH_GAME_ID",
-    "TWITCH_GTA6_LAUNCH_AT",
+    "TWITCH_GTA6_LAUNCH_AT", "TWITCH_DISCOVERY_MODE", "TWITCH_CATEGORY_IDS",
+    "TWITCH_BROADCASTER_IDS", "TWITCH_GTA5_GAME_ID", "TWITCH_TRENDING_CATEGORIES",
+    "TWITCH_CLIPS_PER_CATEGORY", "TWITCH_LOOKBACK_HOURS",
     "WHISPER_MODEL", "WHISPER_LANGUAGE", "MAX_SOURCE_SECONDS",
+    "PUBLISHING_ENABLED", "PUBLISHING_AUTO_ENABLED", "PUBLISHING_DAILY_LIMIT",
+    "PUBLISHING_MAX_POLLS", "YOUTUBE_ACCESS_TOKEN", "TIKTOK_ACCESS_TOKEN",
 })
 DEFAULT_CONFIG = """# GTA VI Clips - configuracoes locais. Reinicie o app apos editar.
 # Credenciais privadas: nao envie este arquivo para o GitHub.
@@ -51,6 +55,16 @@ TWITCH_CLIENT_SECRET=
 TWITCH_POLL_SECONDS=900
 # Até o lançamento, categorias populares; depois, apenas GTA VI:
 TWITCH_GTA6_LAUNCH_AT=2026-11-19T03:00:00+00:00
+
+# Publicação desativada por padrão. Ative somente com direitos e contas válidas.
+# Tokens OAuth são privados; obtenha-os pelos fluxos oficiais das plataformas.
+# Estes campos não implementam login nem renovação automática de tokens.
+PUBLISHING_ENABLED=0
+PUBLISHING_AUTO_ENABLED=0
+PUBLISHING_DAILY_LIMIT=5
+PUBLISHING_MAX_POLLS=20
+YOUTUBE_ACCESS_TOKEN=
+TIKTOK_ACCESS_TOKEN=
 """
 
 
@@ -245,6 +259,7 @@ def start_backend(data_dir: Path, token: str):
     server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(runtime))
     runtime.start_polling()
     runtime.twitch.start_polling()
+    start_publishing(runtime)
     thread = threading.Thread(
         target=server.serve_forever, name="gta6-local-http", daemon=True
     )
@@ -258,6 +273,7 @@ def shutdown_backend(server, runtime, thread) -> None:
     thread.join(timeout=8)
     runtime.executor.shutdown(wait=False)
     runtime.captions.stop()
+    stop_publishing(runtime)
 
 
 def self_test(destination: Path | None = None) -> dict:

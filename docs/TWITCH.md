@@ -1,35 +1,42 @@
-# Twitch Helix — GTA V até 18/11, GTA VI a partir de 19/11
+# Twitch Helix — radar ASTRA
 
-**Decisão editorial atualizada (13/11/2026):** enquanto treinamos a edição, o radar consulta **exclusivamente Grand Theft Auto V**, incluindo criadores de GTA RP que usem essa categoria. A partir de **19/11/2026 às 00:00 America/Sao_Paulo** (UTC 03:00), passa a consultar **exclusivamente Grand Theft Auto VI**. É uma mudança de foco editorial em relação à antiga busca geral; não criar exceções por nome de streamer.
+## Regra vigente (14/11/2026)
 
-A hora de lançamento deve acompanhar a informação oficial da Rockstar: https://www.rockstargames.com/VI . Quando o horário oficial mudar, ajustar `TWITCH_GTA6_LAUNCH_AT` e os testes; não antecipar uma virada com base em rumor.
+O pedido ASTRA substitui a restrição antiga a GTA V: antes da data configurada, o radar busca até **12 categorias populares ou configuradas**, incluindo jogos e categorias IRL retornadas pela Twitch. Em `2026-11-19T03:00:00Z`, passa automaticamente ao perfil `gta6_only`. A data é uma configuração operacional fornecida pelo usuário, não uma nova verificação do calendário da Rockstar.
 
-## O que está implementado
+`TWITCH_DISCOVERY_MODE=auto` usa essa virada. `trending`, `gta5_only` e `gta6_only` são intervenções manuais persistentes; o painel recebe `manual_override=true` quando aplicável. Categoria GTA VI ausente gera erro explícito e não substitui por outro jogo.
 
-- OAuth de aplicação: `TWITCH_CLIENT_ID` e `TWITCH_CLIENT_SECRET` configurados localmente.
-- A busca pré-lançamento resolve por nome exato `Grand Theft Auto V` pela API `search/categories`, com `TWITCH_GTA5_GAME_ID` como override opcional. **Não** usar `TWITCH_GAME_ID` para GTA V.
-- Após a virada resolve a categoria exata `Grand Theft Auto VI` (também aceita `Grand Theft Auto 6`), com `TWITCH_GAME_ID` como override opcional. Se não encontrar a categoria, emite erro explícito; nunca volta silenciosamente para GTA V.
-- Busca `GET /helix/clips?game_id=...` em janela padrão de 72 horas, até 15 clipes por consulta (configurável até 30). Ranking heurístico por views, recência, duração e leve bônus PT-BR. **Não** identifica semântica de piadas, falas ou eventos.
-- Banco SQLite mantém todos os registros anteriores, mas listagem e contagem em cada perfil mostram somente o jogo ativo; não misturar GTA V com GTA VI depois da virada.
-- `TWITCH_ENABLED` ativa consultas periódicas somente com credenciais válidas, aplicativo aberto e PC ligado.
-
-## Configuração
-
-Em `config.env` local, após conectar a Twitch pelo aplicativo:
+## Configuração local
 
 ```ini
 TWITCH_ENABLED=1
 TWITCH_CLIENT_ID=<id-da-sua-aplicacao>
 TWITCH_CLIENT_SECRET=<segredo-somente-no-PC>
 TWITCH_POLL_SECONDS=900
+TWITCH_DISCOVERY_MODE=auto
 TWITCH_GTA6_LAUNCH_AT=2026-11-19T03:00:00+00:00
-# Opcional, somente antes do lançamento:
-# TWITCH_GTA5_GAME_ID=<id-exato-da-categoria-GTA-V>
-# Opcional, somente depois:
-# TWITCH_GAME_ID=<id-exato-da-categoria-GTA-VI>
+TWITCH_TRENDING_CATEGORIES=12
+TWITCH_CLIPS_PER_CATEGORY=15
+TWITCH_LOOKBACK_HOURS=72
+# Opcional: até 12 IDs exatos; vazio usa GET games/top
+TWITCH_CATEGORY_IDS=
+# Opcional: até 100 IDs de criadores para verificar lives via GET streams
+TWITCH_BROADCASTER_IDS=
+# Override da categoria GTA VI (somente no perfil gta6_only)
+TWITCH_GAME_ID=
+# Override da categoria GTA V (somente no perfil gta5_only)
+TWITCH_GTA5_GAME_ID=
 ```
 
-Para credenciais: https://dev.twitch.tv/console/apps . Não as colocar no GitHub. A atualização do app **não sobrescreve** um `config.env` existente; verificar `TWITCH_ENABLED` se uma instalação antiga não monitora.
+IDs repetidos são eliminados. IDs não numéricos e configurações acima do limite são rejeitados. O perfil popular usa `games/top`; uma lista explícita usa `games?id=...`. O ranking continua heurístico (views, recência, duração e bônus PT-BR), sem compreender eventos. A lista mostra no máximo 100 candidatos; SQLite conserva histórico limitado a 5.000 registros. Deduplicação usa o identificador oficial do clipe.
+
+## OAuth e monitoramento
+
+OAuth de aplicação usa client credentials exclusivamente para consulta oficial de metadados. Resposta HTTP 401 invalida o token e permite uma única renovação/repetição. Erros HTTP, inclusive 429 e indisponibilidade, são registrados sem corpos de resposta ou tokens; a próxima varredura tenta novamente. Não há loop agressivo de retentativas. O intervalo mínimo do polling é 300 segundos.
+
+Criadores em `TWITCH_BROADCASTER_IDS` são verificados por `GET /helix/streams` com parâmetros `user_id` repetidos. A tabela `twitch_streamers` persiste estado, ID real da transmissão e horário da consulta. Uma resposta bem-sucedida sem um criador o marca offline; falha de rede preserva o estado anterior e seu horário. `TwitchDiscovery.list_streamers()` retorna esses registros; `status()` inclui `monitored_streamers` e `live_streams` da última consulta. Conferir `checked_at` para identificar dados antigos. Isso é polling, **não EventSub**, e requer processo aberto/PC ligado.
+
+A descoberta de clipes permanece por categoria; o cadastro de streamer monitora a live, mas ainda não faz consulta separada de clipes por criador. Não há download automático nem uso de URLs alternativas. A obtenção manual oficial e autorizada está disponível pela CLI separada: veja [TWITCH_DOWNLOAD.md](TWITCH_DOWNLOAD.md). Configurar segredos só no PC e nunca distribuí-los no executável. O segredo de aplicação local continua sendo uma limitação do fluxo atual; OAuth de usuário com concessões específicas para download exige integração adicional.
 
 ## Preparação da edição
 
@@ -41,8 +48,14 @@ GTA V é o laboratório para a chegada de GTA VI. A V8 aprovada (Counter-Strike)
 - Em todos: marca Nexus Clips BR, crédito ao criador em letras pequenas, contexto completo, áudio legível e final seco, player online sem download obrigatório, **sem marca Descript**.
 - Planejadores em `clipforge/editorial_profiles.py` exigem tempos revisados manualmente. Ainda não implementam identificação semântica nem edição automática por evento.
 
-## Limites e segurança
+## Limites, direitos e testes
 
-A API entrega metadados; este monitor **não baixa vídeos nem publica automaticamente** no TikTok/Instagram/YouTube. Um clipe público não é, por si só, licença de reutilização em outras plataformas. O renderizador local usa material com manifesto de direitos. A revisão editorial é separada da autorização de republicação.
+Um clipe público não é licença de republicação. `twitch_sources.json` sinaliza apenas uma permissão **declarada**, exige evidência para terceiros e não autoriza download por conta própria. Este módulo não baixa vídeos nem publica. O pipeline local continua exigindo manifesto de direitos separado.
 
-API: `GET /api/twitch/status` informa `gta5_only` ou `gta6_only`, jogo focado, credenciais, contagem e horário da última consulta; `GET /api/twitch/candidates` mostra os candidatos; `POST /api/twitch/refresh` consulta o jogo ativo.
+API existente: `GET /api/twitch/status`, `GET /api/twitch/candidates` e `POST /api/twitch/refresh`. As respostas mantêm os campos anteriores e acrescentam contadores de monitoramento e indicação de override manual.
+
+```bash
+python -m unittest discover -s tests -p 'test_twitch*.py' -v
+```
+
+Os testes cobrem perfis/data/override, migração SQLite, deduplicação, permissões, consulta de streams, limites e OAuth. Um servidor HTTP **local real** exercita transporte urllib, erro 401, renovação e JSON. Os demais testes de Helix usam respostas controladas, sem chamar a Twitch. Não se afirma validação com conta real sem credenciais. EventSub permanece pendente. A CLI de obtenção oficial autorizada é descrita em [TWITCH_DOWNLOAD.md](TWITCH_DOWNLOAD.md); ainda requer validação com conta real.

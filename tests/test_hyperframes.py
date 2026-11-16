@@ -48,6 +48,49 @@ class HyperFramesTests(unittest.TestCase):
         self.assertAlmostEqual(cues[0][0], .2)
         self.assertEqual(cues[1][1], 9)
 
+    def test_default_title_does_not_invent_game(self):
+        markup = composition_html(12, "Criador", "")
+        self.assertNotIn("GTA VI", markup)
+        self.assertIn("DESTAQUE DO CRIADOR", markup)
+
+    def test_export_preserves_sixty_fps(self):
+        self.info['streams'][0]['avg_frame_rate'] = '60000/1001'
+        with patch('clipforge.hyperframes.probe', return_value=self.info):
+            directory = export_composition(self.store, self.clip_id)
+        self.assertIn('data-fps="60"', (directory / 'index.html').read_text())
+
+    def test_export_uses_current_versioned_render(self):
+        version = self.store.output / (self.clip_id + '-version2.mp4')
+        self.media.rename(version)
+        self.store.update(self.clip_id, output_path=str(version))
+        with patch('clipforge.hyperframes.probe', return_value=self.info):
+            directory = export_composition(self.store, self.clip_id)
+        self.assertEqual((directory / 'source.mp4').read_bytes(), version.read_bytes())
+
+    def test_astra_render_does_not_duplicate_baked_title_and_credit(self):
+        self.store.save_analysis(self.clip_id, qa={'full_decode': True})
+        with patch('clipforge.hyperframes.probe', return_value=self.info):
+            directory = export_composition(self.store, self.clip_id)
+        markup = (directory / 'index.html').read_text()
+        self.assertNotIn('id="header"', markup)
+        self.assertNotIn('id="credit"', markup)
+        self.assertIn('id="gameplay"', markup)
+
+    def test_baked_title_cannot_be_replaced_by_duplicate_overlay(self):
+        self.store.save_analysis(self.clip_id, qa={'full_decode': True})
+        with patch('clipforge.hyperframes.probe', return_value=self.info), self.assertRaisesRegex(ValueError, 'painel'):
+            export_composition(self.store, self.clip_id, title='OUTRO TÍTULO')
+
+    def test_existing_final_is_never_overwritten(self):
+        directory = self.root / 'finished'
+        directory.mkdir()
+        (directory / 'index.html').write_text('composition')
+        (directory / 'source.mp4').write_bytes(b'source')
+        (directory / 'final.mp4').write_bytes(b'approved-render')
+        with self.assertRaisesRegex(ValueError, 'already exists'):
+            render_composition(directory)
+        self.assertEqual((directory / 'final.mp4').read_bytes(), b'approved-render')
+
     def test_valid_export_is_self_contained_and_escapes_untrusted_text(self):
         with patch("clipforge.hyperframes.probe", return_value=self.info):
             directory = export_composition(self.store, self.clip_id,

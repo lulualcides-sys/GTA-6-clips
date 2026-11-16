@@ -50,6 +50,10 @@ def bundle_bytes(entries=None):
 
 
 class ReleaseValidationTests(unittest.TestCase):
+    def test_helper_selftest_checks_real_filesystem_without_installing(self):
+        from desktop_update_helper import self_test
+        self_test()
+
     def test_semantic_comparison(self):
         self.assertEqual(parse_version("v0.2.1"), (0,2,1))
         self.assertIsNone(parse_version("0.2.1-beta"))
@@ -116,6 +120,53 @@ class ArchiveAndStageTests(unittest.TestCase):
         with self.assertRaisesRegex(UpdateError, "caminho inseguro"):
             _extract_verified(archive,Path(self.tmp.name)/"test-dir")
         self.assertFalse((Path(self.tmp.name)/"secret.txt").is_file())
+
+    def test_windows_special_paths_are_refused_before_extraction(self):
+        names = ["_internal/file.dll:stream", "_internal/NUL.txt", "_internal/CON",
+                 "_internal/COM1.log", "_internal/file. ", "_internal/file?x"]
+        for index, name in enumerate(names):
+            with self.subTest(name=name):
+                archive = Path(self.tmp.name) / f"special-{index}.zip"
+                archive.write_bytes(bundle_bytes({
+                    "GTA6Clips.exe": b"app", "GTA6ClipsUpdater.exe": b"helper", name: b"bad"
+                }))
+                target = Path(self.tmp.name) / f"special-{index}"
+                with self.assertRaisesRegex(UpdateError, "caminho inseguro"):
+                    _extract_verified(archive, target)
+                self.assertFalse((target / "GTA6Clips.exe").exists())
+
+    def test_windows_case_collisions_are_refused(self):
+        archive = Path(self.tmp.name) / "collision.zip"
+        archive.write_bytes(bundle_bytes({
+            "GTA6Clips.exe": b"app", "GTA6ClipsUpdater.exe": b"helper",
+            "_internal/tool.dll": b"one", "_INTERNAL/TOOL.DLL": b"two"
+        }))
+        with self.assertRaisesRegex(UpdateError, "duplicado"):
+            _extract_verified(archive, Path(self.tmp.name) / "collision")
+
+    def test_wait_function_uses_pointer_sized_windows_handles(self):
+        import ctypes
+        from ctypes import wintypes
+        from unittest.mock import Mock
+        from desktop_update_helper import wait_for_exit
+        kernel = SimpleNamespace(OpenProcess=Mock(return_value=2**40),
+                                 WaitForSingleObject=Mock(return_value=0),
+                                 CloseHandle=Mock(return_value=1))
+        with patch("desktop_update_helper.ctypes.WinDLL", return_value=kernel, create=True):
+            wait_for_exit(123, 10)
+        self.assertIs(kernel.OpenProcess.restype, wintypes.HANDLE)
+        self.assertEqual(kernel.WaitForSingleObject.argtypes, [wintypes.HANDLE, wintypes.DWORD])
+        kernel.CloseHandle.assert_called_once_with(2**40)
+
+    def test_helper_refuses_install_ancestor_of_persistent_data(self):
+        installed = Path(self.tmp.name)
+        (installed / "GTA6Clips.exe").write_bytes(b"old")
+        staged = self.home / "updates" / "ready-v0.3.0"
+        staged.mkdir(parents=True)
+        (staged / "GTA6Clips.exe").write_bytes(b"new")
+        (staged / "GTA6ClipsUpdater.exe").write_bytes(b"helper")
+        with self.assertRaisesRegex(ValueError, "persistent"):
+            validate_paths(self.home, staged, installed)
 
     def test_unpacked_bundle_has_real_expected_structure(self):
         archive=Path(self.tmp.name)/"archive.zip"

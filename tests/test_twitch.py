@@ -52,6 +52,7 @@ class TwitchDiscoveryTests(unittest.TestCase):
         self.lock = threading.RLock()
         self.env = patch.dict(os.environ, {
             "TWITCH_CLIENT_ID": "", "TWITCH_CLIENT_SECRET": "",
+            "TWITCH_DISCOVERY_MODE": "gta5_only", "TWITCH_CATEGORY_IDS": "", "TWITCH_BROADCASTER_IDS": "",
             "TWITCH_GAME_ID": "", "TWITCH_ENABLED": "0",
             "TWITCH_TRENDING_CATEGORIES": "30",
             "TWITCH_CLIPS_PER_CATEGORY": "15",
@@ -159,17 +160,19 @@ class TwitchDiscoveryTests(unittest.TestCase):
         self.assertEqual(discovery.status()["count"],0)
         self.assertEqual(discovery.list_candidates(),[])
 
-    def test_gta5_until_midnight_sao_paulo_then_gta6_only(self):
+    @patch.dict(os.environ, {"TWITCH_DISCOVERY_MODE": "auto"})
+    def test_trending_until_midnight_sao_paulo_then_gta6_only(self):
         discovery = TwitchDiscovery(self.db,self.lock,self.root)
         before = datetime(2026,11,19,2,59,59,tzinfo=timezone.utc)
         start = datetime(2026,11,19,3,tzinfo=timezone.utc)
         for when in (datetime(2026,11,13,tzinfo=timezone.utc), before):
-            self.assertEqual(discovery.profile(when)["profile"],"gta5_only")
-            self.assertEqual(discovery.profile(when)["focus_game"],"Grand Theft Auto V")
+            self.assertEqual(discovery.profile(when)["profile"],"trending")
+            self.assertEqual(discovery.profile(when)["category_limit"],12)
         for when in (start, datetime(2027,1,1,tzinfo=timezone.utc)):
             self.assertEqual(discovery.profile(when)["profile"],"gta6_only")
             self.assertEqual(discovery.profile(when)["focus_game"],"Grand Theft Auto VI")
 
+    @patch.dict(os.environ, {"TWITCH_DISCOVERY_MODE": "auto"})
     def test_invalid_launch_override_still_switches_on_official_day(self):
         with patch.dict(os.environ, {"TWITCH_GTA6_LAUNCH_AT":"not-a-date"}):
             discovery = TwitchDiscovery(self.db,self.lock,self.root)
@@ -178,7 +181,7 @@ class TwitchDiscoveryTests(unittest.TestCase):
         with patch.dict(os.environ, {"TWITCH_GTA6_LAUNCH_AT":"2027-01-01T03:00:00+00:00"}):
             discovery = TwitchDiscovery(self.db,self.lock,self.root)
             self.assertEqual(discovery.profile(
-                datetime(2026,11,19,3,tzinfo=timezone.utc))["profile"],"gta5_only")
+                datetime(2026,11,19,3,tzinfo=timezone.utc))["profile"],"trending")
 
     def test_prelaunch_queries_only_gta5_from_any_streamer(self):
         class MixedClient(DummyClient):
@@ -222,7 +225,7 @@ class TwitchDiscoveryTests(unittest.TestCase):
         self.assertEqual(discovery.status()["count"],1)
         self.assertEqual({x["game_name"] for x in discovery.list_candidates()},
                          {"Grand Theft Auto V"})
-        with patch.dict(os.environ,{"TWITCH_GTA6_LAUNCH_AT":"2026-01-01T00:00:00+00:00"}):
+        with patch.dict(os.environ,{"TWITCH_GTA6_LAUNCH_AT":"2026-01-01T00:00:00+00:00", "TWITCH_DISCOVERY_MODE":"auto"}):
             self.assertEqual(discovery.status()["count"],0)
             self.assertEqual(discovery.list_candidates(),[])
             result = discovery.refresh()
@@ -280,7 +283,7 @@ class TwitchDiscoveryTests(unittest.TestCase):
         ]}) as request:
             result = client.get_top_categories()
         self.assertEqual([x["name"] for x in result],["Just Chatting","Minecraft"])
-        request.assert_called_once_with("games/top",{"first":30})
+        request.assert_called_once_with("games/top",{"first":12})
 
     def test_configurable_limits_capped_for_twitch_quotas(self):
         with patch.dict(os.environ,{
@@ -289,11 +292,11 @@ class TwitchDiscoveryTests(unittest.TestCase):
             "TWITCH_LOOKBACK_HOURS":"999"
         }):
             settings = TwitchDiscovery(self.db,self.lock,self.root).profile()
-            self.assertEqual(settings["category_limit"],100)
+            self.assertEqual(settings["category_limit"],12)
             self.assertEqual(settings["clips_per_category"],30)
             self.assertEqual(settings["lookback_hours"],168)
         with patch.dict(os.environ,{"TWITCH_TRENDING_CATEGORIES":"bad"}):
-            self.assertEqual(TwitchDiscovery(self.db,self.lock,self.root).profile()["category_limit"],30)
+            self.assertEqual(TwitchDiscovery(self.db,self.lock,self.root).profile()["category_limit"],12)
 
 
 if __name__=="__main__":

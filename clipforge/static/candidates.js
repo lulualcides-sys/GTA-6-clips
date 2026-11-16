@@ -70,27 +70,22 @@
 
   async function load() {
     try {
-      const [meta, listing] = await Promise.all([
-        api("/api/twitch/status"), api("/api/twitch/candidates")
+      const [meta, listing, live] = await Promise.all([
+        api("/api/twitch/status"), api("/api/twitch/candidates"), api("/api/twitch/streamers")
       ]);
       state.textContent = meta.configured ?
         (meta.auto_monitoring ? "Monitoramento ativo" : "Configurado · manual") :
         "OAuth não configurado";
       state.className = "tag " + (meta.configured ? "good" : "muted");
       const gta6 = meta.profile === "gta6_only";
-      if(heading) heading.textContent = gta6
-        ? "Twitch · GTA VI (a partir de 19/11)"
-        : "Twitch · GTA V (laboratório de edição)";
-      if(mode) mode.textContent = gta6
-        ? "Desde 19/11: apenas GTA VI, de qualquer streamer. Português tem prioridade no ranking."
-        : "Até 18/11: apenas GTA V, incluindo GTA RP. Em 19/11, o radar muda automaticamente para GTA VI.";
-      if(categories) categories.textContent = meta.categories?.length
-        ? "Categoria recente: " + meta.categories.join(" · ")
-        : (gta6
-          ? "Buscando clipes da categoria exata Grand Theft Auto VI."
-          : "Buscando clipes da categoria exata Grand Theft Auto V.");
+      const gta5 = meta.profile === "gta5_only";
+      if(heading) heading.textContent = gta6 ? "Twitch · prioridade GTA VI" : gta5 ? "Twitch · GTA V (modo manual)" : "Twitch · categorias em alta";
+      if(mode) mode.textContent = gta6 ? "Categoria GTA VI selecionada. Português tem prioridade no ranking." : gta5 ? "Override GTA V ativo. A configuração permite intervenção manual." : "Até 12 categorias configuráveis; prioridade GTA VI na data de lançamento configurada.";
+      if(categories) categories.textContent = (meta.categories?.length ? "Categorias recentes: " + meta.categories.join(" · ") : "Aguardando consulta de categorias.") + " · Streamers: " + (meta.monitored_streamers||0) + " · Ao vivo: " + (meta.live_streams||0);
       last.textContent = "Última busca: " + relativeTime(meta.last_sync) +
         (meta.last_error ? " · Erro: " + meta.last_error : "");
+      const streamers=node("twitch-streamers");
+      if(streamers){streamers.replaceChildren();for(const item of live.streamers||[]){const row=make("p",(item.name||item.broadcaster_id)+" · "+(item.is_live?"Ao vivo: "+item.title:"Offline na última consulta")+" · "+relativeTime(item.checked_at),"hint");streamers.append(row);}}
       displayCandidates(listing.candidates || []);
     } catch (err) {
       state.textContent = "Monitor indisponível";

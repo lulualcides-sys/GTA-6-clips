@@ -49,6 +49,41 @@ class LocalDesktopTests(unittest.TestCase):
         self.assertNotIn("UNTRUSTED_VARIABLE", os.environ)
         self.assertEqual(settings.read_text().count("TWITCH_ENABLED=1"), 1)
 
+    def test_config_loads_twitch_monitoring_controls(self):
+        settings = initialize_settings(self.home)
+        values = {"TWITCH_DISCOVERY_MODE": "trending", "TWITCH_CATEGORY_IDS": "1,2",
+                  "TWITCH_BROADCASTER_IDS": "3,4", "TWITCH_TRENDING_CATEGORIES": "12",
+                  "TWITCH_CLIPS_PER_CATEGORY": "10", "TWITCH_LOOKBACK_HOURS": "24"}
+        settings.write_text("\n".join(f"{k}={v}" for k, v in values.items()))
+        with patch.dict(os.environ, {}, clear=True):
+            initialize_settings(self.home)
+            for key, value in values.items():
+                self.assertEqual(os.environ.get(key), value)
+
+    def test_private_publication_settings_load_without_allowing_arbitrary_environment(self):
+        settings = initialize_settings(self.home)
+        values = {"PUBLISHING_ENABLED": "1", "PUBLISHING_AUTO_ENABLED": "0",
+                  "PUBLISHING_DAILY_LIMIT": "3", "PUBLISHING_MAX_POLLS": "12",
+                  "YOUTUBE_ACCESS_TOKEN": "synthetic-youtube-test-token",
+                  "TIKTOK_ACCESS_TOKEN": "synthetic-tiktok-test-token"}
+        original = "\n".join(f"{k}={v}" for k, v in values.items()) + "\nPYTHONPATH=untrusted\n"
+        settings.write_text(original, encoding="utf-8")
+        with patch.dict(os.environ, {}, clear=True):
+            result = initialize_settings(self.home)
+            for key, value in values.items():
+                self.assertEqual(os.environ.get(key), value)
+            self.assertNotIn("PYTHONPATH", os.environ)
+            self.assertEqual(result, self.home / "config.env")
+        self.assertEqual(settings.read_text(encoding="utf-8"), original)
+
+    def test_new_desktop_publication_settings_are_disabled_and_have_no_tokens(self):
+        with patch.dict(os.environ, {}, clear=True):
+            initialize_settings(self.home)
+            self.assertEqual(os.environ.get("PUBLISHING_ENABLED"), "0")
+            self.assertEqual(os.environ.get("PUBLISHING_AUTO_ENABLED"), "0")
+            self.assertEqual(os.environ.get("YOUTUBE_ACCESS_TOKEN"), "")
+            self.assertEqual(os.environ.get("TIKTOK_ACCESS_TOKEN"), "")
+
     def test_config_rejects_symlink(self):
         initialize_settings(self.home)
         settings = self.home / "config.env"
@@ -85,6 +120,18 @@ class LocalDesktopTests(unittest.TestCase):
             self.assertEqual(agents["counts"]["total"], 0)
         finally:
             shutdown_backend(server, runtime, thread)
+
+    def test_publication_worker_starts_without_dashboard_request_and_stops(self):
+        with patch.dict(os.environ, {'PUBLISHING_ENABLED': '1',
+                                     'YOUTUBE_ACCESS_TOKEN': '', 'TIKTOK_ACCESS_TOKEN': ''}):
+            server, runtime, thread = start_backend(self.home / 'data', 'test-private-token')
+            try:
+                self.assertTrue(hasattr(runtime, 'publishing'))
+                self.assertTrue(runtime.publishing._thread.is_alive())
+            finally:
+                shutdown_backend(server, runtime, thread)
+            runtime.publishing._thread.join(timeout=3)
+            self.assertFalse(runtime.publishing._thread.is_alive())
 
     def test_gui_http_server_works_without_any_stderr_console(self):
         # PyInstaller --windowed normally sets sys.stderr=None on Windows.

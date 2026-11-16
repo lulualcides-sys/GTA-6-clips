@@ -122,12 +122,21 @@ def _extract_verified(archive: Path, destination: Path) -> Path:
         members = bundle.infolist()
         if len(members) > 2000:
             raise UpdateError("Pacote contém arquivos demais")
+        validated = []
+        seen = set()
+        reserved = {"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"}
+        reserved.update(f"{prefix}{n}" for prefix in ("COM", "LPT") for n in "123456789¹²³")
+        # Valide TODO o pacote antes de criar arquivos; NTFS ignora caixa e
+        # interpreta dois-pontos como streams alternativos (ADS).
         for item in members:
             name = item.filename.replace("\\", "/")
             parts = name.rstrip("/").split("/")
             if (not name or name.startswith("/") or
                     any(p in {"", ".", ".."} for p in parts) or
-                    ":" in parts[0]):
+                    any(p.endswith((".", " ")) or
+                        p.split(".")[0].upper() in reserved or
+                        any(ord(c) < 32 or c in '<>:"|?*' for c in p)
+                        for p in parts)):
                 raise UpdateError("Pacote contém caminho inseguro")
             mode = (item.external_attr >> 16) & 0xFFFF
             if stat.S_ISLNK(mode):
@@ -135,6 +144,12 @@ def _extract_verified(archive: Path, destination: Path) -> Path:
             total += item.file_size
             if total > MAX_UNPACKED:
                 raise UpdateError("Pacote descompactado excede o limite")
+            canonical = "/".join(parts).casefold()
+            if canonical in seen:
+                raise UpdateError("Pacote contém caminho duplicado no Windows")
+            seen.add(canonical)
+            validated.append((item, parts))
+        for item, parts in validated:
             target = destination.joinpath(*parts)
             if item.is_dir():
                 target.mkdir(parents=True, exist_ok=True)

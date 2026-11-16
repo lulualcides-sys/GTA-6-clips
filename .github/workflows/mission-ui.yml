@@ -5,13 +5,19 @@ on:
       - "clipforge/static/**"
       - "clipforge/telemetry.py"
       - "tools/browser_smoke.mjs"
+      - "tools/browser_editor_smoke.mjs"
+      - "tools/astra_smoke.py"
+      - "clipforge/editing.py"
+      - "clipforge/core.py"
+      - "clipforge/web.py"
       - ".github/workflows/mission-ui.yml"
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   dashboard:
-    runs-on: ubuntu-latest
+    # Playwright 1.56.1 não suporta Ubuntu 26.04; manter runner compatível.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       DASHBOARD_TOKEN: mission-test-token-0123456789
@@ -50,6 +56,26 @@ jobs:
           exit 1
       - name: Verify desktop and mobile dashboard and capture screenshots
         run: node tools/browser_smoke.mjs
+      - name: Install FFmpeg for actual editor acceptance
+        run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+      - name: Prepare owned synthetic media and start isolated editor server
+        run: |
+          python -m tools.astra_smoke --output "$RUNNER_TEMP/astra-editor-data"
+          CLIPS_DATA_DIR="$RUNNER_TEMP/astra-editor-data" PORT=8012 PUBLISHING_ENABLED=0 nohup python -m clipforge.web > "$RUNNER_TEMP/astra-editor-server.log" 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8012/api/health > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/astra-editor-server.log"
+          exit 1
+      - name: Verify original and edited video, render and batch approval in browser
+        env:
+          MISSION_URL: http://127.0.0.1:8012
+          # Chrome do runner inclui codecs H.264/AAC usados pelo MP4 do aplicativo.
+          PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: /usr/bin/google-chrome
+        run: |
+          /usr/bin/google-chrome --version
+          node tools/browser_editor_smoke.mjs
       - name: Upload visual QA artifacts
         if: always()
         uses: actions/upload-artifact@v4

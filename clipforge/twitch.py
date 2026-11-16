@@ -23,14 +23,24 @@ DEFAULT_GTA6_LAUNCH = "2026-11-19T03:00:00+00:00"
 ALLOWED_CATEGORY_NAMES = {"grand theft auto vi", "grand theft auto 6"}
 GTA5_CATEGORY_NAMES = {"grand theft auto v", "grand theft auto 5"}
 # Bounds protect Twitch API quotas; not editorial exclusions.
-DEFAULT_CATEGORY_LIMIT = 30
+DEFAULT_CATEGORY_LIMIT = 12
 DEFAULT_CLIPS_PER_CATEGORY = 15
 TWITCH_BASE = "https://api.twitch.tv/helix"
 OAUTH_URL = "https://id.twitch.tv/oauth2/token"
 
 
 class TwitchError(RuntimeError):
-    pass
+    def __init__(self, message: str, status_code: int | None = None):
+        super().__init__(message)
+        self.status_code = status_code
+
+
+def configured_ids(name: str, limit: int) -> list[str]:
+    """IDs explícitos, sem silenciosamente ignorar configurações inválidas."""
+    values = list(dict.fromkeys(x.strip() for x in os.getenv(name, "").split(",") if x.strip()))
+    if len(values) > limit or any(not x.isdigit() for x in values):
+        raise TwitchError(f"{name}: informe até {limit} IDs numéricos separados por vírgula")
+    return values
 
 
 def clip_score(item: dict, now: datetime | None = None) -> int:
@@ -83,7 +93,7 @@ class TwitchClient:
         if not token:
             raise TwitchError("Twitch OAuth did not issue a token")
         self._token = str(token)
-        self._expires_at = time.monotonic() + max(60, int(payload.get("expires_in", 3600)) - 120)
+        self._expires_at = time.monotonic() + max(0, int(payload.get("expires_in", 3600)) - 30)
         return self._token
 
     def _send(self, request: Request) -> dict:
@@ -96,18 +106,34 @@ class TwitchClient:
             return result
         except HTTPError as exc:
             # Never put access tokens or response bodies into logs.
-            raise TwitchError(f"Twitch API HTTP {exc.code}") from exc
+            raise TwitchError(f"Twitch API HTTP {exc.code}", status_code=exc.code) from exc
         except (URLError, TimeoutError, OSError, ValueError) as exc:
             raise TwitchError("Twitch API request unavailable or invalid") from exc
 
     def _get(self, endpoint: str, params: dict) -> dict:
-        query = urlencode(params)
-        req = Request(f"{TWITCH_BASE}/{endpoint}?{query}", headers={
-            "Client-Id": self.client_id,
-            "Authorization": f"Bearer {self._token_value()}",
-            "Accept": "application/json",
-        })
-        return self._send(req)
+        query = urlencode(params, doseq=True)
+        for attempt in range(2):
+            req = Request(f"{TWITCH_BASE}/{endpoint}?{query}", headers={
+                "Client-Id": self.client_id,
+                "Authorization": f"Bearer {self._token_value()}",
+                "Accept": "application/json",
+            })
+            try:
+                return self._send(req)
+            except TwitchError as exc:
+                if exc.status_code != 401 or attempt:
+                    raise
+                self._token = ""
+                self._expires_at = 0
+        raise TwitchError("Twitch authentication unavailable")
+
+    def get_categories(self, ids: list[str]) -> list[dict]:
+        """Resolve IDs configurados pela API oficial, incluindo categorias IRL."""
+        return list(self._get("games", {"id": ids[:12]}).get("data", []))
+
+    def get_streams(self, broadcaster_ids: list[str]) -> list[dict]:
+        """Polling leve; ausência na resposta indica offline, não falha de rede."""
+        return list(self._get("streams", {"user_id": broadcaster_ids[:100], "first": 100}).get("data", []))
 
     def find_gta5_game(self) -> str:
         """Resolve the exact GTA V Twitch game category, not a similar title."""
@@ -183,6 +209,12 @@ class TwitchDiscovery:
                 columns = {row["name"] for row in db.execute(f"PRAGMA table_info({table})")}
                 if name not in columns:
                     db.execute(f"ALTER TABLE {table} ADD COLUMN {name} {declaration}")
+            db.execute("""CREATE TABLE IF NOT EXISTS twitch_streamers (
+                broadcaster_id TEXT PRIMARY KEY, name TEXT NOT NULL DEFAULT '',
+                is_live INTEGER NOT NULL DEFAULT 0, stream_id TEXT,
+                game_id TEXT, title TEXT, viewer_count INTEGER NOT NULL DEFAULT 0,
+                started_at TEXT, checked_at TEXT NOT NULL
+            )""")
             db.commit()
 
     def _db(self):
@@ -198,9 +230,13 @@ class TwitchDiscovery:
             raise TwitchError("Invalid Twitch sources configuration")
         try:
             raw = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(raw, dict) or not isinstance(raw.get("broadcasters", []), list):
+                raise ValueError("Expected broadcasters list")
             entries = raw.get("broadcasters", [])
             result = {}
             for entry in entries[:100]:
+                if not isinstance(entry, dict):
+                    raise ValueError("Invalid broadcaster")
                 broadcaster_id = str(entry.get("id", "")).strip()
                 rights = entry.get("rights_status")
                 evidence = str(entry.get("evidence", "")).strip()
@@ -212,7 +248,7 @@ class TwitchDiscovery:
             raise TwitchError("Invalid Twitch sources JSON") from exc
 
     def profile(self, now: datetime | None = None) -> dict:
-        """GTA V before launch, GTA VI after launch; all creators remain eligible."""
+        """Até 12 categorias antes do lançamento; foco GTA VI ou override manual."""
         now = now or datetime.now(timezone.utc)
         # Guard against malformed overrides without silently dropping the GTA VI switch.
         launch_raw = os.getenv("TWITCH_GTA6_LAUNCH_AT", DEFAULT_GTA6_LAUNCH).strip()
@@ -230,11 +266,16 @@ class TwitchDiscovery:
             except ValueError:
                 return default
 
+        mode = os.getenv("TWITCH_DISCOVERY_MODE", "auto").strip()
+        if mode not in {"auto", "trending", "gta5_only", "gta6_only"}:
+            raise TwitchError("TWITCH_DISCOVERY_MODE inválido")
+        active = ("gta6_only" if now >= launch else "trending") if mode == "auto" else mode
         return {
-            "profile": "gta6_only" if now >= launch else "gta5_only",
-            "focus_game": "Grand Theft Auto VI" if now >= launch else "Grand Theft Auto V",
+            "profile": active,
+            "manual_override": mode != "auto",
+            "focus_game": {"gta6_only": "Grand Theft Auto VI", "gta5_only": "Grand Theft Auto V"}.get(active, "Categorias populares/configuradas"),
             "launch_at": launch.isoformat(timespec="seconds"),
-            "category_limit": bounded("TWITCH_TRENDING_CATEGORIES", DEFAULT_CATEGORY_LIMIT, 100),
+            "category_limit": bounded("TWITCH_TRENDING_CATEGORIES", DEFAULT_CATEGORY_LIMIT, 12),
             "clips_per_category": bounded("TWITCH_CLIPS_PER_CATEGORY", DEFAULT_CLIPS_PER_CATEGORY, 30),
             "lookback_hours": bounded("TWITCH_LOOKBACK_HOURS", 72, 168),
         }
@@ -246,15 +287,9 @@ class TwitchDiscovery:
                 "SELECT last_at,last_error,game_id,profile,categories_json "
                 "FROM twitch_sync WHERE id=1"
             ).fetchone()
-            game_names = (
-                ("grand theft auto vi", "grand theft auto 6")
-                if profile["profile"] == "gta6_only"
-                else ("grand theft auto v", "grand theft auto 5")
-            )
-            count = db.execute(
-                "SELECT COUNT(*) FROM twitch_candidates WHERE lower(game_name) IN (?,?)",
-                game_names,
-            ).fetchone()[0]
+            where, params = self._candidate_filter(profile["profile"])
+            count = db.execute("SELECT COUNT(*) FROM twitch_candidates WHERE " + where, params).fetchone()[0]
+        streamers = self.list_streamers()
         raw_categories = sync["categories_json"] if sync else "[]"
         try:
             categories = json.loads(raw_categories or "[]")
@@ -267,27 +302,38 @@ class TwitchDiscovery:
             "last_error": sync["last_error"] if sync else None,
             "game_id": sync["game_id"] if sync and sync["profile"] == profile["profile"] else None,
             "count": count,
+            "monitored_streamers": len(streamers),
+            "live_streams": sum(row["is_live"] for row in streamers),
             "mode": "metadata_only",
             **profile,
             "last_profile": sync["profile"] if sync else None,
             "categories": categories if sync and sync["profile"] == profile["profile"] else [],
         }
 
-    def list_candidates(self) -> list[dict]:
-        # Recent refreshes only; stale historical viral clips cannot dominate today's radar.
+    def _candidate_filter(self, mode: str) -> tuple[str, tuple]:
         cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat(timespec="seconds")
-        game_names = (
-            ("grand theft auto vi", "grand theft auto 6")
-            if self.profile()["profile"] == "gta6_only"
-            else ("grand theft auto v", "grand theft auto 5")
-        )
+        if mode == "trending":
+            ids = configured_ids("TWITCH_CATEGORY_IDS", 12)
+            if ids:
+                return "seen_at>=? AND game_id IN (" + ",".join("?" for _ in ids) + ")", (cutoff, *ids)
+            return "seen_at>=? AND game_id<>''", (cutoff,)
+        names = ("grand theft auto vi", "grand theft auto 6") if mode == "gta6_only" else ("grand theft auto v", "grand theft auto 5")
+        return "seen_at>=? AND lower(game_name) IN (?,?)", (cutoff, *names)
+
+    def list_candidates(self) -> list[dict]:
+        where, params = self._candidate_filter(self.profile()["profile"])
         with self._db() as db:
-            rows = db.execute(
-                "SELECT * FROM twitch_candidates WHERE seen_at>=? "
-                "AND lower(game_name) IN (?,?) "
-                "ORDER BY score DESC, view_count DESC LIMIT 100",
-                (cutoff, *game_names),
-            ).fetchall()
+            rows = db.execute("SELECT * FROM twitch_candidates WHERE " + where +
+                              " ORDER BY score DESC, view_count DESC LIMIT 100", params).fetchall()
+        return [dict(r) for r in rows]
+
+    def list_streamers(self) -> list[dict]:
+        ids = configured_ids("TWITCH_BROADCASTER_IDS", 100)
+        if not ids:
+            return []
+        with self._db() as db:
+            rows = db.execute("SELECT * FROM twitch_streamers WHERE broadcaster_id IN (" +
+                              ",".join("?" for _ in ids) + ") ORDER BY is_live DESC,name", ids).fetchall()
         return [dict(r) for r in rows]
 
     def refresh(self) -> dict:
@@ -301,25 +347,38 @@ class TwitchDiscovery:
             self.activity.append(None, "radar", "running",
                                  "Consultando metadados oficiais da Twitch")
         try:
-            if mode == "gta6_only":
-                game_id = os.getenv("TWITCH_GAME_ID", "").strip() or client.find_gta6_game()
-                game_name = "Grand Theft Auto VI"
+            if mode == "trending":
+                ids = configured_ids("TWITCH_CATEGORY_IDS", 12)
+                categories = client.get_categories(ids) if ids else client.get_top_categories(profile["category_limit"])
+                categories = categories[:profile["category_limit"]]
+                game_id = ""
             else:
-                game_id = os.getenv("TWITCH_GTA5_GAME_ID", "").strip() or client.find_gta5_game()
-                game_name = "Grand Theft Auto V"
-            if not game_id.isdigit():
+                game_id = (os.getenv("TWITCH_GAME_ID", "").strip() or client.find_gta6_game()) if mode == "gta6_only" else (os.getenv("TWITCH_GTA5_GAME_ID", "").strip() or client.find_gta5_game())
+                categories = [{"id": game_id, "name": "Grand Theft Auto VI" if mode == "gta6_only" else "Grand Theft Auto V"}]
+            if any(not str(c.get("id", "")).isdigit() for c in categories):
                 raise TwitchError("Invalid Twitch game ID")
-            categories = [{"id": game_id, "name": game_name}]
-            records_by_category = [(
-                categories[0],
-                client.get_clips(game_id, lookback_hours=profile["lookback_hours"],
-                                 first=profile["clips_per_category"]),
-            )]
+            records_by_category = [(category, client.get_clips(category["id"],
+                lookback_hours=profile["lookback_hours"], first=profile["clips_per_category"])) for category in categories]
+            broadcaster_ids = configured_ids("TWITCH_BROADCASTER_IDS", 100)
+            streams = {str(row.get("user_id")): row for row in client.get_streams(broadcaster_ids)} if broadcaster_ids else {}
             allowlist = self.sources()
             now = datetime.now(timezone.utc).isoformat(timespec="seconds")
             inserted = 0
             received = sum(len(records) for _, records in records_by_category)
             with self.lock, self._db() as db:
+                for broadcaster_id in broadcaster_ids:
+                    stream = streams.get(broadcaster_id, {})
+                    db.execute("""INSERT INTO twitch_streamers
+                        (broadcaster_id,name,is_live,stream_id,game_id,title,viewer_count,started_at,checked_at)
+                        VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(broadcaster_id) DO UPDATE SET
+                        name=CASE WHEN excluded.name='' THEN twitch_streamers.name ELSE excluded.name END,
+                        is_live=excluded.is_live,stream_id=excluded.stream_id,game_id=excluded.game_id,
+                        title=excluded.title,viewer_count=excluded.viewer_count,
+                        started_at=excluded.started_at,checked_at=excluded.checked_at""",
+                        (broadcaster_id,str(stream.get("user_name", ""))[:180],int(bool(stream)),
+                         str(stream.get("id", ""))[:100],str(stream.get("game_id", ""))[:100],
+                         str(stream.get("title", ""))[:300],max(0,int(stream.get("viewer_count",0))),
+                         str(stream.get("started_at", ""))[:80],now))
                 for category, records in records_by_category:
                     for item in records:
                         clip_id = str(item.get("id", "")).strip()[:180]
@@ -389,7 +448,10 @@ class TwitchDiscovery:
     def start_polling(self):
         if not self.enabled or not (self.client or (self.client_id and self.secret)):
             return
-        seconds = max(300, int(os.getenv("TWITCH_POLL_SECONDS", "900")))
+        try:
+            seconds = max(300, int(os.getenv("TWITCH_POLL_SECONDS", "900")))
+        except ValueError:
+            seconds = 900
         def loop():
             while True:
                 try:
