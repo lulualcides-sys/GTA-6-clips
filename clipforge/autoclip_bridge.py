@@ -131,6 +131,56 @@ class AutoClipBridge:
             with self.lock:
                 self.active = None
 
+    def import_suggestion(self, clip_id, index):
+        """Copia proposta para ingestão normal e exige nova revisão Nexus."""
+        candidate = self.preview(clip_id, index)
+        self._source(clip_id)  # Revalida SHA/direitos da mídia de origem.
+        original = self.store.get(clip_id)
+        from .core import duration_of, probe
+        seconds = duration_of(probe(candidate))
+        if not 10 <= seconds <= 7200:
+            raise ValueError("Sugestão AutoClip tem duração inválida.")
+        digest = hashlib.sha256()
+        with candidate.open("rb") as stream:
+            for block in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(block)
+        basename = f"autoclip-{clip_id}-{index}-{digest.hexdigest()[:12]}.mp4"
+        target = self.store.incoming / basename
+        sidecar = self.store.incoming / (basename + ".rights.json")
+        with self.store.lock:
+            if target.exists():
+                if target.is_symlink() or hashlib.sha256(target.read_bytes()).hexdigest() != digest.hexdigest():
+                    raise ValueError("Arquivo de importação já existe com outro conteúdo.")
+            else:
+                temporary = target.with_suffix(".mp4.partial")
+                try:
+                    shutil.copyfile(candidate, temporary)
+                    temporary.replace(target)
+                finally:
+                    temporary.unlink(missing_ok=True)
+            manifest = {
+                "creator": original["creator"],
+                "source_url": original.get("source_url") or "",
+                "rights_status": original["rights_status"],
+                "evidence": original.get("evidence") or "",
+                "start_sec": 0,
+                "duration_sec": min(60, round(seconds, 2)),
+                "derived_from": clip_id,
+                "review_required": True
+            }
+            if not sidecar.exists():
+                sidecar.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+            imported = self.store.ingest(sidecar)
+            if not imported:
+                for item in self.store.all():
+                    if item.get("sha256") == digest.hexdigest():
+                        imported = item
+                        break
+            if not imported:
+                raise ValueError("Arquivo já existe sem identificação válida.")
+            return {"clip_id": imported["id"], "status": imported["status"],
+                    "created": imported["filename"] == basename and imported.get("status") == "detected"}
+
     def preview(self, clip_id, index):
         with self.lock:
             entry = self.jobs.get(clip_id, {})
