@@ -33,7 +33,7 @@ Todos os originais, cortes, históricos, legendas e credenciais locais ficam no 
 `%LOCALAPPDATA%\GTA6Clips\`
 
 - `data\incoming\` — vídeos autorizados e arquivos de permissão.
-- `data\rendered\` — MP4 1080x1920 produzidos pelo FFmpeg.
+- `data\rendered\` — MP4s gerados exclusivamente pelo AutoClip e validados sem reedição pelo Nexus.
 - `data\clips.sqlite3` — tarefas e histórico de agentes.
 - `data\captions\` — SRT privados quando um worker Whisper for instalado.
 - `data\hyperframes\` — projetos editáveis HyperFrames.
@@ -55,7 +55,7 @@ Todos os originais, cortes, históricos, legendas e credenciais locais ficam no 
 }
 ```
 
-4. A ingestão verifica a pasta periodicamente e enfileira o FFmpeg quando `AUTO_SCAN=1` e `AUTO_RENDER=1` (padrões).
+4. A ingestão verifica a pasta periodicamente. Com `AUTO_RENDER=1`, enfileira exclusivamente a CLI AutoClip. Se não instalada/ativada, a edição não ocorre; não há fallback FFmpeg. Veja `docs/AUTOCLIP_ONLY.md`.
 5. Na janela, acompanhe os módulos de ingestão, direitos, curadoria, edição e revisão. Abra **Abrir clipes prontos** para ver os MP4 salvos.
 
 **Atenção:** declarar `owned` exige que o vídeo seja realmente seu. Não use esta configuração para reclassificar vídeos de streamers sem autorização. Para terceiros use `permission_granted` e `evidence` verificável. Criar Twitch Clips não concede direito automático de republicação.
