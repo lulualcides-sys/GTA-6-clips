@@ -48,7 +48,10 @@ def _ollama_json(endpoint: str, payload=None, timeout=10):
 
 def _frames(path: Path, duration: float) -> list[str]:
     images = []
-    for fraction in (0.17, 0.50, 0.83):
+    # Nine evenly spaced samples reduce the chance of missing the actual event.
+    # Keep each frame small and cap the sample count to bound Ollama latency/RAM.
+    for index in range(9):
+        fraction = 0.08 + index * 0.105
         seconds = max(0, duration * fraction)
         result = subprocess.run([
             "ffmpeg", "-hide_banner", "-loglevel", "error", "-ss", str(seconds),
@@ -61,7 +64,7 @@ def _frames(path: Path, duration: float) -> list[str]:
 
 
 def _vision_insights(path: Path, duration: float) -> dict:
-    """Three actual frames: context hint, not proof of humor/audio/reaction."""
+    """Nine actual frames: broader visual context, not proof of humor/audio/reaction."""
     try:
         tags = _ollama_json("/api/tags", timeout=4)
         names = [str(m.get("name", "")) for m in tags.get("models", [])
@@ -77,7 +80,7 @@ def _vision_insights(path: Path, duration: float) -> dict:
             return {"status": "unavailable", "reason": "Não foi possível extrair quadros",
                     "frames_analyzed": len(images)}
         question = (
-            "Você observa apenas três quadros de um vídeo de gameplay. "
+            "Você observa nove quadros espaçados de um vídeo de gameplay. "
             "Responda exclusivamente JSON com chaves event (até 120 caracteres), "
             "category (acidente, susto, jogada, reação, conversa, outro), "
             "context_clear (boolean), visual_hook (boolean), confidence (0..1), "
@@ -175,8 +178,17 @@ class EditorialIntelligence:
             with self.store._db() as db:
                 cached = db.execute("SELECT media_sha256,status FROM editorial_insights WHERE clip_id=?",
                                     (clip_id,)).fetchone()
-            if cached and cached["media_sha256"] == item["sha256"] and cached["status"] in {"complete", "partial"}:
-                return False
+            if cached and cached["status"] in {"complete", "partial"}:
+                # Cache validity is checked against the rendered file itself, not
+                # the source-ingestion hash stored on the clip row.
+                target = Path(item["output_path"])
+                if target.is_file() and not target.is_symlink():
+                    current_hash = hashlib.sha256()
+                    with target.open("rb") as stream:
+                        for block in iter(lambda: stream.read(1024 * 1024), b""):
+                            current_hash.update(block)
+                    if cached["media_sha256"] == current_hash.hexdigest():
+                        return False
             self.pending.add(clip_id)
         self.pool.submit(self._assess, clip_id)
         return True
@@ -205,7 +217,7 @@ class EditorialIntelligence:
                 "media_sha256": actual_hash,
                 "technical": technical, "semantic": semantic,
                 "human_review_required": True,
-                "limitations": "Amostra de até três imagens, sem confirmação de fala ou humor."
+                "limitations": "Amostra de até nove imagens, sem confirmação de fala ou humor."
             }
             status = "complete" if semantic.get("status") == "visual_partial" and technical["status"] == "checked" else "partial"
         except (OSError, ValueError, subprocess.SubprocessError) as exc:
@@ -220,7 +232,8 @@ class EditorialIntelligence:
                             VALUES(?,?,?,?,?) ON CONFLICT(clip_id) DO UPDATE SET
                             media_sha256=excluded.media_sha256,status=excluded.status,
                             report=excluded.report,updated_at=excluded.updated_at""",
-                            (clip_id, item["sha256"], status, json.dumps(report, ensure_ascii=False), time.time()))
+                            (clip_id, report.get("media_sha256", item["sha256"]), status,
+                             json.dumps(report, ensure_ascii=False), time.time()))
                         db.commit()
             finally:
                 with self.lock:
