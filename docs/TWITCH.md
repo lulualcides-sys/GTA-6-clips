@@ -1,5 +1,16 @@
 # Twitch Helix — radar ASTRA
 
+## Radar aprofundado GTA VI com pré-triagem editorial (v0.5.1)
+
+A partir de 19/11/2026 (configuração de início já existente) o perfil `auto` muda para `gta6_only`. Também é possível ativar `TWITCH_DISCOVERY_MODE=gta6_only` mais cedo **se** a categoria exata já existir na Twitch; antes do lançamento real, não há garantia de clipes de gameplay.
+
+**Descoberta:** o cliente consulta o endpoint oficial Twitch Helix `GET /clips?game_id=...` com cursores e janelas menores (`TWITCH_GTA6_WINDOW_HOURS=12`; `TWITCH_GTA6_PAGES_PER_WINDOW=3`), deduplicando pelo ID. Até 30 consultas por rodada do radar e até 48 no limite de segurança do método. Isso amplia bastante a amostra em comparação com uma única página, mas NÃO é garantia de todos os clipes: a API tem paginação e cotas, e pode devolver resultados parciais.
+
+**Pré-triagem de custo:** o Nexus considera até 1.000 candidatos pontuados por busca, antes de obter mídia. Com `TWITCH_AUTO_MIN_SCORE=78` só seleciona títulos não genéricos, 14–70 s, sinais de visualizações compatíveis com a idade do clipe e no máximo `TWITCH_AUTO_PER_CREATOR=2` clipes por criador por rodada. O filtro `TWITCH_AUTO_GTA6_ONLY=1` evita que outros jogos sejam enviados para edição. `TWITCH_GTA6_BATCH=5` limita os downloads autorizados por rodada (configurável até 12) para evitar uso excessivo de banda, armazenamento e créditos de IA. Exibir clipe na busca **não** equivale a autorização para baixá-lo.
+
+A nota é heurística, baseada em metadados; **não mede com precisão humor, reação, contexto, ritmo ou qualidade audiovisual.** Só a análise do vídeo pelo AutoClip e a revisão editorial podem julgar essas características. O motor AutoClip continua sendo o editor exclusivo; sem modelo local operacional, o Nexus não baixa mídias para a fila. Os arquivos já ingeridos mas ainda não enfileirados são retomados nas varreduras subsequentes. Nenhuma publicação ocorre antes da aprovação.
+
+
 ## Regra vigente (14/11/2026)
 
 O pedido ASTRA substitui a restrição antiga a GTA V: antes da data configurada, o radar busca até **12 categorias populares ou configuradas**, incluindo jogos e categorias IRL retornadas pela Twitch. Em `2026-11-19T03:00:00Z`, passa automaticamente ao perfil `gta6_only`. A data é uma configuração operacional fornecida pelo usuário, não uma nova verificação do calendário da Rockstar.
@@ -55,7 +66,7 @@ OAuth de aplicação usa client credentials exclusivamente para consulta oficial
 
 Criadores em `TWITCH_BROADCASTER_IDS` são verificados por `GET /helix/streams` com parâmetros `user_id` repetidos. A tabela `twitch_streamers` persiste estado, ID real da transmissão e horário da consulta. Uma resposta bem-sucedida sem um criador o marca offline; falha de rede preserva o estado anterior e seu horário. `TwitchDiscovery.list_streamers()` retorna esses registros; `status()` inclui `monitored_streamers` e `live_streams` da última consulta. Conferir `checked_at` para identificar dados antigos. Isso é polling, **não EventSub**, e requer processo aberto/PC ligado.
 
-A descoberta de clipes permanece por categoria; o cadastro de streamer monitora a live, mas ainda não faz consulta separada de clipes por criador. Não há download automático nem uso de URLs alternativas. A obtenção manual oficial e autorizada está disponível pela CLI separada: veja [TWITCH_DOWNLOAD.md](TWITCH_DOWNLOAD.md). Configurar segredos só no PC e nunca distribuí-los no executável. O segredo de aplicação local continua sendo uma limitação do fluxo atual; OAuth de usuário com concessões específicas para download exige integração adicional.
+A descoberta agora também consulta os clipes do próprio canal com OAuth válido e pode baixar mídia pela API oficial de downloads para o AutoClip. Para canais de terceiros continua exigindo concessão de editor e direitos documentados; veja [TWITCH_DOWNLOAD.md](TWITCH_DOWNLOAD.md). O radar público continua sendo apenas metadados. Guarde o Client Secret e tokens OAuth exclusivamente no PC.
 
 ## Preparação da edição
 
