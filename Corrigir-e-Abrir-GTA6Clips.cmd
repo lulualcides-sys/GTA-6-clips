@@ -2,6 +2,7 @@
 setlocal EnableExtensions
 cd /d "%~dp0"
 set "GTA6CLIPS_INTERNAL=%~dp0_internal"
+set "GTA6CLIPS_AUTOCLIP=%~dp0autoclip_runtime"
 if not exist "%~dp0GTA6Clips.exe" (
   echo ERRO: GTA6Clips.exe nao encontrado. Extraia o ZIP oficial completo.
   pause
@@ -26,8 +27,9 @@ echo.
 echo A extracao do ZIP pode ter marcado varias bibliotecas como arquivos
 echo baixados da internet. Isto provoca erro .NET 0x80131515.
 echo.
-echo O reparo remove a marca Zone.Identifier SOMENTE de arquivos DLL
-echo e PYD dentro da pasta _internal DESTE aplicativo.
+echo O reparo remove Zone.Identifier somente das bibliotecas DLL/PYD
+echo em _internal e autoclip_runtime e dos EXE do runtime AutoClip.
+echo O modelo de IA Ollama nao e instalado por este reparo.
 echo Nao altera System32, dados pessoais, videos, Windows Defender
 echo nem SmartScreen. Execute somente no pacote oficial conferido.
 echo.
@@ -36,7 +38,7 @@ if /I "%GITHUB_ACTIONS%"=="true" if /I "%GTA6CLIPS_REPAIR_ONLY%"=="1" goto repai
 choice /c SN /n /m "Confirmar reparo das bibliotecas do Nexus? [S/N] "
 if errorlevel 2 exit /b 3
 :repair
-powershell.exe -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; $root=Get-Item -LiteralPath $env:GTA6CLIPS_INTERNAL; if ($root.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Pasta _internal redirecionada; reparo recusado' }; $files=@(Get-ChildItem -LiteralPath $root.FullName -Recurse -File -Force | Where-Object { $_.Extension -in @('.dll','.pyd') }); if ($files.Count -eq 0) { throw 'Nenhuma biblioteca encontrada' }; foreach ($file in $files) { if ($file.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Biblioteca redirecionada; reparo recusado' }; Unblock-File -LiteralPath $file.FullName -ErrorAction Stop }; Write-Output ('Bibliotecas conferidas: ' + $files.Count)"
+powershell.exe -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; $roots=@($env:GTA6CLIPS_INTERNAL); if(Test-Path -LiteralPath $env:GTA6CLIPS_AUTOCLIP -PathType Container){ $roots += $env:GTA6CLIPS_AUTOCLIP }; $files=@(); foreach($base in $roots){$root=Get-Item -LiteralPath $base; if($root.Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'Pasta redirecionada; reparo recusado'}; $types=if($base -eq $env:GTA6CLIPS_AUTOCLIP){@('.dll','.pyd','.exe')}else{@('.dll','.pyd')}; $files+=@(Get-ChildItem -LiteralPath $root.FullName -Recurse -File -Force | Where-Object {$_.Extension -in $types}) }; if($files.Count -eq 0){throw 'Nenhuma biblioteca encontrada'}; foreach($file in $files){if($file.Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'Biblioteca redirecionada; reparo recusado'}; Unblock-File -LiteralPath $file.FullName -ErrorAction Stop}; Write-Output ('Bibliotecas conferidas: '+$files.Count)"
 if errorlevel 1 (
   echo.
   echo O reparo falhou. Confira a origem do pacote e as permissoes.
