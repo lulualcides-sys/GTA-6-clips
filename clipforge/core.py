@@ -391,6 +391,7 @@ class Runtime:
         from .editorial_intelligence import EditorialIntelligence
         from .performance_metrics import PerformanceMetrics
         self.editorial = EditorialIntelligence(self.store)
+        self.captions.on_complete = self.editorial.queue
         self.performance = PerformanceMetrics(self.store)
         self.autoclip_bridge.on_import = self.editorial.queue
         from .twitch_auto import TwitchAutoIngest
