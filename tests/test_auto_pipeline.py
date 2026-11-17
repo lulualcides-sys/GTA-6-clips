@@ -75,8 +75,8 @@ class AutoIntakeTests(unittest.TestCase):
         self.runtime.scan.assert_not_called()
 
     def test_grant_does_not_claim_unrelated_channel(self):
-        ensure_owned_channel(self.root.parent, "123456789")
-        data = json.loads((self.root.parent/"data"/"twitch_sources.json").read_text())
+        ensure_owned_channel(self.root, "123456789")
+        data = json.loads((self.root/"data"/"twitch_sources.json").read_text())
         self.assertEqual(data["broadcasters"][0]["id"], "123456789")
         self.assertEqual(data["broadcasters"][0]["rights_status"], "owned")
 
@@ -103,8 +103,10 @@ class AutoClipAutoReviewTests(unittest.TestCase):
         src = Path(self.temp.name) / "incoming" / "source.mp4"
         src.write_bytes(b"fake-test-source")
         export = self.bridge.exports / "job-1" / "clip.mp4"
-        export.parent.mkdir(parents=True)
-        export.write_bytes(b"fake-test-export")
+        def finished(*args, **kwargs):
+            export.parent.mkdir(parents=True, exist_ok=True)
+            export.write_bytes(b"fake-test-export")
+            return SimpleNamespace(returncode=0)
         self.bridge.jobs["a"] = {"status": "queued", "suggestions": [], "imports": []}
         self.bridge.active = "a"
         item = {"input_path": str(src), "sha256": "",
@@ -112,8 +114,7 @@ class AutoClipAutoReviewTests(unittest.TestCase):
         with patch.object(self.bridge, "_source", return_value=src), \
              patch.object(self.bridge, "_command", return_value=["autoclip"]), \
              patch.object(self.bridge, "_prepare_local_ai", return_value=[]), \
-             patch("clipforge.autoclip_bridge.subprocess.run",
-                   return_value=SimpleNamespace(returncode=0)), \
+             patch("clipforge.autoclip_bridge.subprocess.run", side_effect=finished), \
              patch.object(self.bridge, "import_suggestion",
                           return_value={"clip_id": "review123", "status": "ready"}) as imp:
             self.bridge._run("a")
