@@ -399,6 +399,21 @@ def self_test(destination: Path | None = None) -> dict:
             report({**result, "phase": "webview2_checked"})
         token = secrets.token_urlsafe(32)
         server, runtime, thread = start_backend(home / "data", token)
+        # Validate the complete AutoClip sidecar inside the actual frozen EXE.
+        if sys.platform == "win32" and getattr(sys, "frozen", False):
+            sidecar = runtime.autoclip_bridge._bundled_runtime()
+            result["autoclip_cli"] = False
+            if sidecar:
+                try:
+                    command = subprocess.run([*sidecar, "styles"], stdin=subprocess.DEVNULL,
+                                             capture_output=True, timeout=40, check=False)
+                    result["autoclip_cli"] = command.returncode == 0
+                    if command.returncode:
+                        result["autoclip_error"] = command.stderr.decode(
+                            "utf-8", "replace")[-280:]
+                except (OSError, subprocess.SubprocessError) as exc:
+                    result["autoclip_error"] = str(exc)[:180]
+            report({**result, "phase": "autoclip_checked"})
         errors = []
         server.handle_error = lambda request, address: errors.append(traceback.format_exc())
         report({**result, "phase": "server_started"})
@@ -435,7 +450,7 @@ def self_test(destination: Path | None = None) -> dict:
             report({**result, "phase": "server_stopped"})
         required = ["ffmpeg", "ffprobe", "health", "protected_api"]
         if sys.platform == "win32" and getattr(sys, "frozen", False):
-            required.extend(["pythonnet", "webview2_core"])
+            required.extend(["pythonnet", "webview2_core", "autoclip_cli"])
         result["status"] = "pass" if all(result.get(k) for k in required) else "fail"
         report({**result, "phase": "complete"})
         return result
