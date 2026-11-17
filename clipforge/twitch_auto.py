@@ -46,10 +46,17 @@ class TwitchAutoIngest:
             "attempted": self.attempted,
             "last_candidates_scanned": self.last_candidates_scanned,
             "last_quality_passed": self.last_quality_passed,
-            "min_score": min(100, max(0, int(os.getenv("TWITCH_AUTO_MIN_SCORE", "78")))),
+            "min_score": self._minimum_score(),
             "ready": enabled and credentials and bool(allowed)
                      and self.runtime.autoclip_bridge.available(),
         }
+
+    @staticmethod
+    def _minimum_score():
+        try:
+            return max(0, min(100, int(os.getenv("TWITCH_AUTO_MIN_SCORE", "78"))))
+        except ValueError:
+            return 78
 
     def _allowed_sources(self):
         """Read rights declaration, not simply a public Twitch clip."""
@@ -81,6 +88,11 @@ class TwitchAutoIngest:
         if not self.runtime.autoclip_bridge.available():
             self.last_error = "Motor AutoClip indisponível: instale/configure o modelo de IA."
             return False
+        if (hasattr(self.runtime.autoclip_bridge, "model_ready")
+                and not self.runtime.autoclip_bridge.model_ready()):
+            self.last_error = ("Modelo de IA AutoClip indisponível. "
+                               "Configure/inicie Ollama antes de baixar vídeos.")
+            return False
         if not (os.getenv("TWITCH_USER_ACCESS_TOKEN", "").strip()
                 and os.getenv("TWITCH_EDITOR_ID", "").strip().isdigit()):
             self.last_error = ("Token OAuth de editor/broadcaster ausente. "
@@ -104,7 +116,7 @@ class TwitchAutoIngest:
             # Eligibility checked against rights allowlist and Twitch's real
             # editor/broadcaster grant. Do not download from arbitrary links.
             items = self.runtime.twitch.list_candidates(limit=1000)
-            score_threshold = max(0, min(100, int(os.getenv("TWITCH_AUTO_MIN_SCORE", "78"))))
+            score_threshold = self._minimum_score()
             per_creator = max(1, min(4, int(os.getenv("TWITCH_AUTO_PER_CREATOR", "2"))))
             eligible = ranked_shortlist(
                 items, min_score=score_threshold, per_creator=per_creator,
