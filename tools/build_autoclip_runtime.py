@@ -66,6 +66,22 @@ def main():
         f"{AUTOCLIP_REPO}\nCommit: {AUTOCLIP_COMMIT}\nLicense: MIT\n",
         encoding="utf-8"
     )
+    # AutoClip renders animated captions with libass and encodes H.264 with
+    # libx264. An ffmpeg build missing either MUST NOT ship as "AutoClip ready".
+    ffmpeg = project / "dist" / "GTA6Clips" / "_internal" / "clipforge" / "bin" / "ffmpeg.exe"
+    if not ffmpeg.is_file():
+        raise SystemExit("Nexus bundled FFmpeg binary is missing")
+    filters = subprocess.run([str(ffmpeg), "-hide_banner", "-filters"],
+                             capture_output=True, text=True, check=True, timeout=20).stdout
+    encoders = subprocess.run([str(ffmpeg), "-hide_banner", "-encoders"],
+                              capture_output=True, text=True, check=True, timeout=20).stdout
+    if not any(line.split()[-1] == "ass" for line in filters.splitlines()
+               if len(line.split()) >= 2):
+        # Output usually includes "T.. ass V->V ..." rather than ending in ass.
+        if " ass " not in filters:
+            raise SystemExit("Bundled FFmpeg has no libass subtitle renderer")
+    if "libx264" not in encoders:
+        raise SystemExit("Bundled FFmpeg has no libx264 H.264 encoder")
     # Force relocated interpreter to import from its own directory, not CI's.
     env = dict(os.environ)
     env.pop("PYTHONHOME", None)
