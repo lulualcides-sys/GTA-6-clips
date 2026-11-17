@@ -41,9 +41,12 @@
   e TikTok `/v2/video/query` com escopo `video.list`, para publicações confirmadas
   e com ID real vinculado à conta. Armazena fonte, data, erros e contadores recebidos.
   `NEXUS_PERFORMANCE_POLL=1` consulta a cada 6 horas no desktop, além do botão
-  manual. **Não assume visualizações, retenção, ganhos ou alcance público** sem
-  resposta de API. Retenção não é coletada nesta versão, pois requer acessos/APIs
-  diferentes; Postiz e Instagram não recebem métricas inventadas.
+  manual. Com `YOUTUBE_ANALYTICS_ACCESS_TOKEN` opcional (OAuth do próprio canal
+  com escopo de leitura Analytics), consulta `averageViewPercentage` e
+  `averageViewDuration` por vídeo via YouTube Analytics v2, quando o relatório
+  está disponível. **Não assume visualizações, retenção, ganhos ou alcance
+  público** sem resposta de API. TikTok não recebe retenção inventada, e
+  Postiz/Instagram não recebem métricas inventadas.
 
 ## Condições e riscos
 
@@ -57,7 +60,10 @@
    da avaliação humana; feedback nunca concede direitos de uso sobre conteúdo alheio.
 5. Métricas só são capturadas com tokens OAuth autorizados e vídeos correspondentes;
    o upload privado dos conectores atuais pode produzir zero visualizações.
-6. Os testes de CI usam mocks para modelos, plataformas, navegação e vídeos sintéticos;
+6. Retenção depende de OAuth Analytics separado. Os tokens do conector YouTube
+   de publicação podem não ter os escopos de Analytics e não são promovidos
+   automaticamente para esse uso.
+7. Os testes de CI usam mocks para modelos, plataformas, navegação e vídeos sintéticos;
    testes verdes **não comprovam desempenho, precisão editorial ou integração de conta real**.
 
 ## API
