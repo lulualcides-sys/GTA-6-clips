@@ -26,6 +26,7 @@ class AutoClipBridge:
         self.jobs = self._load()
         self.active = None
         self.max_pending = 25
+        self.on_import = None
 
     def _load(self):
         try:
@@ -221,6 +222,11 @@ class AutoClipBridge:
                 for index in range(len(suggestions)):
                     try:
                         imported = self.import_suggestion(clip_id, index)
+                        if self.on_import is not None and imported.get("status") == "ready":
+                            try:
+                                self.on_import(imported["clip_id"])
+                            except (ValueError, OSError, RuntimeError):
+                                pass  # A análise opcional nunca altera o MP4 AutoClip.
                         with self.lock:
                             self.jobs[clip_id]["imports"].append(imported["clip_id"])
                             self._save()
