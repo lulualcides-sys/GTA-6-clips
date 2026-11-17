@@ -388,6 +388,11 @@ class Runtime:
         self.demo = SyntheticDemo(self)
         from .autoclip_bridge import AutoClipBridge
         self.autoclip_bridge = AutoClipBridge(self.store)
+        from .editorial_intelligence import EditorialIntelligence
+        from .performance_metrics import PerformanceMetrics
+        self.editorial = EditorialIntelligence(self.store)
+        self.performance = PerformanceMetrics(self.store)
+        self.autoclip_bridge.on_import = self.editorial.queue
         from .twitch_auto import TwitchAutoIngest
         self.twitch_auto = TwitchAutoIngest(self)
         self.twitch.on_refreshed = self.twitch_auto.kick
@@ -470,3 +475,12 @@ class Runtime:
                     print(f"Background scan failed: {exc}", flush=True)
                 time.sleep(self.poll_seconds)
         threading.Thread(target=loop, name="clip-scanner", daemon=True).start()
+        if os.getenv("NEXUS_PERFORMANCE_POLL", "1") == "1":
+            def metrics_loop():
+                while True:
+                    try:
+                        self.performance.refresh(limit=10)
+                    except (OSError, ValueError, RuntimeError) as exc:
+                        print(f"Metrics refresh skipped: {type(exc).__name__}", flush=True)
+                    time.sleep(6 * 3600)
+            threading.Thread(target=metrics_loop, name="platform-metrics", daemon=True).start()

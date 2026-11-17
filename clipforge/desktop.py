@@ -321,12 +321,22 @@ class DesktopBridge:
 
 
 def start_backend(data_dir: Path, token: str):
-    """Bind only 127.0.0.1 on an OS-assigned port; no remote exposure."""
+    """Bind only localhost; fixed preferred port helps private Tailscale Serve."""
     os.environ["HOST"] = "127.0.0.1"
     os.environ["DASHBOARD_TOKEN"] = token
     os.environ["CLIPS_DATA_DIR"] = str(data_dir)
     runtime = Runtime(data_dir)
-    server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(runtime))
+    try:
+        wanted = int(os.getenv("NEXUS_LOCAL_PORT", "8855"))
+        if not 0 <= wanted <= 65535:
+            raise ValueError("Invalid local port")
+    except (ValueError, TypeError):
+        wanted = 8855
+    try:
+        server = ThreadingHTTPServer(("127.0.0.1", wanted), make_handler(runtime))
+    except OSError:
+        # Never bind to a public IP or disrupt another app using that port.
+        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(runtime))
     runtime.start_polling()
     runtime.twitch.start_polling()
     start_publishing(runtime)

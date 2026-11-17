@@ -33,6 +33,8 @@ def stop_publishing(runtime):
 
 def make_handler(runtime: Runtime):
     token = os.getenv("DASHBOARD_TOKEN", "")
+    from .mobile_pairing import MobilePairing
+    mobile = MobilePairing()
 
     def publishing():
         # Serviço compartilhado; inicialização não inicia postagens.
@@ -59,15 +61,32 @@ def make_handler(runtime: Runtime):
             """
             return
 
-        def _auth(self) -> bool:
-            return not token or self.headers.get("Authorization") == f"Bearer {token}"
+        def _owner_auth(self):
+            return bool(token and self.headers.get("Authorization") == f"Bearer {token}")
 
-        def _reply(self, status: int, body: dict):
+        def _auth(self) -> bool:
+            if self._owner_auth():
+                return True
+            if mobile.valid_cookie(self.headers.get("Cookie", "")):
+                route = urlsplit(self.path).path
+                if mobile.allowed(self.command, route):
+                    if self.command == "POST":
+                        return mobile._same_origin(self.headers.get("Origin", ""),
+                                                   self.headers.get("Host", ""))
+                    return True
+            # Preserve local dev behavior; Windows uses a random owner token.
+            return not token
+
+        def _reply(self, status: int, body: dict, extra_headers=None):
             payload = json.dumps(body, ensure_ascii=False).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(payload)))
             self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            if extra_headers:
+                for name, value in extra_headers:
+                    self.send_header(name, value)
             self.end_headers()
             self.wfile.write(payload)
 
@@ -148,13 +167,18 @@ def make_handler(runtime: Runtime):
             route = urlsplit(self.path).path
             if route in ("/", "/index.html"):
                 return self._file(STATIC / "index.html", "text/html; charset=utf-8")
+            if route in ("/review", "/review/"):
+                return self._file(STATIC / "mobile-review.html", "text/html; charset=utf-8")
             assets = {"/app.js": ("app.js", "text/javascript; charset=utf-8"),
                       "/editor.js": ("editor.js", "text/javascript; charset=utf-8"),
                       "/styles.css": ("styles.css", "text/css; charset=utf-8"),
                       "/candidates.js": ("candidates.js", "text/javascript; charset=utf-8"),
                       "/agents.js": ("agents.js", "text/javascript; charset=utf-8"),
                       "/agents.css": ("agents.css", "text/css; charset=utf-8"),
-                      "/studio-v2.css": ("studio-v2.css", "text/css; charset=utf-8")}
+                      "/studio-v2.css": ("studio-v2.css", "text/css; charset=utf-8"),
+                      "/mobile-review.js": ("mobile-review.js", "text/javascript; charset=utf-8"),
+                      "/mobile-review.css": ("mobile-review.css", "text/css; charset=utf-8"),
+                      "/editorial.js": ("editorial.js", "text/javascript; charset=utf-8")}
             if route in assets:
                 name, mime = assets[route]
                 return self._file(STATIC / name, mime)
@@ -187,6 +211,10 @@ def make_handler(runtime: Runtime):
             if route == "/api/publishing":
                 service = publishing()
                 return self._reply(200, {**service.status(), "jobs": service.all()})
+            if route == "/api/editorial/summary":
+                return self._reply(200, runtime.editorial.feedback_summary())
+            if route == "/api/metrics":
+                return self._reply(200, runtime.performance.summary())
             if route == "/api/captions":
                 return self._reply(200, {"captions": runtime.captions.all_statuses(),
                                          "transcription_available": runtime.captions.available(),
@@ -210,6 +238,11 @@ def make_handler(runtime: Runtime):
                 except ValueError as exc:
                     return self._reply(404, {"error": str(exc)})
                 return self._file(target, "video/mp4")
+            if len(pieces) == 4 and pieces[:2] == ["api", "clips"] and pieces[-1] == "editorial":
+                clip_id = self._clip_id(pieces)
+                if not clip_id or not runtime.store.get(clip_id):
+                    return self._reply(404, {"error": "Clipe não encontrado"})
+                return self._reply(200, runtime.editorial.get(clip_id))
             if len(pieces) == 4 and pieces[:2] == ["api", "clips"] and pieces[-1] in {"original", "edit"}:
                 item_id = self._clip_id(pieces)
                 item = runtime.store.get(item_id or "")
@@ -249,11 +282,31 @@ def make_handler(runtime: Runtime):
 
         def do_POST(self):
             route = urlsplit(self.path).path
+            if route == "/api/mobile/connect":
+                try:
+                    body = self._body()
+                    if set(body) != {"code"}:
+                        raise ValueError("Informe apenas o código de pareamento")
+                    session = mobile.claim(body["code"], self.headers.get("Origin", ""),
+                                           self.headers.get("Host", ""))
+                    cookie = (f"{mobile.COOKIE}={session}; Path=/; Max-Age=43200; "
+                              "Secure; HttpOnly; SameSite=Strict")
+                    return self._reply(200, {"connected": True}, [("Set-Cookie", cookie)])
+                except (ValueError, TypeError, PermissionError) as exc:
+                    return self._reply(403, {"error": str(exc)[:160]})
             if not self._auth():
                 return self._reply(401, {"error": "Unauthorized"})
+            if route == "/api/mobile/pair":
+                if not self._owner_auth():
+                    return self._reply(403, {"error": "Somente o computador pode iniciar o pareamento"})
+                return self._reply(200, {**mobile.new_code(), "port": self.server.server_port})
+            if route == "/api/metrics/refresh":
+                if not self._owner_auth():
+                    return self._reply(403, {"error": "Somente o proprietário atualiza métricas"})
+                return self._reply(200, runtime.performance.refresh(limit=10))
             pieces = route.strip("/").split("/")
             json_action = (route == "/api/clips/approve-batch" or
-                           (len(pieces) == 4 and pieces[:2] == ["api", "clips"] and pieces[-1] in {"edit", "publish"}))
+                           (len(pieces) == 4 and pieces[:2] == ["api", "clips"] and pieces[-1] in {"edit", "publish", "review"}))
             if json_action:
                 try:
                     body = self._body()
@@ -268,7 +321,7 @@ def make_handler(runtime: Runtime):
                         for clip_id in dict.fromkeys(ids):
                             item = runtime.store.get(clip_id)
                             if item and item["status"] == "ready":
-                                runtime.store.update(clip_id, status="approved")
+                                runtime.editorial.review(clip_id, "approve")
                                 approved.append(clip_id)
                             else:
                                 skipped.append(clip_id)
@@ -279,6 +332,11 @@ def make_handler(runtime: Runtime):
                 try:
                     if pieces[-1] == "edit":
                         return self._reply(409, {"error": "Edição manual desativada. Somente AutoClip edita novos vídeos."})
+                    if pieces[-1] == "review":
+                        if set(body) - {"decision", "reason", "note"} or "decision" not in body:
+                            raise ValueError("Informe uma decisão válida")
+                        return self._reply(200, runtime.editorial.review(
+                            item_id, body["decision"], body.get("reason"), body.get("note", "")))
                     allowed = {"platform", "title", "description", "scheduled_at"}
                     if set(body) - allowed or not {"platform", "title"} <= set(body):
                         raise ValueError("Plataforma e título obrigatórios")
@@ -392,7 +450,7 @@ def make_handler(runtime: Runtime):
                     item = runtime.store.get(item_id)
                     if not item or item["status"] not in ({"ready"} if action == "approve" else {"ready", "approved"}):
                         return self._reply(409, {"error": "Invalid state"})
-                    runtime.store.update(item_id, status="approved" if action == "approve" else "rejected")
+                    runtime.editorial.review(item_id, action, "outro" if action == "reject" else None)
                 return self._reply(200, {"status": action})
             return self._reply(404, {"error": "Not found"})
 

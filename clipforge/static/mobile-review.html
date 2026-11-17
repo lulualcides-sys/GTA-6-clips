@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Nexus Clips · Aprovação móvel</title>
+<link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/mobile-review.css">
+</head><body>
+<main class="mobile-shell">
+<header><strong>NEXUS CLIPS BR</strong><small>REVISÃO PRIVADA</small></header>
+<section id="pair" class="mobile-card">
+<h1>Conectar celular</h1>
+<p>Use o código de 10 dígitos mostrado no Nexus do computador. O acesso exige HTTPS privado pela sua rede Tailscale.</p>
+<form id="pair-form">
+<label>Código temporário <input id="pair-code" type="text" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" autocomplete="one-time-code" required></label>
+<button type="submit">Vincular dispositivo</button>
+</form></section>
+<section id="review" hidden>
+<div class="mobile-stats"><span id="count">—</span><button id="reload" type="button">Atualizar fila</button></div>
+<div id="items" class="review-items"></div>
+<article id="selected" class="mobile-card" hidden>
+<h1 id="clip-title">Vídeo</h1><p id="clip-creator"></p>
+<video id="video" controls playsinline preload="metadata"></video>
+<div id="qa" class="quality-report">Análise não disponível.</div>
+<label>Motivo de rejeição
+<select id="reason">
+<option value="sem_graca">Não é engraçado</option><option value="corte_ruim">Corte ruim</option>
+<option value="repetido">Repetido</option><option value="titulo_fraco">Título fraco</option>
+<option value="sem_contexto">Sem contexto</option><option value="audio_ruim">Áudio ruim</option>
+<option value="enquadramento">Enquadramento</option><option value="outro">Outro</option></select></label>
+<label>Observação opcional <textarea id="note" maxlength="240" rows="2"></textarea></label>
+<div class="mobile-actions"><button type="button" id="reject">Rejeitar</button><button type="button" id="approve">Aprovar vídeo</button></div>
+</article>
+<aside class="mobile-card"><h2>Aprendizado e desempenho</h2><div id="summary">Carregando...</div><div id="performance">As métricas requerem conexão oficial e publicações confirmadas.</div></aside>
+</section>
+<p id="message" role="status" aria-live="polite"></p>
+<footer>O AutoClip é o único editor. Aprovar não publica. Acesso válido somente via sessão privada.</footer>
+</main><script src="/mobile-review.js" defer></script></body></html>

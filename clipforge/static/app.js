@@ -45,7 +45,7 @@ async function exportHyperFrames(){
   finally{renderDetail();}
 }
 byId("hyperframes").addEventListener("click",exportHyperFrames);
-byId("approve").addEventListener("click",()=>action("approve"));byId("reject").addEventListener("click",()=>action("reject"));
+byId("approve").addEventListener("click",()=>window.NexusEditorial?window.NexusEditorial.approve():action("approve"));byId("reject").addEventListener("click",()=>window.NexusEditorial?window.NexusEditorial.reject():action("reject"));
 document.querySelectorAll("[data-filter]").forEach(b=>b.addEventListener("click",()=>{filter=b.dataset.filter;document.querySelectorAll("[data-filter]").forEach(x=>x.classList.toggle("active",x===b));renderList();}));
 byId("login-form").addEventListener("submit",e=>{e.preventDefault();token=byId("token").value;sessionStorage.setItem("gta_clips_token",token);byId("login-modal").close();refresh(false);window.dispatchEvent(new Event("gta:auth-updated"));});
 function mountDesktopControls() {
