@@ -320,6 +320,25 @@ def self_test(destination: Path | None = None) -> dict:
                     f"{type(exc).__name__}: {str(exc)[:350]}"
                 )
             report({**result, "phase": "pythonnet_checked"})
+            # pywebview imports this managed DLL only when opening its window.
+            # Loading it explicitly catches .NET CAS / Mark-of-the-Web failures
+            # (0x80131515) that the old backend-only self-test missed.
+            result["webview2_core"] = False
+            try:
+                from System.Reflection import Assembly
+                internal = Path(getattr(sys, "_MEIPASS"))
+                dll = internal / "webview" / "lib" / "Microsoft.Web.WebView2.Core.dll"
+                if not dll.is_file():
+                    raise FileNotFoundError(f"Missing GUI assembly: {dll.name}")
+                loaded = Assembly.LoadFrom(str(dll))
+                result["webview2_core"] = (
+                    loaded.GetName().Name == "Microsoft.Web.WebView2.Core"
+                )
+            except Exception as exc:
+                result["webview2_core_error"] = (
+                    f"{type(exc).__name__}: {str(exc)[:350]}"
+                )
+            report({**result, "phase": "webview2_checked"})
         token = secrets.token_urlsafe(32)
         server, runtime, thread = start_backend(home / "data", token)
         errors = []
@@ -358,7 +377,7 @@ def self_test(destination: Path | None = None) -> dict:
             report({**result, "phase": "server_stopped"})
         required = ["ffmpeg", "ffprobe", "health", "protected_api"]
         if sys.platform == "win32" and getattr(sys, "frozen", False):
-            required.append("pythonnet")
+            required.extend(["pythonnet", "webview2_core"])
         result["status"] = "pass" if all(result.get(k) for k in required) else "fail"
         report({**result, "phase": "complete"})
         return result
