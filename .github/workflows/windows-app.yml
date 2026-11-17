@@ -7,6 +7,7 @@ on:
       - desktop_launcher.py
       - clipforge/**
       - tools/build_windows.py
+      - tools/build_autoclip_runtime.py
       - desktop_update_helper.py
       - tests/test_desktop.py
       - tests/test_updater.py
@@ -16,6 +17,7 @@ on:
       - desktop_launcher.py
       - clipforge/**
       - tools/build_windows.py
+      - tools/build_autoclip_runtime.py
       - desktop_update_helper.py
       - tests/test_desktop.py
       - tests/test_updater.py
@@ -27,7 +29,7 @@ permissions:
 jobs:
   build-portable:
     runs-on: windows-2022
-    timeout-minutes: 35
+    timeout-minutes: 100
     env:
       PYTHONDONTWRITEBYTECODE: "1"
       AUTO_SCAN: "0"
@@ -63,6 +65,8 @@ jobs:
         run: python -m tools.smoke
       - name: Build portable native .exe with local FFmpeg
         run: python -m tools.build_windows
+      - name: Bundle real AutoClip Python 3.12 + Whisper + MediaPipe
+        run: python -m tools.build_autoclip_runtime
       - name: Test the FROZEN executable and loopback API
         shell: pwsh
         run: |
