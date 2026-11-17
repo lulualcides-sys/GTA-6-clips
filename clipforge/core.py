@@ -438,6 +438,25 @@ class Runtime:
                     item = self.store.get(clip_id)
                     result["errors"].append({"file": item["filename"] if item else clip_id,
                                              "error": str(exc)[:200]})
+        # The bridge has bounded capacity. If ingest outpaces rendering,
+        # resubmit authorized DETECTED sources on later scans instead of
+        # leaving them stranded forever when the queue was full.
+        if self.auto_render and self.autoclip_bridge.available():
+            jobs = self.autoclip_bridge.status()["jobs"]
+            with self.store._db() as db:
+                backlog = db.execute(
+                    "SELECT id FROM clips WHERE status='detected' "
+                    "ORDER BY created_at ASC LIMIT 50"
+                ).fetchall()
+            for row in backlog:
+                cid = row["id"]
+                if jobs.get(cid, {}).get("status") in {"queued", "running", "complete"}:
+                    continue
+                try:
+                    self.queue(cid)
+                except (ValueError, PermissionError, OSError) as exc:
+                    if "fila" in str(exc).casefold() or "cheia" in str(exc).casefold():
+                        break
         return result
 
     def start_polling(self) -> None:
