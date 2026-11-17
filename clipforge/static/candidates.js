@@ -73,10 +73,20 @@
       const [meta, listing, live] = await Promise.all([
         api("/api/twitch/status"), api("/api/twitch/candidates"), api("/api/twitch/streamers")
       ]);
-      state.textContent = meta.configured ?
-        (meta.auto_monitoring ? "Monitoramento ativo" : "Configurado · manual") :
-        "OAuth não configurado";
-      state.className = "tag " + (meta.configured ? "good" : "muted");
+      const healthy = Boolean(meta.configured && meta.last_sync && !meta.last_error);
+      state.textContent = !meta.configured ? "Twitch não conectada" :
+        meta.last_error ? "Twitch · erro na busca" :
+        healthy ? (meta.auto_monitoring ? "Twitch conectada · monitorando" : "Twitch conectada · manual") :
+        (meta.auto_monitoring ? "Twitch configurada · buscando" : "Twitch configurada · manual");
+      state.className = "tag " + (meta.last_error ? "bad" : meta.configured ? "good" : "muted");
+      const desktopState = node("desktop-twitch-status");
+      if (desktopState) {
+        desktopState.textContent = state.textContent;
+        desktopState.className = state.className;
+      }
+      const desktopButton = node("desktop-twitch-connect");
+      if (desktopButton) desktopButton.textContent = meta.configured ?
+        "Atualizar Twitch" : "Conectar Twitch";
       const gta6 = meta.profile === "gta6_only";
       const gta5 = meta.profile === "gta5_only";
       if(heading) heading.textContent = gta6 ? "Twitch · prioridade GTA VI" : gta5 ? "Twitch · GTA V (modo manual)" : "Twitch · categorias em alta";
@@ -90,6 +100,11 @@
     } catch (err) {
       state.textContent = "Monitor indisponível";
       state.className = "tag bad";
+      const desktopState = node("desktop-twitch-status");
+      if (desktopState) {
+        desktopState.textContent = "Twitch: indisponível";
+        desktopState.className = "tag bad";
+      }
       last.textContent = err.message;
     }
   }
