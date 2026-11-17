@@ -105,7 +105,7 @@ class AutoClipBridge:
 
     def queue(self, clip_id):
         if not self.available():
-            raise ValueError("AutoClip não instalado/ativado ou Python 3.12 indisponível.")
+            raise ValueError("AutoClip desativado, não instalado ou Python 3.12 indisponível.")
         self._source(clip_id)
         with self.lock:
             prior = self.jobs.get(clip_id, {})
