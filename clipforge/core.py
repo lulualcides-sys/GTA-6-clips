@@ -388,6 +388,9 @@ class Runtime:
         self.demo = SyntheticDemo(self)
         from .autoclip_bridge import AutoClipBridge
         self.autoclip_bridge = AutoClipBridge(self.store)
+        from .twitch_auto import TwitchAutoIngest
+        self.twitch_auto = TwitchAutoIngest(self)
+        self.twitch.on_refreshed = self.twitch_auto.kick
         # Jobs herdados de FFmpeg NÃO podem ser retomados: preservamos fontes
         # e MP4s existentes, e falhamos fechado em vez de renderizar novamente.
         with self.store.lock, self.store._db() as db:
