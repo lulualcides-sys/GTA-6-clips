@@ -118,9 +118,12 @@ class TwitchAutoIngest:
             items = self.runtime.twitch.list_candidates(limit=1000)
             score_threshold = self._minimum_score()
             per_creator = max(1, min(4, int(os.getenv("TWITCH_AUTO_PER_CREATOR", "2"))))
+            learning = getattr(self.runtime, "editorial", None)
+            bias = learning.feedback_summary()["creator_bias"] if learning else {}
             eligible = ranked_shortlist(
                 items, min_score=score_threshold, per_creator=per_creator,
-                gta6_only=os.getenv("TWITCH_AUTO_GTA6_ONLY", "1") == "1")
+                gta6_only=os.getenv("TWITCH_AUTO_GTA6_ONLY", "1") == "1",
+                creator_bias=bias)
             self.last_candidates_scanned = len(items)
             self.last_quality_passed = len(eligible)
             # A bounded batch avoids downloading gigabytes on every 15-minute
