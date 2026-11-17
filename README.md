@@ -1,5 +1,5 @@
 # GTA-6-clips — Operação Astra
-**Windows v0.4.2:** se o EXE mostrar `Failed to resolve Python.Runtime.Loader.Initialize`, extraia integralmente o ZIP oficial e execute o reparador opt-in `Corrigir-e-Abrir-GTA6Clips.cmd`. Ele desbloqueia somente `Python.Runtime.dll`. Instruções em [DESKTOP_WINDOWS](docs/DESKTOP_WINDOWS.md). Nenhum dado local é apagado.
+**Windows v0.4.3:** correção dos erros `0x80131515` ao carregar `Python.Runtime.dll` ou `Microsoft.Web.WebView2.Core.dll`. Após extrair o ZIP oficial, execute `Corrigir-e-Abrir-GTA6Clips.cmd` e confirme o reparo de bibliotecas exclusivamente na pasta `_internal`. A versão 0.4.2 não abrangia todas as DLLs. Veja [DESKTOP_WINDOWS](docs/DESKTOP_WINDOWS.md). Dados pessoais não são alterados.
 
 
 **Política nova v0.4.1:** o AutoClip é o único editor de NOVOS vídeos. O Nexus não substitui com FFmpeg. Se não houver CLI AutoClip instalada e habilitada, nenhum novo vídeo é editado. Veja [AUTOCLIP_ONLY](docs/AUTOCLIP_ONLY.md).

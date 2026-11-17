@@ -26,40 +26,51 @@ Para desenvolvedores, atualizar `clipforge/version.py` e mesclar uma PR testada 
 
 **Importante:** o programa gerado em CI não é assinado digitalmente. Windows Defender/SmartScreen pode solicitar verificação. Verifique a origem no repositório e o histórico da compilação; não ignore alertas de segurança sem verificar a procedência.
 
-## Erro de inicialização: Python.Runtime.Loader.Initialize
+## Erro 0x80131515: Python.Runtime.dll ou Microsoft.Web.WebView2.Core.dll
 
-Se a janela mostrar `Failed to resolve Python.Runtime.Loader.Initialize` no caminho
-`_internal\\pythonnet\\runtime\\Python.Runtime.dll`, o Windows pode ter marcado
-a DLL extraída do ZIP como arquivo de origem da internet (Zone.Identifier).
-Esse problema não implica falha do Python instalado no PC e **não exige formatar**.
+A abertura do EXE pode falhar com `Failed to resolve Python.Runtime.Loader.Initialize`
+ou `Não foi possível carregar Microsoft.Web.WebView2.Core.dll` com HRESULT
+`0x80131515`. O .NET pode tratar esses arquivos extraídos de um ZIP baixado
+da internet como assemblies de uma fonte remota (marcação `Zone.Identifier`).
 
-**Reparo do pacote oficial v0.4.2 ou posterior (recomendado):**
+A versão v0.4.2 tinha reparador **incompleto**: desbloqueava somente
+`Python.Runtime.dll`, deixando `Microsoft.Web.WebView2.Core.dll` e outras
+bibliotecas ainda marcadas.
 
-1. Confira que o ZIP veio do [GitHub Releases oficial](https://github.com/lulualcides-sys/GTA-6-clips/releases).
-2. Extraia **todos** os arquivos. Na mesma pasta do `GTA6Clips.exe`, execute
-   `Corrigir-e-Abrir-GTA6Clips.cmd`.
-3. Leia o aviso; confirme `S` somente se confiar na origem do download.
-   O script utiliza `Unblock-File` **exclusivamente em**
-   `_internal\\pythonnet\\runtime\\Python.Runtime.dll`, sem elevar permissões,
-   desativar Defender/SmartScreen ou alterar configurações do sistema.
-4. O script abre o programa após o reparo. Seus vídeos e `config.env` ficam intactos.
+**Reparo v0.4.3 e posteriores:**
 
-**Reparo manual (também funciona nas versões anteriores):**
+1. **Confirme a origem:** baixe o ZIP apenas de
+   [GitHub Releases oficial](https://github.com/lulualcides-sys/GTA-6-clips/releases).
+   Opcionalmente confira o hash SHA-256 publicado junto com o pacote.
+2. Extraia todos os arquivos em uma pasta nova, fora de um ZIP ainda aberto.
+3. Execute `Corrigir-e-Abrir-GTA6Clips.cmd` na mesma pasta do `GTA6Clips.exe`.
+4. Leia e confirme `S` somente se o pacote for confiável. O reparador remove
+   as marcas de download apenas de `*.dll` e `*.pyd` dentro da pasta
+   `_internal` **dessa cópia do aplicativo**. Não executa alterações em
+   `System32`, não desativa Defender/SmartScreen e não modifica vídeos ou
+   credenciais em `%LOCALAPPDATA%\\GTA6Clips`.
+5. A janela do Nexus abre após o reparo, se não houver outro bloqueio.
 
-Abra o PowerShell na pasta onde extraiu o pacote e execute:
+**Reparar uma instalação oficial da v0.4.2 já extraída (sem novo download):**
+
+Abra PowerShell na pasta que contém `GTA6Clips.exe`:
 
 ```powershell
-Unblock-File -LiteralPath ".\\_internal\\pythonnet\\runtime\\Python.Runtime.dll"
+Get-ChildItem -LiteralPath ".\\_internal" -Recurse -File |
+  Where-Object { $_.Extension -in '.dll', '.pyd' } |
+  Unblock-File
 ```
 
-Se persistir, confira se a DLL está presente e se o Windows 10/11 possui o
-.NET Framework e Microsoft Edge WebView2 necessários ao pywebview. Não baixe
-DLLs de sites de terceiros nem copie DLLs aleatórias para `System32`.
+A Microsoft documenta o HRESULT 0x80131515 no carregamento de assemblies .NET
+considerados remotos. Não habilite `loadFromRemoteSources` globalmente nem
+desative verificações de segurança do Windows como solução.
 
-O CI passou a verificar a inicialização de `pythonnet` no próprio EXE congelado
-e a simular a marcação `Zone.Identifier` para testar o reparador.
-Isso **não substitui um teste na máquina do usuário**, pois as políticas Windows
-podem variar.
+O CI verifica o carregamento de `Python.Runtime.dll` **e**
+`Microsoft.Web.WebView2.Core.dll` no EXE congelado. Também aplica uma marca
+`Zone.Identifier` simulada às duas DLLs, executa o reparador e verifica que
+as marcas foram removidas **sem alterar hashes** ou arquivos fora do pacote.
+Isso não comprova a abertura na máquina do usuário; políticas locais podem
+variar.
 
 ## Dados permanentes no próprio PC
 

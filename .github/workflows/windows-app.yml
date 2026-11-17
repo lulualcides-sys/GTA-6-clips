@@ -92,8 +92,8 @@ jobs:
           }
           if ($process.ExitCode -ne 0) { throw "Packaged EXE returned $($process.ExitCode)" }
           if ($result.status -ne "pass") { throw "Packaged EXE self-test failed" }
-          if (-not $result.ffmpeg -or -not $result.ffprobe -or -not $result.protected_api -or -not $result.pythonnet) {
-            throw "Required native tools, pythonnet GUI loader or protected API missing"
+          if (-not $result.ffmpeg -or -not $result.ffprobe -or -not $result.protected_api -or -not $result.pythonnet -or -not $result.webview2_core) {
+            throw "Missing native tools, managed WebView2.Core/pythonnet loader or protected API"
           }
       - name: Preserve frozen validation report
         if: always()
@@ -111,26 +111,44 @@ jobs:
           if (-not (Test-Path "./dist/GTA6Clips/GTA6ClipsUpdater.exe")) {
             throw "Windows update helper missing"
           }
-      - name: Verify downloaded-file repair without disabling Windows protections
+      - name: Verify repair of Python.NET and WebView2 downloaded DLL blocks
         shell: pwsh
         run: |
-          $dll = Resolve-Path "./dist/GTA6Clips/_internal/pythonnet/runtime/Python.Runtime.dll" -ErrorAction Stop
-          $repair = Resolve-Path "./Corrigir-e-Abrir-GTA6Clips.cmd" -ErrorAction Stop
-          Set-Content -LiteralPath $dll.Path -Stream Zone.Identifier -Value "[ZoneTransfer]`nZoneId=3" -ErrorAction Stop
-          if (-not (Get-Item -LiteralPath $dll.Path -Stream Zone.Identifier -ErrorAction SilentlyContinue)) {
-            throw "Could not simulate Windows downloaded-file block on Python.Runtime.dll"
+          $root = "./dist/GTA6Clips"
+          $pythonDll = (Resolve-Path "$root/_internal/pythonnet/runtime/Python.Runtime.dll" -ErrorAction Stop).Path
+          $webviewDll = (Resolve-Path "$root/_internal/webview/lib/Microsoft.Web.WebView2.Core.dll" -ErrorAction Stop).Path
+          $repair = (Resolve-Path "./Corrigir-e-Abrir-GTA6Clips.cmd" -ErrorAction Stop).Path
+          $marked = @($pythonDll, $webviewDll)
+          $hashes = @{}
+          foreach ($dll in $marked) {
+            $hashes[$dll] = (Get-FileHash -LiteralPath $dll -Algorithm SHA256).Hash
+            Set-Content -LiteralPath $dll -Stream Zone.Identifier -Value "[ZoneTransfer]`nZoneId=3" -ErrorAction Stop
+            if (-not (Get-Item -LiteralPath $dll -Stream Zone.Identifier -ErrorAction SilentlyContinue)) {
+              throw "Unable to simulate Mark-of-the-Web for $dll"
+            }
           }
+          $unrelated = Join-Path $env:RUNNER_TEMP "gta6-do-not-touch.txt"
+          Set-Content -LiteralPath $unrelated -Value "sentinel"
+          Set-Content -LiteralPath $unrelated -Stream Zone.Identifier -Value "[ZoneTransfer]`nZoneId=3"
           $env:GTA6CLIPS_REPAIR_ONLY = "1"
           try {
-            $folder = "./dist/GTA6Clips"
-            Copy-Item $repair.Path "$folder/Corrigir-e-Abrir-GTA6Clips.cmd"
-            & "$folder/Corrigir-e-Abrir-GTA6Clips.cmd"
-            if ($LASTEXITCODE -ne 0) { throw "Repair command failed with exit $LASTEXITCODE" }
-            if (Get-Item -LiteralPath $dll.Path -Stream Zone.Identifier -ErrorAction SilentlyContinue) {
-              throw "Downloaded-file mark remains on Python.Runtime.dll"
+            Copy-Item -LiteralPath $repair -Destination "$root/Corrigir-e-Abrir-GTA6Clips.cmd"
+            & "$root/Corrigir-e-Abrir-GTA6Clips.cmd"
+            if ($LASTEXITCODE -ne 0) { throw "Repair failed: exit $LASTEXITCODE" }
+            foreach ($dll in $marked) {
+              if (Get-Item -LiteralPath $dll -Stream Zone.Identifier -ErrorAction SilentlyContinue) {
+                throw "Mark-of-the-Web remains on $dll"
+              }
+              if ((Get-FileHash -LiteralPath $dll -Algorithm SHA256).Hash -ne $hashes[$dll]) {
+                throw "DLL content unexpectedly changed: $dll"
+              }
+            }
+            if (-not (Get-Item -LiteralPath $unrelated -Stream Zone.Identifier -ErrorAction SilentlyContinue)) {
+              throw "Reparador alterou arquivo externo ao pacote"
             }
           } finally {
             Remove-Item Env:GTA6CLIPS_REPAIR_ONLY -ErrorAction SilentlyContinue
+            Remove-Item -LiteralPath $unrelated -Force -ErrorAction SilentlyContinue
           }
       - name: Create portable ZIP
         shell: pwsh

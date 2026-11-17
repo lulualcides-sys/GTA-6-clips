@@ -9,14 +9,19 @@ from clipforge.desktop import main
 def startup_error_message(error: Exception) -> str:
     """Troubleshooting without suppressing Windows security warnings."""
     detail = str(error)[:650] or "Unexpected error"
-    if "Python.Runtime.Loader.Initialize" in detail or "Python.Runtime.dll" in detail:
+    markers = (
+        "Python.Runtime.Loader.Initialize", "Python.Runtime.dll",
+        "Microsoft.Web.WebView2.Core.dll", "0x80131515",
+    )
+    if any(marker.lower() in detail.lower() for marker in markers):
         return (
-            "Nao foi possivel carregar Python.Runtime.dll. O Windows pode ter "
-            "bloqueado esta DLL ao extrair o ZIP baixado da internet.\n\n"
-            "Se o pacote veio do GitHub oficial, execute "
-            "Corrigir-e-Abrir-GTA6Clips.cmd na mesma pasta do GTA6Clips.exe "
-            "e confirme o reparo.\n\n"
-            "O reparo nao exige administrador e nao apaga seus videos. "
+            "Falha ao carregar bibliotecas .NET do Nexus (Python.NET ou "
+            "Microsoft WebView2). Os arquivos extraidos do ZIP podem ter "
+            "sido bloqueados como downloads da Internet.\n\n"
+            "Se o ZIP veio do GitHub oficial, execute "
+            "Corrigir-e-Abrir-GTA6Clips.cmd na pasta do programa "
+            "e confirme com S. O reparo se limita a DLL/PYD dentro de "
+            "_internal e nao apaga videos.\n\n"
             "Consulte LEIA-ME-PRIMEIRO.md."
         )
     return detail + "\n\nConsulte LEIA-ME-PRIMEIRO.md."
