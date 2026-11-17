@@ -106,6 +106,46 @@ Todos os originais, cortes, históricos, legendas e credenciais locais ficam no 
 
 **Atenção:** declarar `owned` exige que o vídeo seja realmente seu. Não use esta configuração para reclassificar vídeos de streamers sem autorização. Para terceiros use `permission_granted` e `evidence` verificável. Criar Twitch Clips não concede direito automático de republicação.
 
+## Edição automática com AutoClip incorporado (v0.5.0)
+
+O pacote Windows agora é planejado para incluir a CLI real
+[AutoClip](https://github.com/artbyjazi/autoclip) em uma pasta
+`autoclip_runtime`, isolada do EXE principal, com Python 3.12,
+`faster-whisper`, MediaPipe e dependências nativas. O ZIP será
+consideravelmente **maior** que os ~103 MB anteriores. O motor é software
+MIT com revisão fixada no GitHub; seu teste real é obrigatório no CI.
+
+**Para arquivos locais próprios:** coloque MP4 + `.rights.json` no
+diretório `data/incoming`. Com `AUTO_SCAN=1` e `AUTO_RENDER=1`, o
+AutoClip os processa em fila e importa automaticamente as saídas 9:16
+para **Em revisão**, sem segunda edição, aprovação ou postagem automática.
+
+**Para clipes Twitch:** Client ID e Client Secret conectam somente o
+buscador. No Nexus, clique uma vez em **Autorizar downloads Twitch** e
+autorize `channel:manage:clips` / `editor:manage:clips` no site oficial.
+O aplicativo usa exclusivamente o callback localhost da URL OAuth
+`http://localhost:3000` (que deve estar cadastrada no Twitch Developer
+Console). Isso permite baixar clipes do **próprio canal autenticado**
+ou de outro canal para o qual existam tanto concessões de editor da
+Twitch quanto direitos de reutilização documentados.
+Não há download de clipes arbitrários somente porque são públicos.
+No monitor da Twitch, o status do pipeline informa permissões e erros.
+
+**Modelo de IA:** a distribuição inclui o motor, mas não os pesos grandes
+de um LLM. Se você já usa Ollama no computador, deixe-o funcionando
+com ao menos um modelo local; o Nexus detectará os modelos disponíveis.
+Recomenda-se um modelo capaz de selecionar momentos (por exemplo,
+`ollama pull llama3.1:8b`, download feito separadamente). Sem Ollama
+ou outro provedor configurado, a edição não pode funcionar. Um
+`autoclip_runtime\\python.exe autoclip_runtime\\nexus_autoclip_runner.py doctor`
+no terminal dentro da pasta de instalação exibe o diagnóstico.
+
+Os tokens Twitch de download ficam em `config.env` **em texto simples
+local**, como o atual Client Secret; trate esse arquivo como uma senha
+e nunca o envie ao GitHub nem a outras pessoas. Tokens são renovados
+automaticamente quando a Twitch permitir. O fluxo de download não
+concede licença para republicar vídeo de terceiros.
+
 ## Twitch: várias categorias agora, GTA VI exclusivamente no lançamento
 
 A partir da versão 0.3.0, o monitor usa categorias populares da Twitch antes do lançamento e muda automaticamente para a categoria exata Grand Theft Auto VI em 19/11/2026 (00:00 São Paulo), sem precisar atualizar manualmente a seleção. Para conectar, abra o Twitch Developer Console, crie sua aplicação e obtenha `TWITCH_CLIENT_ID` e `TWITCH_CLIENT_SECRET`. No programa, clique em **Conectar Twitch**, digite os valores e clique **Salvar no PC**. A integração valida as credenciais na Twitch e, a partir da **v0.4.4**, ativa a busca imediatamente após **Salvar no PC**; a barra superior passa a mostrar o estado Twitch separadamente de `Serviço online` (que significa apenas que o painel local está ativo). Se houver erro, o painel Twitch mostra a falha da última consulta. Em instalações antigas, feche e abra o Nexus após salvar. `TWITCH_ENABLED=1` sem credenciais não consulta nada.
@@ -143,7 +183,7 @@ Para monitorar **metadados da Twitch**, cadastre sua aplicação oficial em http
 
 - **Windows 10/11 x64**. O PC precisa ter o Microsoft Edge WebView2 Runtime, normalmente presente em instalações atualizadas. Se estiver ausente, a abertura da janela pode falhar; consulte https://developer.microsoft.com/microsoft-edge/webview2/.
 - FFmpeg/ffprobe estão incluídos no ZIP do executável quando o workflow de empacotamento passa.
-- O binário portátil é leve no sentido de **não embutir pesos de IA**: PySceneDetect e faster-whisper continuam opcionais e não vêm prontos neste instalador. Para IA completa, será necessário um pacote adicional testado.
+- A partir da v0.5.0, o binário portátil inclui AutoClip, faster-whisper e MediaPipe em um runtime Python 3.12 isolado, mas **não embute pesos de modelos IA**, como Ollama ou modelos Whisper baixados no primeiro uso. Esses dados ocupam espaço adicional em disco e podem exigir acesso à internet.
 - HyperFrames continua exportando projetos, mas render final avançado requer CLI/Chrome/Node configurados separadamente.
 - O monitoramento de Twitch só ocorre enquanto o programa e o PC estiverem ligados; acesso remoto ao painel não faz parte do pacote.
 
