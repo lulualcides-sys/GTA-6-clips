@@ -91,6 +91,16 @@
       const gta5 = meta.profile === "gta5_only";
       if(heading) heading.textContent = gta6 ? "Twitch · prioridade GTA VI" : gta5 ? "Twitch · GTA V (modo manual)" : "Twitch · categorias em alta";
       if(mode) mode.textContent = gta6 ? "Categoria GTA VI selecionada. Português tem prioridade no ranking." : gta5 ? "Override GTA V ativo. A configuração permite intervenção manual." : "Até 12 categorias configuráveis; prioridade GTA VI na data de lançamento configurada.";
+      const pipe=node("twitch-auto-pipeline");
+      if(pipe){
+        const p=meta.auto_pipeline||{};
+        pipe.textContent = !p.enabled ? "Pipeline automático desativado." :
+          !p.editor_grant_present ? "Busca ativa · downloads bloqueados: clique em Autorizar downloads Twitch. Client ID não basta." :
+          !p.authorized_broadcasters ? "Downloads autorizados apenas para canais próprios ou criadores registrados com permissão." :
+          p.last_error ? "Fila automática: "+p.last_error :
+          p.ready ? "Pipeline automático ligado · "+Number(p.downloaded||0)+" mídia(s) obtida(s) · AutoClip edita e envia para revisão." :
+          "AutoClip indisponível ou sem modelo de IA. Verifique o status na biblioteca.";
+      }
       if(categories) categories.textContent = (meta.categories?.length ? "Categorias recentes: " + meta.categories.join(" · ") : "Aguardando consulta de categorias.") + " · Streamers: " + (meta.monitored_streamers||0) + " · Ao vivo: " + (meta.live_streams||0);
       last.textContent = "Última busca: " + relativeTime(meta.last_sync) +
         (meta.last_error ? " · Erro: " + meta.last_error : "");
