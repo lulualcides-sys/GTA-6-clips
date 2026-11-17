@@ -177,7 +177,8 @@ def make_handler(runtime: Runtime):
                       "/agents.css": ("agents.css", "text/css; charset=utf-8"),
                       "/studio-v2.css": ("studio-v2.css", "text/css; charset=utf-8"),
                       "/mobile-review.js": ("mobile-review.js", "text/javascript; charset=utf-8"),
-                      "/mobile-review.css": ("mobile-review.css", "text/css; charset=utf-8")}
+                      "/mobile-review.css": ("mobile-review.css", "text/css; charset=utf-8"),
+                      "/editorial.js": ("editorial.js", "text/javascript; charset=utf-8")}
             if route in assets:
                 name, mime = assets[route]
                 return self._file(STATIC / name, mime)
@@ -298,7 +299,7 @@ def make_handler(runtime: Runtime):
             if route == "/api/mobile/pair":
                 if not self._owner_auth():
                     return self._reply(403, {"error": "Somente o computador pode iniciar o pareamento"})
-                return self._reply(200, mobile.new_code())
+                return self._reply(200, {**mobile.new_code(), "port": self.server.server_port})
             if route == "/api/metrics/refresh":
                 if not self._owner_auth():
                     return self._reply(403, {"error": "Somente o proprietário atualiza métricas"})
