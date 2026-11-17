@@ -100,8 +100,10 @@ class TwitchAutoIngest:
             items = self.runtime.twitch.list_candidates()
             quota = min(3, max(1, int(os.getenv("TWITCH_AUTO_BATCH", "2"))))
             editor = os.getenv("TWITCH_EDITOR_ID", "").strip()
-            token = os.getenv("TWITCH_USER_ACCESS_TOKEN", "").strip()
+            from .twitch_oauth import refreshed_token
             client_id = self.runtime.twitch.client_id
+            token = refreshed_token(self.runtime.store.root.parent, client_id,
+                                    self.runtime.twitch.secret)
             for candidate in items:
                 if self.processed >= 10_000:  # long-lived session hard cap
                     return
