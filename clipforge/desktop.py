@@ -133,8 +133,9 @@ def find_ffmpeg_tools() -> dict[str, str]:
 
 class DesktopBridge:
     """Explicit no-argument UI actions. No arbitrary filesystem paths accepted."""
-    def __init__(self, home: Path):
+    def __init__(self, home: Path, runtime: Runtime | None = None):
         self.home = home
+        self.runtime = runtime
         self.updater = UpdateService(home)
 
     def check_updates(self):
@@ -202,7 +203,8 @@ class DesktopBridge:
         """User-supplied OAuth app credentials saved only in LocalAppData.
 
         Called from the desktop-only pywebview bridge, never through the HTTP API.
-        A restart is required; no token or secret is returned to JavaScript.
+        Reconfigures the running monitor immediately when a Runtime is attached.
+        No token or secret is returned to JavaScript.
         """
         if not isinstance(client_id, str) or not isinstance(client_secret, str):
             return {"ok": False, "error": "Client ID e Secret devem ser textos"}
@@ -242,6 +244,25 @@ class DesktopBridge:
                 os.replace(temp, conf)
             finally:
                 temp.unlink(missing_ok=True)
+            if self.runtime is not None:
+                # A live pywebview app previously saved correctly but retained
+                # the old TwitchDiscovery snapshot until full process restart.
+                # The OAuth credentials were validated above; apply them only
+                # after the atomic config file replacement succeeds.
+                os.environ.update({
+                    "TWITCH_ENABLED": "1",
+                    "TWITCH_CLIENT_ID": client_id,
+                    "TWITCH_CLIENT_SECRET": client_secret,
+                })
+                discovery = self.runtime.twitch
+                with self.runtime.store.lock:
+                    discovery.client_id = client_id
+                    discovery.secret = client_secret
+                    discovery.client = client
+                    discovery.enabled = True
+                discovery.start_polling()
+                return {"ok": True, "restart_required": False,
+                        "monitoring": True}
             return {"ok": True, "restart_required": True}
         except (OSError, ValueError) as exc:
             return {"ok": False, "error": "Não foi possível salvar configurações locais"}
@@ -399,7 +420,7 @@ def run_desktop() -> None:
         window = webview.create_window(
             "GTA VI CLIPS | Mission Control", url=url,
             width=1480, height=910, min_size=(950, 630),
-            background_color="#080d17", js_api=DesktopBridge(home),
+            background_color="#080d17", js_api=DesktopBridge(home, runtime),
         )
         # The native window uses Edge WebView2, available on most current
         # Windows 10/11 machines. Do not install anything without consent.
