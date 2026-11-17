@@ -168,6 +168,7 @@ class PerformanceMetrics:
                     if key in stats:
                         totals[key] += stats[key]
             items.append({"job_id": row["job_id"], "clip_id": row["clip_id"],
+                          "remote_id": row["remote_id"],
                           "platform": row["platform"], "visibility": row["visibility"],
                           "source": row["source"], "metrics": stats, "error": row["error"],
                           "fetched_at": row["fetched_at"]})
