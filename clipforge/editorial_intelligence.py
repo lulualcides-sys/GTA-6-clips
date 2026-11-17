@@ -64,7 +64,6 @@ def _frames(path: Path, duration: float) -> list[str]:
     return images
 
 
-
 def _verified_transcript(store, clip_id: str, media_sha256: str) -> dict:
     """Read only a ready SRT whose recorded fingerprint matches this MP4."""
     unavailable = {"status": "not_available", "text": "", "chars": 0, "sha256": ""}
@@ -132,7 +131,7 @@ def _vision_insights(path: Path, duration: float, transcript: str = "") -> dict:
             if transcript else "\nNenhuma transcrição verificada disponível."
         )
         question = (
-            "Você observa nove quadros espaçados de um vídeo de gameplay. "
+            "Você observa até nove quadros espaçados de um vídeo de gameplay. "
             "Responda exclusivamente JSON com chaves event (até 120 caracteres), "
             "category (acidente, susto, jogada, reação, conversa, outro), "
             "context_clear (boolean), visual_hook (boolean), confidence (0..1), "
