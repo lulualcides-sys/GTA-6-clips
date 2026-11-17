@@ -91,6 +91,15 @@ class TwitchDiscoveryTests(unittest.TestCase):
         with self.assertRaisesRegex(TwitchError, "TWITCH_CLIENT_ID"):
             discovery.refresh()
 
+    def test_polling_starts_once_after_live_credential_update(self):
+        discovery = TwitchDiscovery(self.db, self.lock, self.root, DummyClient([]))
+        discovery.enabled = True
+        with patch("clipforge.twitch.threading.Thread") as thread:
+            discovery.start_polling()
+            discovery.start_polling()
+            thread.assert_called_once()
+            thread.return_value.start.assert_called_once()
+
     def test_readonly_metadata_ranking_and_dedupe(self):
         api = DummyClient([clip("alpha"),clip("beta",views=12000)])
         discovery = TwitchDiscovery(self.db,self.lock,self.root,api)

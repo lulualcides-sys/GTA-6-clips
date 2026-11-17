@@ -30,6 +30,25 @@ TWITCH_GTA5_GAME_ID=
 
 IDs repetidos são eliminados. IDs não numéricos e configurações acima do limite são rejeitados. O perfil popular usa `games/top`; uma lista explícita usa `games?id=...`. O ranking continua heurístico (views, recência, duração e bônus PT-BR), sem compreender eventos. A lista mostra no máximo 100 candidatos; SQLite conserva histórico limitado a 5.000 registros. Deduplicação usa o identificador oficial do clipe.
 
+## Status de conexão na interface Windows (v0.4.4)
+
+O botão **Conectar Twitch** chama uma validação real das credenciais com
+a API oficial. Se a validação falhar, **não salva** Client ID e Client Secret.
+Ao salvar com sucesso, o desktop aplica a configuração ao runtime ativo,
+inicia um único worker de descoberta e atualiza o selo **Twitch configurada ·
+buscando**. Após uma consulta de metadados bem-sucedida, o selo passa a
+**Twitch conectada · monitorando**. Erros de consulta são exibidos
+separadamente, sem expor credenciais.
+
+**Serviço online** na barra principal indica somente a saúde do backend local,
+não a autenticação Twitch. Clientes antigos exigem reiniciar após salvar o
+Client ID e Client Secret. Caso o app tenha sido atualizado por ZIP mas a
+configuração tenha sido preservada, verifique localmente
+`%LOCALAPPDATA%\\GTA6Clips\\config.env` sem compartilhar o Secret.
+
+A conexão **apenas consulta metadados oficiais**. Não baixa vídeo, não
+instala a CLI AutoClip e não autoriza publicação.
+
 ## OAuth e monitoramento
 
 OAuth de aplicação usa client credentials exclusivamente para consulta oficial de metadados. Resposta HTTP 401 invalida o token e permite uma única renovação/repetição. Erros HTTP, inclusive 429 e indisponibilidade, são registrados sem corpos de resposta ou tokens; a próxima varredura tenta novamente. Não há loop agressivo de retentativas. O intervalo mínimo do polling é 300 segundos.

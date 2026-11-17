@@ -21,7 +21,7 @@ try {
   },null,{timeout:20000});
   await page.waitForFunction(()=>{
     const label=document.querySelector("#twitch-state");
-    return label && label.textContent.includes("OAuth não configurado");
+    return label && label.textContent.includes("Twitch não conectada");
   },null,{timeout:20000});
   assert(!((await page.locator("#twitch-last").textContent())||"").includes("Informe o token"));
   assert(await page.locator("#message").isHidden(),"Login cannot leave stale unauthorized toast over the UI");

@@ -181,6 +181,30 @@ class LocalDesktopTests(unittest.TestCase):
         self.assertIn("TWITCH_GTA6_LAUNCH_AT=2026-11-19",config)
         self.assertNotIn(secret,str(response))
 
+    def test_twitch_credentials_take_effect_in_running_monitor(self):
+        from clipforge.core import Runtime
+        from clipforge.desktop import DesktopBridge
+        runtime = Runtime(self.home / "data")
+        self.addCleanup(runtime.executor.shutdown, wait=True)
+        self.assertFalse(runtime.twitch.status()["configured"])
+        bridge = DesktopBridge(self.home, runtime)
+        client_id, client_secret = "c"*30, "d"*30
+        with patch("clipforge.twitch.TwitchClient.get_top_categories",
+                   return_value=[{"id":"1","name":"Just Chatting"}]), \
+             patch.object(runtime.twitch, "start_polling") as polling:
+            reply = bridge.save_twitch_credentials(client_id, client_secret)
+            self.assertTrue(reply["ok"])
+            self.assertFalse(reply["restart_required"])
+            polling.assert_called_once()
+        current = runtime.twitch.status()
+        self.assertTrue(current["configured"])
+        self.assertTrue(current["auto_monitoring"])
+        self.assertEqual(runtime.twitch.client_id, client_id)
+        self.assertEqual(runtime.twitch.secret, client_secret)
+        self.assertNotIn(client_secret, str(reply))
+        self.assertIn("TWITCH_ENABLED=1", (self.home/"config.env").read_text())
+        self.assertEqual(os.environ["TWITCH_ENABLED"], "1")
+
     def test_invalid_or_unreachable_twitch_credentials_are_not_saved(self):
         from clipforge.desktop import DesktopBridge
         from clipforge.twitch import TwitchError

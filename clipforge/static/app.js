@@ -92,7 +92,10 @@ function mountDesktopControls() {
       twitchSecret.value="";
       twitchId.value="";
       twitchDialog.close();
-      toast("Credenciais salvas no PC. Feche e reabra o aplicativo para ativar a busca Twitch.");
+      toast(response.restart_required ?
+        "Credenciais verificadas e salvas. Reinicie o Nexus para conectar." :
+        "Twitch autenticada e monitoramento ativado. Buscando clipes.");
+      window.dispatchEvent(new Event("gta:auth-updated"));
     } catch(error) {
       toast("Twitch: falha na configuração local");
     } finally {

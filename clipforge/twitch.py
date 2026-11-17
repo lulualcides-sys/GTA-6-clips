@@ -186,6 +186,7 @@ class TwitchDiscovery:
         self.enabled = os.getenv("TWITCH_ENABLED", "0") == "1"
         self.client = client
         self.activity = activity
+        self._polling_started = False
         with self._db() as db:
             db.execute("""CREATE TABLE IF NOT EXISTS twitch_candidates (
                 id TEXT PRIMARY KEY, broadcaster_id TEXT NOT NULL,
@@ -448,6 +449,12 @@ class TwitchDiscovery:
     def start_polling(self):
         if not self.enabled or not (self.client or (self.client_id and self.secret)):
             return
+        # Credentials can be updated from the Windows UI; never spawn
+        # duplicate refresh workers on repeated saves.
+        with self.lock:
+            if self._polling_started:
+                return
+            self._polling_started = True
         try:
             seconds = max(300, int(os.getenv("TWITCH_POLL_SECONDS", "900")))
         except ValueError:
