@@ -73,6 +73,33 @@ function mountDesktopControls() {
   const twitchSecret=byId("twitch-client-secret");
   const twitchSave=byId("twitch-oauth-save");
   connectButton.addEventListener("click",()=>twitchDialog.showModal());
+  const authorizeButton=byId("desktop-twitch-authorize");
+  authorizeButton.addEventListener("click",async()=>{
+    authorizeButton.disabled=true;
+    try{
+      const result=await bridge.authorize_twitch_download();
+      if(!result?.ok){toast(result?.error||"Não foi possível iniciar autorização Twitch.");return;}
+      toast("Autorize no site oficial da Twitch. Depois o Nexus buscará seus clipes elegíveis.");
+    }catch(error){toast("Twitch: não foi possível abrir autorização.");}
+    finally{authorizeButton.disabled=false;}
+  });
+  let lastOAuthStatus="";
+  async function checkDownloadOAuth(){
+    try{
+      const info=await bridge.twitch_download_status();
+      if(info?.status!==lastOAuthStatus){
+        lastOAuthStatus=info?.status;
+        if(info?.status==="authorized"){
+          toast("Twitch: downloads do seu canal autorizados. AutoClip pode iniciar quando o modelo estiver pronto.");
+          window.dispatchEvent(new Event("gta:auth-updated"));
+        }
+        if(info?.status==="failed") toast("Twitch: "+(info.last_error||"autorização falhou."));
+      }
+      authorizeButton.textContent=info?.grant_present?"Renovar autorização Twitch":"Autorizar downloads Twitch";
+    }catch(_){}
+  }
+  setInterval(checkDownloadOAuth,5000);
+  checkDownloadOAuth();
   byId("twitch-oauth-cancel").addEventListener("click",()=>{
     twitchSecret.value="";
     twitchDialog.close();
@@ -185,10 +212,12 @@ async function refreshAutoclip(){
       !["detected","failed","rejected"].includes((clips.find(c=>c.id===selected)||{}).status);
     stateNode.textContent=!data.enabled?"AutoClip desativado (AUTOCLIP_ENABLED=0).":
       !data.installed?"AutoClip não instalado neste servidor. Rode autoclip doctor após instalar a CLI.":
-      job?"AutoClip: "+job.status+" · motor exclusivo; escolha uma sugestão para revisar.":
-      "AutoClip é o único editor de vídeos; gera até 3 sugestões para revisão.";
+      job?.imports?.length ? "AutoClip: "+job.imports.length+" edição(ões) pronta(s) na biblioteca para aprovação.":
+      job ? "AutoClip: "+job.status+" · "+(job.import_errors?.join("; ")||"Aguardando saídas e validação.") :
+      "AutoClip instalado · o Nexus edita automaticamente as fontes autorizadas e envia até 3 sugestões à revisão.";
     results.replaceChildren();
     if(job&&job.error)results.appendChild(el("p","hint",job.error));
+    if(job?.import_errors?.length) results.appendChild(el("p","hint","QA AutoClip: "+job.import_errors.join("; ")));
     const clipsToPreview=(job?.status==="complete"&&Array.isArray(job.suggestions))?job.suggestions:[];
     clipsToPreview.forEach((name,index)=>{
       const button=el("button","btn secondary","Assistir sugestão "+(index+1));
