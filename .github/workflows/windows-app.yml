@@ -96,7 +96,7 @@ jobs:
           }
           if ($process.ExitCode -ne 0) { throw "Packaged EXE returned $($process.ExitCode)" }
           if ($result.status -ne "pass") { throw "Packaged EXE self-test failed" }
-          if (-not $result.ffmpeg -or -not $result.ffprobe -or -not $result.protected_api -or -not $result.pythonnet -or -not $result.webview2_core) {
+          if (-not $result.ffmpeg -or -not $result.ffprobe -or -not $result.protected_api -or -not $result.pythonnet -or -not $result.webview2_core -or -not $result.autoclip_cli) {
             throw "Missing native tools, managed WebView2.Core/pythonnet loader or protected API"
           }
       - name: Preserve frozen validation report
