@@ -190,10 +190,13 @@ class EditorialIntelligence:
             target = Path(item["output_path"])
             if target.is_symlink() or target.resolve().parent != self.store.output:
                 raise ValueError("Saída fora do diretório autorizado")
-            actual_hash = hashlib.sha256(target.read_bytes()).hexdigest()
-            # Output media digest is not necessarily the source clip hash.
             if not target.is_file():
                 raise ValueError("MP4 não encontrado")
+            digest = hashlib.sha256()
+            with target.open("rb") as stream:
+                for block in iter(lambda: stream.read(1024 * 1024), b""):
+                    digest.update(block)
+            actual_hash = digest.hexdigest()
             duration = duration_of(probe(target))
             technical = _technical_check(target, duration)
             semantic = _vision_insights(target, duration)
