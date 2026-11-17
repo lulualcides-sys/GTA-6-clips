@@ -135,7 +135,7 @@ class DesktopBridge:
     """Explicit no-argument UI actions. No arbitrary filesystem paths accepted."""
     def __init__(self, home: Path, runtime: Runtime | None = None):
         self.home = home
-        self.runtime = runtime
+        self._runtime = runtime
         self.updater = UpdateService(home)
 
     def check_updates(self):
@@ -244,7 +244,7 @@ class DesktopBridge:
                 os.replace(temp, conf)
             finally:
                 temp.unlink(missing_ok=True)
-            if self.runtime is not None:
+            if self._runtime is not None:
                 # A live pywebview app previously saved correctly but retained
                 # the old TwitchDiscovery snapshot until full process restart.
                 # The OAuth credentials were validated above; apply them only
@@ -254,12 +254,17 @@ class DesktopBridge:
                     "TWITCH_CLIENT_ID": client_id,
                     "TWITCH_CLIENT_SECRET": client_secret,
                 })
-                discovery = self.runtime.twitch
-                with self.runtime.store.lock:
+                discovery = self._runtime.twitch
+                with self._runtime.store.lock:
                     discovery.client_id = client_id
                     discovery.secret = client_secret
                     discovery.client = client
                     discovery.enabled = True
+                    # A falha de uma tentativa anterior nao pode mascarar
+                    # a nova autenticacao validada enquanto a busca inicia.
+                    with discovery._db() as db:
+                        db.execute("UPDATE twitch_sync SET last_error=NULL WHERE id=1")
+                        db.commit()
                 discovery.start_polling()
                 return {"ok": True, "restart_required": False,
                         "monitoring": True}
