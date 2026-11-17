@@ -7,9 +7,11 @@ No engagement metric is attributed to an unverified remote video ID.
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import time
+from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -65,6 +67,38 @@ class PerformanceMetrics:
                     pass
         return clean
 
+    def _youtube_retention(self, remote):
+        """Optional OAuth-only YouTube Analytics v2; no inferred retention."""
+        token = os.getenv("YOUTUBE_ANALYTICS_ACCESS_TOKEN", "").strip()
+        if not token:
+            return None
+        end = datetime.now(timezone.utc).date() - timedelta(days=2)
+        start = end - timedelta(days=28)
+        query = urlencode({
+            "ids": "channel==MINE", "startDate": start.isoformat(),
+            "endDate": end.isoformat(),
+            "metrics": "averageViewDuration,averageViewPercentage",
+            "filters": "video==" + remote,
+        })
+        try:
+            report = self._get_json("https://youtubeanalytics.googleapis.com/v2/reports?"
+                                    + query, token)
+            rows = report.get("rows") or []
+            columns = [x.get("name") for x in report.get("columnHeaders", [])
+                       if isinstance(x, dict)]
+            if not rows or len(columns) != len(rows[0]):
+                return None
+            data = dict(zip(columns, rows[0]))
+            duration = float(data["averageViewDuration"])
+            pct = float(data["averageViewPercentage"])
+            if not (math.isfinite(duration) and math.isfinite(pct) and
+                    0 <= duration < 1_000_000 and 0 <= pct < 100_000):
+                return None
+            return {"average_view_duration_sec": round(duration, 2),
+                    "average_view_percentage": round(pct, 2)}
+        except (ValueError, OSError, TypeError, KeyError):
+            return None  # Data API counters remain authentic even if Analytics lacks scope.
+
     def _fetch(self, job):
         remote = str(job.get("remote_id") or "").strip()
         platform = job["platform"]
@@ -78,7 +112,12 @@ class PerformanceMetrics:
             entries = payload.get("items", [])
             if len(entries) != 1 or entries[0].get("id") != remote:
                 raise ValueError("Vídeo não retornado pela conta YouTube")
-            return self._numbers(entries[0].get("statistics", {})), "youtube_data_v3"
+            metrics = self._numbers(entries[0].get("statistics", {}))
+            retention = self._youtube_retention(remote)
+            if retention:
+                metrics.update(retention)
+                return metrics, "youtube_data_v3+youtube_analytics_v2"
+            return metrics, "youtube_data_v3"
         if platform == "tiktok":
             if not re.fullmatch(r"[0-9]{8,30}", remote):
                 raise ValueError("ID real do vídeo TikTok indisponível")
@@ -143,7 +182,7 @@ class PerformanceMetrics:
                          source, json.dumps(metrics), time.time()))
                 db.commit()
         return {"attempted": len(rows), "updated": updated, "errors": errors,
-                "message": "Dados de API oficial; retenção não consultada."}
+                "message": "Dados de APIs oficiais; retenção opcional somente quando Analytics OAuth permitir."}
 
     def summary(self):
         with self.store._db() as db:
@@ -159,7 +198,9 @@ class PerformanceMetrics:
                 else:
                     raise
         items, totals = [], {"views": 0, "likes": 0, "comments": 0, "shares": 0}
+        coverage = {k: 0 for k in totals}
         measured = 0
+        retained = 0
         for row in rows:
             stats = json.loads(row["metrics"]) if row["metrics"] else None
             if stats:
@@ -167,6 +208,9 @@ class PerformanceMetrics:
                 for key in totals:
                     if key in stats:
                         totals[key] += stats[key]
+                        coverage[key] += 1
+                if "average_view_percentage" in stats:
+                    retained += 1
             items.append({"job_id": row["job_id"], "clip_id": row["clip_id"],
                           "remote_id": row["remote_id"],
                           "platform": row["platform"], "visibility": row["visibility"],
@@ -174,7 +218,11 @@ class PerformanceMetrics:
                           "fetched_at": row["fetched_at"]})
         return {
             "confirmed_publications": jobs, "measured_publications": measured,
-            "totals": totals if measured else None, "items": items,
-            "retention": None, "retention_status": "Sem OAuth YouTube Analytics/TikTok de retenção",
-            "disclaimer": "Somente dados retornados por APIs oficiais para IDs confirmados; vídeos privados podem ter zero visualizações."
+            "totals": {k: (value if coverage[k] == measured else None)
+                       for k, value in totals.items()} if measured else None,
+            "metric_coverage": coverage, "items": items,
+            "retention": {"measured_videos": retained} if retained else None,
+            "retention_status": ("YouTube Analytics v2 consultado" if retained
+                                else "Sem OAuth Analytics ou dados de retenção disponíveis"),
+            "disclaimer": "Somente dados retornados por APIs oficiais para IDs confirmados; campos não disponíveis ficam nulos."
         }
