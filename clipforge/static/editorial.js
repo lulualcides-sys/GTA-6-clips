@@ -67,15 +67,25 @@
       const summary=byId("editorial-metrics-summary");
       summary.textContent=r.measured_publications?
         r.measured_publications+" publicação(ões) com métricas oficiais · "+r.totals.views+" visualizações · "+
-        r.totals.likes+" curtidas · "+r.totals.comments+" comentários · "+r.totals.shares+" compartilhamentos.":
+        (r.totals.likes??"não disponível")+" curtidas · "+(r.totals.comments??"não disponível")+
+        " comentários · "+(r.totals.shares??"não disponível")+" compartilhamentos.":
         "Nenhuma publicação possui métricas verificadas. Retenção indisponível sem API com escopo adequado.";
       const div=byId("editorial-metrics-table");div.replaceChildren();
+      if(r.retention) {
+        const p=document.createElement("p");p.className="hint";
+        p.textContent="Retenção YouTube disponível em "+r.retention.measured_videos+
+          " vídeo(s); detalhes por publicação abaixo.";
+        div.appendChild(p);
+      }
       (r.items||[]).slice(0,12).forEach(item=>{
         const p=document.createElement("p");p.className="hint";
         p.textContent=item.platform+" · "+item.remote_id+" · "+
           (item.metrics?
             (item.metrics.views??"—")+" views | "+(item.metrics.likes??"—")+" likes | "+
-            (item.metrics.shares??"—")+" compartilhamentos | origem "+item.source:
+            (item.metrics.shares??"—")+" compartilhamentos | "+
+            (item.metrics.average_view_percentage===undefined?"Retenção não disponível":
+              "Retenção média "+item.metrics.average_view_percentage+"% / duração média "+
+              item.metrics.average_view_duration_sec+" s")+" | origem "+item.source:
             "Sem dados: "+(item.error||"não consultado"))+
           " · visibilidade "+(item.visibility||"não confirmada");
         div.appendChild(p);
