@@ -13,6 +13,7 @@ import subprocess
 import sys
 import threading
 from pathlib import Path
+from urllib.request import urlopen
 
 
 class AutoClipBridge:
@@ -129,9 +130,52 @@ class AutoClipBridge:
             worker.start()
             break
 
+    def _prepare_local_ai(self):
+        """Use Ollama installed on this PC; never pretend an AI model is bundled."""
+        provider = os.getenv("AUTOCLIP_PROVIDER", "ollama" if self._bundled_runtime() else "").strip()
+        if provider != "ollama":
+            return []
+        try:
+            with urlopen("http://127.0.0.1:11434/api/tags", timeout=4) as response:
+                body = json.loads(response.read(200_000))
+            models = [str(x.get("name", "")) for x in body.get("models", [])
+                      if isinstance(x, dict) and x.get("name")]
+        except (OSError, ValueError, TypeError) as exc:
+            raise RuntimeError("Ollama indisponível. Instale/inicie Ollama e um modelo local.") from exc
+        preferred = os.getenv("AUTOCLIP_OLLAMA_MODEL", "").strip()
+        if preferred and preferred not in models:
+            raise RuntimeError("Modelo Ollama configurado não está instalado.")
+        if not models:
+            raise RuntimeError("Ollama sem modelos. Instale um modelo antes de editar.")
+        selected = preferred or next((v for v in ("llama3.1:8b", "qwen2.5:14b",
+                            "mistral-nemo:12b", "gemma2:9b") if v in models), models[0])
+        self.home.mkdir(parents=True, exist_ok=True)
+        conf = self.home / "config.json"
+        try:
+            data = json.loads(conf.read_text(encoding="utf-8")) if conf.is_file() else {}
+        except (OSError, ValueError, TypeError):
+            data = {}
+        if not isinstance(data, dict):
+            data = {}
+        providers = data.setdefault("providers", {})
+        if not isinstance(providers, dict):
+            providers = data["providers"] = {}
+        setting = providers.setdefault("ollama", {})
+        if not isinstance(setting, dict):
+            setting = providers["ollama"] = {}
+        # Respect an explicitly configured model on disk if no override.
+        setting["model"] = preferred or setting.get("model") or selected
+        setting.setdefault("base_url", "http://127.0.0.1:11434")
+        data["active_provider"] = "ollama"
+        tmp = conf.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(conf)
+        return ["--provider", "ollama"]
+
     def _run(self, clip_id):
         try:
             source = str(self._source(clip_id))
+            provider_options = self._prepare_local_ai()
             self.exports.mkdir(parents=True, exist_ok=True)
             before = {p.name for p in self.exports.iterdir() if p.is_dir() and not p.is_symlink()}
             with self.lock:
@@ -140,7 +184,7 @@ class AutoClipBridge:
             env = {**os.environ, "AUTOCLIP_HOME": str(self.home)}
             result = subprocess.run(
                 [*self._command(), "clip", source, "--max-clips", "3",
-                 "--ratio", "9:16", "--style", "boxed"],
+                 "--ratio", "9:16", "--style", "boxed", *provider_options],
                 env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT, text=True, errors="replace",
                 timeout=1800, check=False
