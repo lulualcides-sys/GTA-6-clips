@@ -11,6 +11,7 @@ import json
 import os
 import secrets
 import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -172,7 +173,12 @@ class TwitchDownloadOAuth:
 
     def _complete(self, server, client_id, client_secret):
         try:
-            server.handle_request()  # one request or 120-second timeout
+            deadline = time.monotonic() + 120
+            while server.oauth_result is None and time.monotonic() < deadline:
+                # Ignore a browser favicon/preflight/invalid-state request;
+                # never accept it as the OAuth callback.
+                server.timeout = min(5, max(0.1, deadline - time.monotonic()))
+                server.handle_request()
             result = server.oauth_result
             if not result:
                 raise ValueError("Autorização Twitch não concluída.")
