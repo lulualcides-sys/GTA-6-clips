@@ -25,8 +25,8 @@ from .version import VERSION
 REPO = "lulualcides-sys/GTA-6-clips"
 LATEST = f"https://api.github.com/repos/{REPO}/releases/latest"
 ASSET_NAME = "GTA6Clips-Windows-portable.zip"
-MAX_DOWNLOAD = 600 * 1024 * 1024
-MAX_UNPACKED = 1200 * 1024 * 1024
+MAX_DOWNLOAD = 2 * 1024 * 1024 * 1024
+MAX_UNPACKED = 5 * 1024 * 1024 * 1024
 TAG = re.compile(r"^v(\d{1,4})\.(\d{1,4})\.(\d{1,4})$")
 DIGEST = re.compile(r"^sha256:([a-fA-F0-9]{64})$")
 
@@ -120,7 +120,7 @@ def _extract_verified(archive: Path, destination: Path) -> Path:
     total = 0
     with zipfile.ZipFile(archive) as bundle:
         members = bundle.infolist()
-        if len(members) > 2000:
+        if len(members) > 25000:
             raise UpdateError("Pacote contém arquivos demais")
         validated = []
         seen = set()

@@ -1,2 +1,2 @@
 """Windows desktop release version. Bump when shipping tested updates."""
-VERSION = "0.4.4"
+VERSION = "0.5.0"

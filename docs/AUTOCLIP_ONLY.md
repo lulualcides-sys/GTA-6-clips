@@ -21,7 +21,11 @@
 
 ## Instalação real no computador que executa o Nexus
 
-O EXE Windows **não inclui o motor AutoClip**. Instalar separadamente em ambiente compatível Python 3.11/3.12, com FFmpeg, Whisper e provedor/LLM configurado. Conferir instruções e comando `autoclip doctor` em https://github.com/artbyjazi/autoclip.
+Desde v0.5.0, o workflow Windows empacota **o motor real AutoClip** em `autoclip_runtime/`, com Python 3.12 isolado, Whisper, MediaPipe e dependências de edição. O código upstream MIT é fixado em um commit versionado, e o build precisa executar imports e `autoclip styles` para passar. Esse runtime é mais pesado que o pacote antigo; não existe fallback para outro editor. No Linux/Docker a CLI continua exigindo instalação separada.
+
+**Modelo de IA:** a distribuição do motor não inclui os pesos de um LLM. O Nexus encontra automaticamente modelos já instalados no Ollama local em `127.0.0.1:11434`; sem Ollama/modelo adequado ou outro provedor previamente configurado, não é possível editar. Um `ollama pull llama3.1:8b` separado é uma opção de modelo local, não um arquivo incluído no instalador. A qualidade da seleção depende fortemente do modelo.
+
+**Pipeline sem cliques por vídeo:** busca pública Twitch (metadados) → somente fontes com OAuth oficial `channel:manage:clips` ou `editor:manage:clips` **e** declaração de direitos → download Helix `/clips/downloads` → ingestão, deduplicação e fila AutoClip → IA produz até três MP4s → QA vertical/áudio/hash → MP4s em `ready` na biblioteca. **Nunca aprovar nem publicar automaticamente.** Para o próprio canal, usar `Autorizar downloads Twitch` no desktop (consentimento uma vez e callback local `http://localhost:3000`, que deve estar registrado no Developer Console). Para outros canais, a concessão de editor e evidência de reutilização são exigidas; uma busca de clipes públicos sozinha não libera as mídias. Tokens de acesso e atualização são guardados no `config.env` local do usuário e não enviados ao GitHub.
 
 Em configuração local privada:
 ```dotenv

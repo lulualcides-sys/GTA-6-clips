@@ -10,8 +10,10 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import threading
 from pathlib import Path
+from urllib.request import urlopen
 
 
 class AutoClipBridge:
@@ -23,6 +25,7 @@ class AutoClipBridge:
         self.lock = threading.RLock()
         self.jobs = self._load()
         self.active = None
+        self.max_pending = 25
 
     def _load(self):
         try:
@@ -42,19 +45,41 @@ class AutoClipBridge:
         tmp.write_text(json.dumps(self.jobs, ensure_ascii=False), encoding="utf-8")
         tmp.replace(self.state_file)
 
-    def binary(self):
+    def _bundled_runtime(self):
+        # AutoClip Python 3.12 sidecar, isolated from PyInstaller's Python.
+        if not getattr(sys, "frozen", False):
+            return None
+        folder = Path(sys.executable).resolve().parent / "autoclip_runtime"
+        python, runner = folder / "python.exe", folder / "nexus_autoclip_runner.py"
+        return [str(python), str(runner)] if python.is_file() and runner.is_file() else None
+
+    def _command(self):
+        bundled = self._bundled_runtime()
+        if bundled:
+            return bundled
         configured = os.getenv("AUTOCLIP_BINARY", "autoclip").strip() or "autoclip"
-        return shutil.which(configured)
+        external = shutil.which(configured)
+        return [external] if external else None
+
+    def binary(self):
+        command = self._command()
+        return command[0] if command else None
+
+    def _enabled(self):
+        return os.getenv("AUTOCLIP_ENABLED", "1" if self._bundled_runtime() else "0") == "1"
 
     def available(self):
-        return os.getenv("AUTOCLIP_ENABLED", "0") == "1" and bool(self.binary())
+        return self._enabled() and bool(self._command())
 
     def status(self):
         with self.lock:
             return {
-                "enabled": os.getenv("AUTOCLIP_ENABLED", "0") == "1",
-                "installed": bool(self.binary()),
+                "enabled": self._enabled(),
+                "installed": bool(self._command()),
+                "bundled": bool(self._bundled_runtime()),
                 "running": self.active is not None,
+                "pending": sum(x.get("status") == "queued" for x in self.jobs.values()),
+                "auto_review": os.getenv("AUTOCLIP_AUTO_IMPORT", "1") == "1",
                 "jobs": {key: dict(value) for key, value in self.jobs.items()}
             }
 
@@ -80,21 +105,78 @@ class AutoClipBridge:
 
     def queue(self, clip_id):
         if not self.available():
-            raise ValueError("AutoClip desativado ou CLI não instalada no servidor.")
-        source = self._source(clip_id)
+            raise ValueError("AutoClip desativado, não instalado ou Python 3.12 indisponível.")
+        self._source(clip_id)
         with self.lock:
-            if self.active is not None:
-                raise ValueError("AutoClip já está processando outro clipe.")
-            self.active = clip_id
-            self.jobs[clip_id] = {"status": "queued", "suggestions": []}
+            prior = self.jobs.get(clip_id, {})
+            if prior.get("status") in {"queued", "running", "complete"}:
+                raise ValueError("Fonte já está na fila AutoClip ou possui resultados.")
+            if sum(x.get("status") == "queued" for x in self.jobs.values()) >= self.max_pending:
+                raise ValueError("Fila AutoClip cheia; aguardando conclusão.")
+            self.jobs[clip_id] = {"status": "queued", "suggestions": [], "imports": []}
             self._save()
-            worker = threading.Thread(target=self._run, args=(clip_id, str(source)),
-                                      daemon=True, name="nexus-autoclip")
-            worker.start()
+            self._start_next_locked()
         return {"status": "queued", "clip_id": clip_id}
 
-    def _run(self, clip_id, source):
+    def _start_next_locked(self):
+        if self.active is not None:
+            return
+        for clip_id, entry in self.jobs.items():
+            if entry.get("status") != "queued":
+                continue
+            self.active = clip_id
+            worker = threading.Thread(target=self._run, args=(clip_id,),
+                                      daemon=True, name="nexus-autoclip")
+            worker.start()
+            break
+
+    def _prepare_local_ai(self):
+        """Use Ollama installed on this PC; never pretend an AI model is bundled."""
+        provider = os.getenv("AUTOCLIP_PROVIDER", "ollama" if self._bundled_runtime() else "").strip()
+        if provider != "ollama":
+            return []
         try:
+            with urlopen("http://127.0.0.1:11434/api/tags", timeout=4) as response:
+                body = json.loads(response.read(200_000))
+            models = [str(x.get("name", "")) for x in body.get("models", [])
+                      if isinstance(x, dict) and x.get("name")]
+        except (OSError, ValueError, TypeError) as exc:
+            raise RuntimeError("Ollama indisponível. Instale/inicie Ollama e um modelo local.") from exc
+        preferred = os.getenv("AUTOCLIP_OLLAMA_MODEL", "").strip()
+        if preferred and preferred not in models:
+            raise RuntimeError("Modelo Ollama configurado não está instalado.")
+        if not models:
+            raise RuntimeError("Ollama sem modelos. Instale um modelo antes de editar.")
+        selected = preferred or next((v for v in ("llama3.1:8b", "qwen2.5:14b",
+                            "mistral-nemo:12b", "gemma2:9b") if v in models), models[0])
+        self.home.mkdir(parents=True, exist_ok=True)
+        conf = self.home / "config.json"
+        try:
+            data = json.loads(conf.read_text(encoding="utf-8")) if conf.is_file() else {}
+        except (OSError, ValueError, TypeError):
+            data = {}
+        if not isinstance(data, dict):
+            data = {}
+        providers = data.setdefault("providers", {})
+        if not isinstance(providers, dict):
+            providers = data["providers"] = {}
+        setting = providers.setdefault("ollama", {})
+        if not isinstance(setting, dict):
+            setting = providers["ollama"] = {}
+        # Respect an explicitly configured model on disk if no override.
+        current = str(setting.get("model", ""))
+        setting["model"] = preferred or (current if current in models else selected)
+        setting.setdefault("base_url", "http://127.0.0.1:11434")
+        data["active_provider"] = "ollama"
+        tmp = conf.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(conf)
+        return ["--provider", "ollama"]
+
+    def _run(self, clip_id):
+        try:
+            source = str(self._source(clip_id))
+            provider_options = self._prepare_local_ai()
             self.exports.mkdir(parents=True, exist_ok=True)
             before = {p.name for p in self.exports.iterdir() if p.is_dir() and not p.is_symlink()}
             with self.lock:
@@ -102,8 +184,8 @@ class AutoClipBridge:
                 self._save()
             env = {**os.environ, "AUTOCLIP_HOME": str(self.home)}
             result = subprocess.run(
-                [self.binary(), "clip", source, "--max-clips", "3",
-                 "--ratio", "9:16", "--style", "boxed"],
+                [*self._command(), "clip", source, "--max-clips", "3",
+                 "--ratio", "9:16", "--style", "boxed", *provider_options],
                 env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT, text=True, errors="replace",
                 timeout=1800, check=False
@@ -120,9 +202,23 @@ class AutoClipBridge:
             if not suggestions:
                 raise RuntimeError("AutoClip finalizou sem novos MP4s na pasta de exportação.")
             with self.lock:
-                self.jobs[clip_id] = {"status": "complete", "suggestions": suggestions}
+                self.jobs[clip_id] = {"status": "complete", "suggestions": suggestions,
+                                      "imports": [], "import_errors": []}
                 self._save()
-        except (OSError, subprocess.SubprocessError, RuntimeError, ValueError) as exc:
+            # Only actual AutoClip outputs are checked and promoted to REVIEW;
+            # never approve/publish before the user's editorial decision.
+            if os.getenv("AUTOCLIP_AUTO_IMPORT", "1") == "1":
+                for index in range(len(suggestions)):
+                    try:
+                        imported = self.import_suggestion(clip_id, index)
+                        with self.lock:
+                            self.jobs[clip_id]["imports"].append(imported["clip_id"])
+                            self._save()
+                    except (ValueError, PermissionError, OSError, subprocess.SubprocessError) as exc:
+                        with self.lock:
+                            self.jobs[clip_id]["import_errors"].append(str(exc)[:180])
+                            self._save()
+        except (OSError, subprocess.SubprocessError, RuntimeError, ValueError, PermissionError) as exc:
             with self.lock:
                 self.jobs[clip_id] = {"status": "failed", "suggestions": [],
                                       "error": str(exc)[:180]}
@@ -130,6 +226,7 @@ class AutoClipBridge:
         finally:
             with self.lock:
                 self.active = None
+                self._start_next_locked()
 
     def import_suggestion(self, clip_id, index):
         """Copia proposta para ingestão normal e exige nova revisão Nexus."""

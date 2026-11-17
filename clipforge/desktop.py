@@ -31,6 +31,10 @@ CONFIG_KEYS = frozenset({
     "AUTO_RENDER", "AUTO_SCAN", "AUTO_TRANSCRIBE", "ENABLE_SYNTHETIC_DEMO",
     "SMART_SCENES", "POLL_SECONDS", "TWITCH_ENABLED", "TWITCH_POLL_SECONDS",
     "TWITCH_CLIENT_ID", "TWITCH_CLIENT_SECRET", "TWITCH_GAME_ID",
+    "TWITCH_USER_ACCESS_TOKEN", "TWITCH_REFRESH_TOKEN", "TWITCH_EDITOR_ID",
+    "TWITCH_AUTO_DOWNLOAD", "TWITCH_AUTO_BATCH",
+    "AUTOCLIP_ENABLED", "AUTOCLIP_AUTO_IMPORT", "AUTOCLIP_PROVIDER",
+    "AUTOCLIP_OLLAMA_MODEL",
     "TWITCH_GTA6_LAUNCH_AT", "TWITCH_DISCOVERY_MODE", "TWITCH_CATEGORY_IDS",
     "TWITCH_BROADCASTER_IDS", "TWITCH_GTA5_GAME_ID", "TWITCH_TRENDING_CATEGORIES",
     "TWITCH_CLIPS_PER_CATEGORY", "TWITCH_LOOKBACK_HOURS",
@@ -42,6 +46,11 @@ DEFAULT_CONFIG = """# GTA VI Clips - configuracoes locais. Reinicie o app apos e
 # Credenciais privadas: nao envie este arquivo para o GitHub.
 AUTO_SCAN=1
 AUTO_RENDER=1
+# Motor AutoClip real incluido no pacote Windows; nunca usar FFmpeg como editor.
+AUTOCLIP_ENABLED=1
+AUTOCLIP_AUTO_IMPORT=1
+AUTOCLIP_PROVIDER=ollama
+AUTOCLIP_OLLAMA_MODEL=
 SMART_SCENES=0
 AUTO_TRANSCRIBE=0
 ENABLE_SYNTHETIC_DEMO=0
@@ -52,6 +61,12 @@ WHISPER_LANGUAGE=pt
 TWITCH_ENABLED=1
 TWITCH_CLIENT_ID=
 TWITCH_CLIENT_SECRET=
+# Permissoes de download para canal proprio/editor (via OAuth especifico):
+TWITCH_AUTO_DOWNLOAD=1
+TWITCH_AUTO_BATCH=2
+TWITCH_EDITOR_ID=
+TWITCH_USER_ACCESS_TOKEN=
+TWITCH_REFRESH_TOKEN=
 TWITCH_POLL_SECONDS=900
 # Até o lançamento, categorias populares; depois, apenas GTA VI:
 TWITCH_GTA6_LAUNCH_AT=2026-11-19T03:00:00+00:00
@@ -136,6 +151,7 @@ class DesktopBridge:
     def __init__(self, home: Path, runtime: Runtime | None = None):
         self.home = home
         self._runtime = runtime
+        self._twitch_oauth = None
         self.updater = UpdateService(home)
 
     def check_updates(self):
@@ -272,6 +288,22 @@ class DesktopBridge:
         except (OSError, ValueError) as exc:
             return {"ok": False, "error": "Não foi possível salvar configurações locais"}
 
+    def authorize_twitch_download(self):
+        """Open the official Twitch user-consent page on a real user click."""
+        if self._runtime is None:
+            return {"ok": False, "error": "Requer aplicativo Windows ativo."}
+        from .twitch_oauth import TwitchDownloadOAuth
+        if self._twitch_oauth is None:
+            self._twitch_oauth = TwitchDownloadOAuth(self.home, self._runtime)
+        return self._twitch_oauth.begin()
+
+    def twitch_download_status(self):
+        if self._twitch_oauth is None:
+            return {"status": "not_started", "active": False,
+                    "grant_present": bool(os.getenv("TWITCH_USER_ACCESS_TOKEN")
+                                          and os.getenv("TWITCH_EDITOR_ID"))}
+        return self._twitch_oauth.status()
+
     def open_settings(self):
         return self._open(self.home / "config.env")
 
@@ -367,6 +399,21 @@ def self_test(destination: Path | None = None) -> dict:
             report({**result, "phase": "webview2_checked"})
         token = secrets.token_urlsafe(32)
         server, runtime, thread = start_backend(home / "data", token)
+        # Validate the complete AutoClip sidecar inside the actual frozen EXE.
+        if sys.platform == "win32" and getattr(sys, "frozen", False):
+            sidecar = runtime.autoclip_bridge._bundled_runtime()
+            result["autoclip_cli"] = False
+            if sidecar:
+                try:
+                    command = subprocess.run([*sidecar, "styles"], stdin=subprocess.DEVNULL,
+                                             capture_output=True, timeout=40, check=False)
+                    result["autoclip_cli"] = command.returncode == 0
+                    if command.returncode:
+                        result["autoclip_error"] = command.stderr.decode(
+                            "utf-8", "replace")[-280:]
+                except (OSError, subprocess.SubprocessError) as exc:
+                    result["autoclip_error"] = str(exc)[:180]
+            report({**result, "phase": "autoclip_checked"})
         errors = []
         server.handle_error = lambda request, address: errors.append(traceback.format_exc())
         report({**result, "phase": "server_started"})
@@ -403,7 +450,7 @@ def self_test(destination: Path | None = None) -> dict:
             report({**result, "phase": "server_stopped"})
         required = ["ffmpeg", "ffprobe", "health", "protected_api"]
         if sys.platform == "win32" and getattr(sys, "frozen", False):
-            required.extend(["pythonnet", "webview2_core"])
+            required.extend(["pythonnet", "webview2_core", "autoclip_cli"])
         result["status"] = "pass" if all(result.get(k) for k in required) else "fail"
         report({**result, "phase": "complete"})
         return result
