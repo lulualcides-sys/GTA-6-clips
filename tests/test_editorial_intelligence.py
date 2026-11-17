@@ -1,4 +1,5 @@
 """Nexus editorial intelligence, private mobile pairing and metrics regression tests."""
+import hashlib
 import json
 import tempfile
 import time
@@ -118,6 +119,38 @@ class EditorialTests(unittest.TestCase):
         stale = _verified_transcript(self.store, "one000000000", media_hash)
         self.assertEqual(stale["status"], "stale")
         self.assertEqual(stale["text"], "")
+
+
+    def test_assessment_passes_only_verified_speech_to_visual_model(self):
+        clip_id = "one000000000"
+        video = self.store.output / f"{clip_id}.mp4"
+        video.write_bytes(b"approved AutoClip output")
+        media_hash = hashlib.sha256(video.read_bytes()).hexdigest()
+        spoken = "Cuidado, tem um carro vindo pela esquerda!"
+        captions = self.store.root / "captions"
+        captions.mkdir()
+        (captions / f"{clip_id}.srt").write_text(
+            f"1\n00:00:01,000 --> 00:00:03,000\n{spoken}\n", encoding="utf-8"
+        )
+        with self.store._db() as db:
+            db.execute("UPDATE clips SET output_path=? WHERE id=?",
+                       (str(video), clip_id))
+            db.execute("""CREATE TABLE clip_captions (
+                clip_id TEXT PRIMARY KEY, video_sha TEXT, status TEXT, cues INTEGER
+            )""")
+            db.execute("INSERT INTO clip_captions VALUES(?,?,?,?)",
+                       (clip_id, media_hash, "ready", 1))
+            db.commit()
+        with patch("clipforge.core.probe", return_value={"format": {"duration": "25"}, "streams": []}), \
+             patch("clipforge.core.duration_of", return_value=25.0), \
+             patch("clipforge.editorial_intelligence._technical_check",
+                   return_value={"status": "checked", "warnings": []}), \
+             patch("clipforge.editorial_intelligence._vision_insights",
+                   return_value={"status": "visual_partial", "audio_transcript_used": True}) as vision:
+            self.intelligence._assess(clip_id)
+        vision.assert_called_once_with(video, 25.0, spoken)
+        analysis = self.intelligence.get(clip_id)["analysis"]
+        self.assertEqual(analysis["transcript"], {"status": "ready", "chars": len(spoken)})
 
     def test_visual_analysis_uses_verified_transcript_as_context(self):
         captured = {}
