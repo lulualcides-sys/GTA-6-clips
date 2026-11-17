@@ -1,36 +1,50 @@
 @echo off
 setlocal EnableExtensions
 cd /d "%~dp0"
-set "GTA6CLIPS_DLL=%~dp0_internal\pythonnet\runtime\Python.Runtime.dll"
-if not exist "%GTA6CLIPS_DLL%" (
-  echo ERRO: Python.Runtime.dll nao encontrada no pacote.
-  echo Extraia todo o ZIP oficial, incluindo a pasta _internal.
+set "GTA6CLIPS_INTERNAL=%~dp0_internal"
+if not exist "%~dp0GTA6Clips.exe" (
+  echo ERRO: GTA6Clips.exe nao encontrado. Extraia o ZIP oficial completo.
+  pause
+  exit /b 2
+)
+if not exist "%GTA6CLIPS_INTERNAL%\pythonnet\runtime\Python.Runtime.dll" (
+  echo ERRO: Python.Runtime.dll nao encontrada. Extraia o ZIP completo.
+  pause
+  exit /b 2
+)
+if not exist "%GTA6CLIPS_INTERNAL%\webview\lib\Microsoft.Web.WebView2.Core.dll" (
+  echo ERRO: Microsoft.Web.WebView2.Core.dll nao encontrada. Extraia o ZIP completo.
   pause
   exit /b 2
 )
 echo.
-echo REPARO GTA VI CLIPS - PYTHON.NET
+echo REPARO GTA VI CLIPS - PYTHON.NET E WEBVIEW2
 echo.
-echo Use somente para pacote baixado do repositorio oficial:
+echo Confirme a origem do ZIP antes de prosseguir:
 echo https://github.com/lulualcides-sys/GTA-6-clips/releases
 echo.
-echo Esta operacao remove a marca de arquivo baixado da internet
-echo apenas de _internal\pythonnet\runtime\Python.Runtime.dll.
-echo NAO desativa Windows Defender, SmartScreen ou politicas do sistema.
+echo A extracao do ZIP pode ter marcado varias bibliotecas como arquivos
+echo baixados da internet. Isto provoca erro .NET 0x80131515.
 echo.
-REM O modo sem interface abaixo existe apenas para o teste automatizado em CI.
+echo O reparo remove a marca Zone.Identifier SOMENTE de arquivos DLL
+echo e PYD dentro da pasta _internal DESTE aplicativo.
+echo Nao altera System32, dados pessoais, videos, Windows Defender
+echo nem SmartScreen. Execute somente no pacote oficial conferido.
+echo.
+REM O modo nao interativo e exclusivo dos testes de GitHub Actions.
 if /I "%GITHUB_ACTIONS%"=="true" if /I "%GTA6CLIPS_REPAIR_ONLY%"=="1" goto repair
-choice /c SN /n /m "Confirmar reparo desta DLL? [S/N] "
+choice /c SN /n /m "Confirmar reparo das bibliotecas do Nexus? [S/N] "
 if errorlevel 2 exit /b 3
 :repair
-powershell.exe -NoProfile -NonInteractive -Command "Unblock-File -LiteralPath $env:GTA6CLIPS_DLL -ErrorAction Stop"
+powershell.exe -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; $root=Get-Item -LiteralPath $env:GTA6CLIPS_INTERNAL; if ($root.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Pasta _internal redirecionada; reparo recusado' }; $files=@(Get-ChildItem -LiteralPath $root.FullName -Recurse -File -Force | Where-Object { $_.Extension -in @('.dll','.pyd') }); if ($files.Count -eq 0) { throw 'Nenhuma biblioteca encontrada' }; foreach ($file in $files) { if ($file.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Biblioteca redirecionada; reparo recusado' }; Unblock-File -LiteralPath $file.FullName -ErrorAction Stop }; Write-Output ('Bibliotecas conferidas: ' + $files.Count)"
 if errorlevel 1 (
   echo.
-  echo Falha ao desbloquear a DLL. Confira a origem do pacote e as permissoes.
+  echo O reparo falhou. Confira a origem do pacote e as permissoes.
   pause
   exit /b 4
 )
-echo DLL reparada. Abrindo o aplicativo...
+echo.
+echo Bibliotecas do Nexus conferidas. Abrindo aplicativo...
 if /I "%GTA6CLIPS_REPAIR_ONLY%"=="1" exit /b 0
 start "" "%~dp0GTA6Clips.exe"
 exit /b 0
