@@ -12,6 +12,7 @@ import json
 import os
 import re
 import shutil
+import sqlite3
 import subprocess
 import threading
 import time
@@ -73,7 +74,7 @@ def _verified_transcript(store, clip_id: str, media_sha256: str) -> dict:
                 "SELECT video_sha,status,cues FROM clip_captions WHERE clip_id=?",
                 (clip_id,)
             ).fetchone()
-    except Exception:
+    except sqlite3.Error:
         # Caption support is optional; missing schema/worker must not break QA.
         return unavailable
     if not row or row["status"] != "ready":
