@@ -10,7 +10,7 @@ from unittest.mock import patch, Mock
 
 from clipforge.core import ClipStore
 from clipforge.editorial_intelligence import (
-    EditorialIntelligence, _vision_insights, _technical_check,
+    EditorialIntelligence, _vision_insights, _technical_check, _verified_transcript,
 )
 from clipforge.mobile_pairing import MobilePairing
 from clipforge.performance_metrics import PerformanceMetrics
@@ -90,6 +90,55 @@ class EditorialTests(unittest.TestCase):
             report = _vision_insights(Path("/fake/no-video.mp4"), 40.0)
         self.assertEqual(report["status"], "unavailable")
         self.assertEqual(report["frames_analyzed"], 0)
+
+
+    def test_verified_transcript_requires_matching_rendered_media_hash(self):
+        folder = self.store.root / "captions"
+        folder.mkdir()
+        (folder / "one000000000.srt").write_text(
+            "1\n00:00:01,000 --> 00:00:02,000\nWatch out, a car is coming!\n",
+            encoding="utf-8",
+        )
+        media_hash = "b" * 64
+        with self.store._db() as db:
+            db.execute("""CREATE TABLE clip_captions (
+                clip_id TEXT PRIMARY KEY, video_sha TEXT, status TEXT, cues INTEGER
+            )""")
+            db.execute("INSERT INTO clip_captions VALUES(?,?,?,?)",
+                       ("one000000000", media_hash, "ready", 1))
+            db.commit()
+        evidence = _verified_transcript(self.store, "one000000000", media_hash)
+        self.assertEqual(evidence["status"], "ready")
+        self.assertIn("Watch out, a car is coming!", evidence["text"])
+        self.assertNotIn("-->", evidence["text"])
+        with self.store._db() as db:
+            db.execute("UPDATE clip_captions SET video_sha=? WHERE clip_id=?",
+                       ("a" * 64, "one000000000"))
+            db.commit()
+        stale = _verified_transcript(self.store, "one000000000", media_hash)
+        self.assertEqual(stale["status"], "stale")
+        self.assertEqual(stale["text"], "")
+
+    def test_visual_analysis_uses_verified_transcript_as_context(self):
+        captured = {}
+        def ollama(endpoint, payload=None, timeout=10):
+            if endpoint == "/api/tags":
+                return {"models": [{"name": "llava:7b"}]}
+            captured["prompt"] = payload["messages"][0]["content"]
+            return {"message": {"content": json.dumps({
+                "event": "Streamer avisa sobre carro e ocorre colisão",
+                "category": "acidente", "context_clear": True,
+                "visual_hook": True, "confidence": 0.8,
+            })}}
+        transcript = "Cuidado, tem um carro vindo pela esquerda!"
+        with patch("clipforge.editorial_intelligence._ollama_json", side_effect=ollama), \
+             patch("clipforge.editorial_intelligence._frames", return_value=[str(i) for i in range(9)]):
+            report = _vision_insights(Path("actual.mp4"), 35, transcript)
+        self.assertTrue(report["audio_transcript_used"])
+        self.assertEqual(report["transcript_chars"], len(transcript))
+        self.assertFalse(report["audio_understood"])
+        self.assertIn(transcript, captured["prompt"])
+        self.assertIn("não afirme ter ouvido", captured["prompt"])
 
     def test_vision_only_reports_observed_frames(self):
         def ollama(endpoint, payload=None, timeout=10):
