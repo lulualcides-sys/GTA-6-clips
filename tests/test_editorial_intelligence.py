@@ -121,6 +121,37 @@ class EditorialTests(unittest.TestCase):
         self.assertEqual(stale["text"], "")
 
 
+
+    def test_queue_rechecks_when_verified_transcript_appears_later(self):
+        clip_id = "one000000000"
+        video = self.store.output / f"{clip_id}.mp4"
+        video.write_bytes(b"approved AutoClip output")
+        media_hash = hashlib.sha256(video.read_bytes()).hexdigest()
+        self.store.update(clip_id, output_path=str(video))
+        folder = self.store.root / "captions"
+        folder.mkdir()
+        (folder / f"{clip_id}.srt").write_text(
+            "1\n00:00:01,000 --> 00:00:02,000\nNow I understand the crash!\n",
+            encoding="utf-8",
+        )
+        with self.store._db() as db:
+            db.execute("""CREATE TABLE clip_captions (
+                clip_id TEXT PRIMARY KEY, video_sha TEXT, status TEXT, cues INTEGER
+            )""")
+            db.execute("INSERT INTO clip_captions VALUES(?,?,?,?)",
+                       (clip_id, media_hash, "ready", 1))
+            db.execute("""INSERT INTO editorial_insights
+                (clip_id,media_sha256,status,report,updated_at) VALUES(?,?,?,?,?)""",
+                (clip_id, media_hash, "complete",
+                 json.dumps({"transcript": {
+                     "status": "not_available", "chars": 0, "sha256": ""
+                 }}), time.time()))
+            db.commit()
+        with patch.object(self.intelligence.pool, "submit") as submit:
+            self.assertTrue(self.intelligence.queue(clip_id))
+        submit.assert_called_once_with(self.intelligence._assess, clip_id)
+        self.intelligence.pending.discard(clip_id)
+
     def test_assessment_passes_only_verified_speech_to_visual_model(self):
         clip_id = "one000000000"
         video = self.store.output / f"{clip_id}.mp4"
