@@ -121,8 +121,8 @@ class AutoClipBridgeTests(unittest.TestCase):
             def __init__(self, target, args, **kwargs):
                 self.target, self.args = target, args
             def start(self): self.target(*self.args)
-        with patch.dict(os.environ, {"AUTOCLIP_ENABLED": "1"}), \
-             patch.object(self.bridge, "binary", return_value="/bin/autoclip"), \
+        with patch.dict(os.environ, {"AUTOCLIP_ENABLED": "1", "AUTOCLIP_AUTO_IMPORT": "0"}), \
+             patch.object(self.bridge, "_command", return_value=["/bin/autoclip"]), \
              patch("clipforge.autoclip_bridge.subprocess.run", side_effect=fake_run), \
              patch("clipforge.autoclip_bridge.threading.Thread", SyncThread):
             self.assertEqual("queued", self.bridge.queue("valid")["status"])
