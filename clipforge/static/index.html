@@ -11,6 +11,7 @@
     <button type="button" id="desktop-settings" class="desktop-open">⚙ Configurações</button>
     <button type="button" id="desktop-twitch-connect" class="desktop-open">Conectar Twitch</button>
     <button type="button" id="desktop-twitch-authorize" class="desktop-open">Autorizar downloads Twitch</button>
+    <button type="button" id="desktop-mobile-pair" class="desktop-open">Vincular celular</button>
     <span id="desktop-twitch-status" class="tag muted" role="status" aria-live="polite">Twitch: verificando</span>
     <span id="desktop-update-status" class="desktop-update-status">Buscando atualização...</span>
     <button type="button" id="desktop-update" class="desktop-open desktop-update" disabled>Verificar versão</button>
@@ -83,7 +84,13 @@
 </section>
 <section class="workspace" id="production-workspace" aria-label="Biblioteca e revisão de clipes">
 <aside class="panel list-panel"><div class="panel-head"><div><p class="eyebrow">BIBLIOTECA</p><h2>Clipes</h2></div><button class="btn text-btn" id="refresh">Atualizar</button></div><div class="filters"><button class="chip active" data-filter="all">Todos</button><button class="chip" data-filter="ready">Prontos</button><button class="chip" data-filter="failed">Falhas</button></div><div id="clip-list" class="clips"><p class="placeholder">Nenhum clipe importado.</p></div></aside>
-<section class="panel preview-panel"><div class="panel-head"><div><p class="eyebrow">MONITOR DE QUALIDADE</p><h2 id="detail-title">Selecione um clipe</h2></div><span id="detail-status" class="tag muted">Aguardando</span></div><div class="player-wrap"><div id="player-placeholder" class="player-placeholder"><span>▶</span><strong>Prévia indisponível</strong><small>Selecione uma saída AutoClip para assistir.</small></div><video id="player" controls playsinline preload="metadata" hidden></video></div><div class="details" id="details"><p class="hint">Os detalhes de origem e permissão aparecerão aqui.</p></div><div class="review-actions"><button id="render" class="btn secondary" disabled>Editar com AutoClip</button><button id="transcribe" class="btn secondary" disabled>Gerar legendas IA</button><button id="hyperframes" class="btn secondary" disabled>Exportar HyperFrames</button><button id="autoclip-run" class="btn secondary" disabled hidden>AutoClip · sugerir cortes</button><button id="reject" class="btn danger" disabled>Rejeitar</button><button id="approve" class="btn primary" disabled>Aprovar clipe</button></div><label class="check-label"><input type="checkbox" id="hyperframes-captions"> Incluir transcrição disponível no HyperFrames (opcional)</label><p class="footnote">Aprovar não publica automaticamente. Direitos de terceiros exigem verificação fora do sistema.</p><p id="autoclip-status" class="hint" aria-live="polite">AutoClip: verificando instalação...</p><div id="autoclip-results" class="publication-jobs" aria-live="polite"></div><video id="autoclip-preview" controls playsinline preload="metadata" hidden style="max-width:100%;max-height:420px"></video></section>
+<section class="panel preview-panel"><div class="panel-head"><div><p class="eyebrow">MONITOR DE QUALIDADE</p><h2 id="detail-title">Selecione um clipe</h2></div><span id="detail-status" class="tag muted">Aguardando</span></div><div class="player-wrap"><div id="player-placeholder" class="player-placeholder"><span>▶</span><strong>Prévia indisponível</strong><small>Selecione uma saída AutoClip para assistir.</small></div><video id="player" controls playsinline preload="metadata" hidden></video></div><div class="details" id="details"><p class="hint">Os detalhes de origem e permissão aparecerão aqui.</p></div>
+<div class="editorial-evidence" id="editorial-evidence" role="status" aria-live="polite">Análise do conteúdo: aguardando.</div>
+<div id="editorial-controls"><label for="editorial-reason">Motivo da rejeição</label>
+<select id="editorial-reason"><option value="sem_graca">Não é engraçado</option><option value="corte_ruim">Corte ruim</option><option value="repetido">Repetido</option><option value="titulo_fraco">Título fraco</option><option value="sem_contexto">Sem contexto</option><option value="audio_ruim">Áudio ruim</option><option value="enquadramento">Enquadramento</option><option value="outro">Outro motivo</option></select>
+<label for="editorial-note">Observação opcional</label>
+<input id="editorial-note" maxlength="240" placeholder="Ex.: piada termina antes do replay">
+</div><div class="review-actions"><button id="render" class="btn secondary" disabled>Editar com AutoClip</button><button id="transcribe" class="btn secondary" disabled>Gerar legendas IA</button><button id="hyperframes" class="btn secondary" disabled>Exportar HyperFrames</button><button id="autoclip-run" class="btn secondary" disabled hidden>AutoClip · sugerir cortes</button><button id="reject" class="btn danger" disabled>Rejeitar</button><button id="approve" class="btn primary" disabled>Aprovar clipe</button></div><label class="check-label"><input type="checkbox" id="hyperframes-captions"> Incluir transcrição disponível no HyperFrames (opcional)</label><p class="footnote">Aprovar não publica automaticamente. Direitos de terceiros exigem verificação fora do sistema.</p><p id="autoclip-status" class="hint" aria-live="polite">AutoClip: verificando instalação...</p><div id="autoclip-results" class="publication-jobs" aria-live="polite"></div><video id="autoclip-preview" controls playsinline preload="metadata" hidden style="max-width:100%;max-height:420px"></video></section>
 <section class="panel editor-panel" aria-label="Editor do corte">
 <div class="panel-head"><div><p class="eyebrow">REVISÃO EDITORIAL</p><h2>Original e ajustes</h2></div><button id="load-original" class="btn secondary" disabled>Ver original</button></div>
 <video id="original-player" controls playsinline preload="metadata" hidden></video>
@@ -124,7 +131,20 @@
 <p id="publication-state" class="hint">Consultando conexões e limites…</p>
 <form id="publication-form" class="edit-grid"><label>Plataforma<select id="publication-platform"><option value="youtube">YouTube Shorts</option><option value="tiktok">TikTok</option><option value="postiz_youtube">Postiz → YouTube privado</option><option value="postiz_tiktok">Postiz → TikTok privado</option><option value="instagram">Instagram Reels</option></select></label><label>Título<input id="publication-title" maxlength="100" required></label><label>Agendar (seu horário local)<input id="publication-schedule" type="datetime-local"></label><button type="submit" class="btn secondary">Enfileirar clipe aprovado</button></form>
 <div id="publication-jobs" class="publication-jobs" aria-live="polite"></div>
-</section></main>
+</section>
+<section class="panel" id="editorial-learning-panel" aria-label="Aprendizado editorial">
+  <div class="panel-head"><div><p class="eyebrow">INTELIGÊNCIA EDITORIAL</p><h2>Feedback e aprendizado</h2></div></div>
+  <p class="hint" id="editorial-learning-summary">Sem avaliações registradas.</p>
+  <div class="hint" id="mobile-pair-info">Aprovação pelo celular requer conexão privada Tailscale Serve e um código temporário.</div>
+</section>
+<section class="panel" id="social-metrics-panel" aria-label="Métricas verificadas">
+  <div class="panel-head"><div><p class="eyebrow">DESEMPENHO REAL</p><h2>Métricas das publicações</h2></div>
+  <button id="editorial-metrics-refresh" type="button" class="btn secondary">Consultar APIs oficiais</button></div>
+  <p class="hint" id="editorial-metrics-summary">Nenhuma métrica foi consultada ainda.</p>
+  <div id="editorial-metrics-table"></div>
+  <p class="hint">Retenção somente quando a plataforma disponibilizar OAuth e endpoint adequados. Nenhum valor é estimado.</p>
+</section>
+</main>
 <dialog id="twitch-oauth-modal">
   <form id="twitch-oauth-form" method="dialog">
     <p class="eyebrow">CONEXÃO LOCAL · TWITCH HELIX</p>
@@ -143,4 +163,4 @@
 </dialog>
 <div id="message" class="toast" role="status" aria-live="polite" hidden></div>
 <dialog id="login-modal"><form method="dialog" id="login-form"><p class="eyebrow">ACESSO RESTRITO</p><h2>Token do painel</h2><p class="hint">Informe DASHBOARD_TOKEN. Salvo apenas nesta aba.</p><input id="token" type="password" autocomplete="off" placeholder="Token" required><div class="dialog-actions"><button class="btn primary" type="submit">Entrar</button></div></form></dialog>
-<script src="/app.js" defer></script><script src="/editor.js" defer></script><script src="/candidates.js" defer></script><script src="/agents.js" defer></script></body></html>
+<script src="/app.js" defer></script><script src="/editor.js" defer></script><script src="/candidates.js" defer></script><script src="/agents.js" defer></script><script src="/editorial.js" defer></script></body></html>
