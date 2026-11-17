@@ -290,7 +290,7 @@ class EditorialIntelligence:
                                "sha256": transcript["sha256"]},
                 "technical": technical, "semantic": semantic,
                 "human_review_required": True,
-                "limitations": "Amostra de até nove imagens, sem confirmação de fala ou humor."
+                "limitations": "Até nove imagens; transcrição Whisper opcional e sujeita a erro; sem áudio bruto."
             }
             status = "complete" if semantic.get("status") == "visual_partial" and technical["status"] == "checked" else "partial"
         except (OSError, ValueError, subprocess.SubprocessError) as exc:
