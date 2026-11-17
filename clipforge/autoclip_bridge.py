@@ -164,7 +164,8 @@ class AutoClipBridge:
         if not isinstance(setting, dict):
             setting = providers["ollama"] = {}
         # Respect an explicitly configured model on disk if no override.
-        setting["model"] = preferred or setting.get("model") or selected
+        current = str(setting.get("model", ""))
+        setting["model"] = preferred or (current if current in models else selected)
         setting.setdefault("base_url", "http://127.0.0.1:11434")
         data["active_provider"] = "ollama"
         tmp = conf.with_suffix(".tmp")
