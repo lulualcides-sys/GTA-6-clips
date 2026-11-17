@@ -57,16 +57,20 @@ def qualifies(item: dict, *, min_score: int = 78,
 
 def ranked_shortlist(items: list[dict], *, min_score: int = 78, 
                      per_creator: int = 2, gta6_only: bool = True,
-                     now: datetime | None = None) -> list[dict]:
-    """Deduplicate by official clip ID and near-equal titles per creator."""
+                     now: datetime | None = None,
+                     creator_bias: dict[str, float] | None = None) -> list[dict]:
+    """Deduplicate clips; optional evidence-based, bounded creator adjustment."""
     now = now or datetime.now(timezone.utc)
     per_creator = max(1, min(4, per_creator))
     picked = []
     clip_ids = set()
     seen_titles = set()
     creator_counts = {}
+    creator_bias = creator_bias or {}
     def sort_key(item):
-        return (int(item.get("score", 0) or 0),
+        creator = str(item.get("creator_name", "")).casefold().strip()
+        adjustment = max(-5, min(5, float(creator_bias.get(creator, 0) or 0)))
+        return (int(item.get("score", 0) or 0) + adjustment,
                 int(item.get("view_count", 0) or 0))
     for item in sorted(items, key=sort_key, reverse=True):
         if not qualifies(item, min_score=min_score, now=now, gta6_only=gta6_only):
