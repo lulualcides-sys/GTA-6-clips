@@ -186,6 +186,7 @@ class TwitchDiscovery:
         self.enabled = os.getenv("TWITCH_ENABLED", "0") == "1"
         self.client = client
         self.activity = activity
+        self.on_refreshed = None
         self._polling_started = False
         with self._db() as db:
             db.execute("""CREATE TABLE IF NOT EXISTS twitch_candidates (
@@ -429,6 +430,13 @@ class TwitchDiscovery:
             if self.activity:
                 self.activity.append(None, "radar", "complete",
                                      f"Consulta Twitch concluída: {inserted} registros de metadados")
+            if self.on_refreshed:
+                try:
+                    self.on_refreshed()
+                except (OSError, RuntimeError, ValueError):
+                    # Public metadata search remains usable even when editing is
+                    # blocked by missing permissions or local AI dependencies.
+                    pass
             return {
                 "ok": True, "received": received, "processed": inserted,
                 "game_id": game_id, "profile": mode,
