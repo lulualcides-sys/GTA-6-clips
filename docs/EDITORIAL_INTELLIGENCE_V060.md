@@ -3,7 +3,7 @@
 ## O que existe no código
 
 - **Análise real de cenas (experimental):** depois que o **AutoClip** finaliza um vídeo,
-  o Nexus extrai três quadros para análise por um modelo Ollama **com visão** previamente
+  o Nexus extrai nove quadros para análise por um modelo Ollama **com visão** previamente
   instalado no computador. Registra categoria, acontecimento supostamente observado,
   confiança informada pelo modelo e limitações. Não afirma conhecer áudio, humor nem
   ações entre quadros. **Não edita nem modifica o MP4**. Sem modelo visual, informa
