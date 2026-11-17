@@ -121,7 +121,6 @@ class EditorialTests(unittest.TestCase):
         self.assertEqual(stale["text"], "")
 
 
-
     def test_queue_rechecks_when_verified_transcript_appears_later(self):
         clip_id = "one000000000"
         video = self.store.output / f"{clip_id}.mp4"
@@ -150,6 +149,49 @@ class EditorialTests(unittest.TestCase):
         with patch.object(self.intelligence.pool, "submit") as submit:
             self.assertTrue(self.intelligence.queue(clip_id))
         submit.assert_called_once_with(self.intelligence._assess, clip_id)
+        self.intelligence.pending.discard(clip_id)
+
+
+    def test_analysis_retries_if_transcription_finishes_mid_assessment(self):
+        clip_id = "one000000000"
+        video = self.store.output / f"{clip_id}.mp4"
+        video.write_bytes(b"approved AutoClip output")
+        media_hash = hashlib.sha256(video.read_bytes()).hexdigest()
+        self.store.update(clip_id, output_path=str(video))
+        captions = self.store.root / "captions"
+        captions.mkdir()
+        with self.store._db() as db:
+            db.execute("""CREATE TABLE clip_captions (
+                clip_id TEXT PRIMARY KEY, video_sha TEXT, status TEXT, cues INTEGER
+            )""")
+            db.execute("INSERT INTO clip_captions VALUES(?,?,?,?)",
+                       (clip_id, media_hash, "processing", 0))
+            db.commit()
+
+        self.intelligence.pending.add(clip_id)
+        spoken = "Agora entendi o que aconteceu!"
+        def vision(*args):
+            (captions / f"{clip_id}.srt").write_text(
+                f"1\n00:00:01,000 --> 00:00:02,000\n{spoken}\n", encoding="utf-8"
+            )
+            with self.store._db() as db:
+                db.execute("UPDATE clip_captions SET status='ready',cues=1 WHERE clip_id=?",
+                           (clip_id,))
+                db.commit()
+            # Simulate CaptionService completing while this analysis is still pending.
+            self.intelligence.queue(clip_id)
+            return {"status": "visual_partial"}
+
+        with patch("clipforge.core.probe", return_value={"format": {"duration": "25"}, "streams": []}), \
+             patch("clipforge.core.duration_of", return_value=25.0), \
+             patch("clipforge.editorial_intelligence._technical_check",
+                   return_value={"status": "checked", "warnings": []}), \
+             patch("clipforge.editorial_intelligence._vision_insights", side_effect=vision), \
+             patch.object(self.intelligence.pool, "submit") as submit:
+            self.intelligence._assess(clip_id)
+
+        submit.assert_called_once_with(self.intelligence._assess, clip_id)
+        self.assertNotIn(clip_id, self.intelligence.rerun_pending)
         self.intelligence.pending.discard(clip_id)
 
     def test_assessment_passes_only_verified_speech_to_visual_model(self):
