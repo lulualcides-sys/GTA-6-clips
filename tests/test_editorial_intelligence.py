@@ -185,9 +185,26 @@ class MetricsTests(unittest.TestCase):
         self.assertEqual(result["updated"], 2)
         summary = self.metrics.summary()
         self.assertEqual(summary["totals"]["views"], 144)
-        self.assertEqual(summary["totals"]["shares"], 4)
+        self.assertIsNone(summary["totals"]["shares"])  # YouTube share count unavailable.
+        self.assertEqual(summary["metric_coverage"]["shares"], 1)
+        self.assertEqual(next(item["metrics"]["shares"] for item in summary["items"]
+                              if item["platform"]=="tiktok"), 4)
         self.assertIsNone(summary["retention"])
         self.assertEqual(summary["measured_publications"], 2)
+
+    def test_optional_analytics_retention_is_real_or_absent(self):
+        report = {
+            "columnHeaders": [{"name": "averageViewDuration"}, {"name": "averageViewPercentage"}],
+            "rows": [[21.6, 72.4]],
+        }
+        with patch.dict("os.environ", {"YOUTUBE_ANALYTICS_ACCESS_TOKEN": "analytics-token"}), \
+             patch.object(self.metrics, "_get_json", return_value=report) as api:
+            result = self.metrics._youtube_retention("abcdefghijk")
+        self.assertEqual(result["average_view_percentage"], 72.4)
+        self.assertEqual(result["average_view_duration_sec"], 21.6)
+        self.assertIn("youtubeanalytics.googleapis.com", api.call_args.args[0])
+        with patch.dict("os.environ", {"YOUTUBE_ANALYTICS_ACCESS_TOKEN": ""}):
+            self.assertIsNone(self.metrics._youtube_retention("abcdefghijk"))
 
     def test_errors_never_generate_fake_views(self):
         with patch.dict("os.environ", {"YOUTUBE_ACCESS_TOKEN": "", "TIKTOK_ACCESS_TOKEN": ""}):
