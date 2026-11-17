@@ -24,7 +24,7 @@ class EditorialTests(unittest.TestCase):
         self.store = ClipStore(Path(self.temp.name))
         self.intelligence = EditorialIntelligence(self.store)
         self.addCleanup(self.intelligence.pool.shutdown, wait=True)
-        self._clip("one", "Creator A")
+        self._clip("one000000000", "Creator A")
 
     def _clip(self, name, creator):
         with self.store.lock, self.store._db() as db:
@@ -39,32 +39,32 @@ class EditorialTests(unittest.TestCase):
 
     def test_rejection_requires_valid_reason(self):
         with self.assertRaisesRegex(ValueError, "obrigatório"):
-            self.intelligence.review("one", "reject")
-        with self.assertRaisesRegex(ValueError, "inválido"):
-            self.intelligence.review("one", "not_a_decision")
-        self.assertEqual(self.store.get("one")["status"], "ready")
+            self.intelligence.review("one000000000", "reject")
+        with self.assertRaisesRegex(ValueError, "inválid"):
+            self.intelligence.review("one000000000", "not_a_decision")
+        self.assertEqual(self.store.get("one000000000")["status"], "ready")
 
     def test_reject_then_persist_feedback_without_fabricating_quality(self):
-        value = self.intelligence.review("one", "reject", "sem_graca", "Nenhum momento surpreendente")
+        value = self.intelligence.review("one000000000", "reject", "sem_graca", "Nenhum momento surpreendente")
         self.assertEqual(value["status"], "rejected")
-        self.assertEqual(self.store.get("one")["status"], "rejected")
-        self.assertEqual(self.intelligence.get("one")["feedback"]["reason"], "sem_graca")
-        self.assertEqual(self.intelligence.get("one")["analysis_status"], "not_started")
+        self.assertEqual(self.store.get("one000000000")["status"], "rejected")
+        self.assertEqual(self.intelligence.get("one000000000")["feedback"]["reason"], "sem_graca")
+        self.assertEqual(self.intelligence.get("one000000000")["analysis_status"], "not_started")
         self.assertEqual(self.intelligence.feedback_summary()["reasons"]["sem_graca"], 1)
 
     def test_approval_cannot_alter_already_approved_or_rejected(self):
-        self.intelligence.review("one", "approve")
+        self.intelligence.review("one000000000", "approve")
         self.assertEqual(self.intelligence.feedback_summary()["approval_rate"], 100.0)
         with self.assertRaisesRegex(ValueError, "disponível"):
-            self.intelligence.review("one", "approve")
-        self.intelligence.review("one", "reject", "corte_ruim")
+            self.intelligence.review("one000000000", "approve")
+        self.intelligence.review("one000000000", "reject", "corte_ruim")
         self.assertEqual(self.intelligence.feedback_summary()["reviewed"], 1)
         self.assertEqual(self.intelligence.feedback_summary()["rejected"], 1)
 
     def test_five_reviews_create_conservative_creator_bias(self):
         for index in range(2, 6):
             self._clip("clip"+str(index), "Creator A")
-        for name in ["one", "clip2", "clip3", "clip4", "clip5"]:
+        for name in ["one000000000", "clip20000000", "clip30000000", "clip40000000", "clip50000000"]:
             self.intelligence.review(name, "approve")
         result = self.intelligence.feedback_summary()
         self.assertEqual(result["reviewed"], 5)
@@ -73,7 +73,7 @@ class EditorialTests(unittest.TestCase):
         now = datetime.now(timezone.utc).isoformat()
         items = [
             {"id": "a", "creator_name": "Creator A", "broadcaster_id": "1",
-             "title": "Queda engraçada no canal", "score": 80,
+             "title": "Queda engraçada no canal", "score": 81,
              "view_count": 1000, "duration": 30, "game_name": "Grand Theft Auto VI",
              "created_at": now},
             {"id": "b", "creator_name": "Creator B", "broadcaster_id": "2",
@@ -164,7 +164,7 @@ class MetricsTests(unittest.TestCase):
                         "confirmed", time.time(), "clip1"))
             db.execute("INSERT INTO publication_jobs VALUES (?,?,?,?,?,?,?)",
                        ("job2", "tiktok", "1234567891234567", "private",
-                        "confirmed", time.time()-1, "clip2"))
+                        "confirmed", time.time()-1, "clip20000000"))
             db.commit()
         self.metrics = PerformanceMetrics(self.store)
 
