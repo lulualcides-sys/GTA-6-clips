@@ -223,7 +223,9 @@ class EditorialTests(unittest.TestCase):
             self.intelligence._assess(clip_id)
         vision.assert_called_once_with(video, 25.0, spoken)
         analysis = self.intelligence.get(clip_id)["analysis"]
-        self.assertEqual(analysis["transcript"], {"status": "ready", "chars": len(spoken)})
+        self.assertEqual(analysis["transcript"]["status"], "ready")
+        self.assertEqual(analysis["transcript"]["chars"], len(spoken))
+        self.assertTrue(analysis["transcript"]["sha256"])
 
     def test_visual_analysis_uses_verified_transcript_as_context(self):
         captured = {}
