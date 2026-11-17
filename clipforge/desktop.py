@@ -151,6 +151,7 @@ class DesktopBridge:
     def __init__(self, home: Path, runtime: Runtime | None = None):
         self.home = home
         self._runtime = runtime
+        self._twitch_oauth = None
         self.updater = UpdateService(home)
 
     def check_updates(self):
@@ -286,6 +287,22 @@ class DesktopBridge:
             return {"ok": True, "restart_required": True}
         except (OSError, ValueError) as exc:
             return {"ok": False, "error": "Não foi possível salvar configurações locais"}
+
+    def authorize_twitch_download(self):
+        """Open the official Twitch user-consent page on a real user click."""
+        if self._runtime is None:
+            return {"ok": False, "error": "Requer aplicativo Windows ativo."}
+        from .twitch_oauth import TwitchDownloadOAuth
+        if self._twitch_oauth is None:
+            self._twitch_oauth = TwitchDownloadOAuth(self.home, self._runtime)
+        return self._twitch_oauth.begin()
+
+    def twitch_download_status(self):
+        if self._twitch_oauth is None:
+            return {"status": "not_started", "active": False,
+                    "grant_present": bool(os.getenv("TWITCH_USER_ACCESS_TOKEN")
+                                          and os.getenv("TWITCH_EDITOR_ID"))}
+        return self._twitch_oauth.status()
 
     def open_settings(self):
         return self._open(self.home / "config.env")
