@@ -97,7 +97,8 @@
     try{
       const result=await api("/api/mobile/pair","POST");
       byId("mobile-pair-info").textContent="Código temporário: "+result.code+
-        " (válido por "+result.expires_in+"s). Abra https://SEU-PC.SUA-TAILNET.ts.net/review no celular conectado à Tailscale. Somente revisão, sem publicação.";
+        " ("+result.expires_in+"s). No Windows com Tailscale instalada, execute: tailscale serve --bg "+
+        result.port+" . No Android conectado à mesma tailnet, abra o endereço HTTPS informado pela Tailscale seguido de /review. Não use Funnel. Somente revisão.";
       toast("Código de pareamento criado no seu PC. Não compartilhe com terceiros.");
     }catch(e){toast("Pareamento móvel: "+e.message);}
     finally{pair.disabled=false;}
