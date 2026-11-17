@@ -1,4 +1,4 @@
-# Obtenção autorizada de clipes Twitch
+> **Nexus v0.5.0:** além da CLI opt-in documentada abaixo, o aplicativo Windows oferece `Autorizar downloads Twitch` para o próprio canal com OAuth de usuário (callback `http://localhost:3000`), renovação do token e download automático de até dois clipes autorizados por consulta, seguidos de AutoClip e revisão. O token é privado e armazenado no `%LOCALAPPDATA%\\GTA6Clips\\config.env` (arquivo local em texto simples, portanto deve ser protegido como senha). O navegador só envia o código OAuth para `localhost`; o token não é devolvido à interface JavaScript. A API decide sobre a permissão. O radar de clipes públicos continua **metadados apenas** quando não existe concessão oficial para download. As restrições e advertências legais abaixo continuam válidas.\n\n# Obtenção autorizada de clipes Twitch
 
 ## Contrato oficial consultado
 
