@@ -17,11 +17,11 @@ def startup_error_message(error: Exception) -> str:
         return (
             "Falha ao carregar bibliotecas .NET do Nexus (Python.NET ou "
             "Microsoft WebView2). Os arquivos extraidos do ZIP podem ter "
-            "sido bloqueados como downloads da Internet.\\n\\n"
+            "sido bloqueados como downloads da Internet.\n\n"
             "Se o ZIP veio do GitHub oficial, execute "
             "Corrigir-e-Abrir-GTA6Clips.cmd na pasta do programa "
             "e confirme com S. O reparo se limita a DLL/PYD dentro de "
-            "_internal e nao apaga videos.\\n\\n"
+            "_internal e nao apaga videos.\n\n"
             "Consulte LEIA-ME-PRIMEIRO.md."
         )
     return detail + "\n\nConsulte LEIA-ME-PRIMEIRO.md."
