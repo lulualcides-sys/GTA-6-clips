@@ -1,3 +1,4 @@
+[hidden]{display:none!important}
 .mobile-shell{max-width:740px;margin:auto;padding:16px;display:grid;gap:14px}
 .mobile-shell header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:1px solid #263248;padding:10px 0}
 .mobile-shell header small{color:#aab6ca}
