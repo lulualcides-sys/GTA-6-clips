@@ -125,7 +125,10 @@ class TwitchAutoIngest:
             self.last_quality_passed = len(eligible)
             # A bounded batch avoids downloading gigabytes on every 15-minute
             # refresh; increase through config.env within this safety ceiling.
-            quota = min(12, max(1, int(os.getenv("TWITCH_AUTO_BATCH", "5"))))
+            batch_key = ("TWITCH_GTA6_BATCH" if
+                         os.getenv("TWITCH_AUTO_GTA6_ONLY", "1") == "1"
+                         else "TWITCH_AUTO_BATCH")
+            quota = min(12, max(1, int(os.getenv(batch_key, "5"))))
             editor = os.getenv("TWITCH_EDITOR_ID", "").strip()
             from .twitch_oauth import refreshed_token
             client_id = self.runtime.twitch.client_id
