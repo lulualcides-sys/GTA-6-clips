@@ -100,11 +100,11 @@ class EditorialTests(unittest.TestCase):
                 "context_clear": False, "visual_hook": True, "confidence": 0.67,
             })}}
         with patch("clipforge.editorial_intelligence._ollama_json", side_effect=ollama), \
-             patch("clipforge.editorial_intelligence._frames", return_value=["a","b","c"]):
+             patch("clipforge.editorial_intelligence._frames", return_value=[str(i) for i in range(9)]):
             report = _vision_insights(Path("actual.mp4"), 35)
         self.assertEqual(report["status"], "visual_partial")
         self.assertFalse(report["audio_understood"])
-        self.assertEqual(report["frames_analyzed"], 3)
+        self.assertEqual(report["frames_analyzed"], 9)
         self.assertEqual(report["category"], "acidente")
 
     def test_audio_black_check_is_advisory(self):
