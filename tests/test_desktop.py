@@ -29,6 +29,18 @@ class LocalDesktopTests(unittest.TestCase):
         self.env.start()
         self.addCleanup(self.env.stop)
 
+    def test_gui_loader_error_describes_both_pythonnet_and_webview2(self):
+        from desktop_launcher import startup_error_message
+        for error_text in (
+            "Failed to resolve Python.Runtime.Loader.Initialize",
+            "Microsoft.Web.WebView2.Core.dll HRESULT: 0x80131515",
+        ):
+            with self.subTest(error=error_text):
+                message = startup_error_message(RuntimeError(error_text))
+                self.assertIn("Corrigir-e-Abrir-GTA6Clips.cmd", message)
+                self.assertIn("_internal", message)
+        self.assertIn("LEIA-ME", startup_error_message(RuntimeError("other")))
+
     def test_stores_files_in_user_profile_not_install_directory(self):
         self.assertEqual(app_home(), self.home.resolve())
         path = initialize_settings(self.home)
