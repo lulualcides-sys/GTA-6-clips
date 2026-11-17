@@ -33,13 +33,21 @@
     } catch (_) { return false; }
   }
 
-  function displayCandidates(items) {
+  function displayCandidates(items, minScore=0) {
     panel.replaceChildren();
-    if (!items.length) {
-      panel.appendChild(make("p", "Nenhum clipe encontrado. Conecte a Twitch e faça a primeira busca nas categorias em alta.", "hint"));
+    const candidates=minScore>0 ? items.filter(item=>
+      Number(item.score||0)>=minScore && Number(item.duration||0)>=14 &&
+      Number(item.duration||0)<=70
+    ) : items;
+    if (!candidates.length) {
+      panel.appendChild(make("p", items.length ?
+        "Nenhum candidato atingiu o filtro de qualidade por metadados. Aguarde novos clipes." :
+        "Nenhum clipe encontrado. Confira a conexão e a categoria da Twitch.", "hint"));
       return;
     }
-    for (const item of items.slice(0, 40)) {
+    panel.appendChild(make("p", "Pré-triagem: "+candidates.length+" de "+items.length+
+      " candidatos pontuados. A nota não é uma avaliação do vídeo; somente AutoClip analisa as cenas.", "hint"));
+    for (const item of candidates.slice(0, 40)) {
       const card = make("article","","candidate");
       const left = make("div","","candidate-main");
       const tag = make("span",item.consent_flag === "declared_permission" ?
@@ -94,19 +102,24 @@
       const pipe=node("twitch-auto-pipeline");
       if(pipe){
         const p=meta.auto_pipeline||{};
+        const reviewed=Number(p.last_candidates_scanned||0);
+        const eligible=Number(p.last_quality_passed||0);
+        const stats=reviewed ? " · Triagem: "+eligible+"/"+reviewed+
+          " candidatos com sinais positivos" : "";
         pipe.textContent = !p.enabled ? "Pipeline automático desativado." :
           !p.editor_grant_present ? "Busca ativa · downloads bloqueados: clique em Autorizar downloads Twitch. Client ID não basta." :
           !p.authorized_broadcasters ? "Downloads autorizados apenas para canais próprios ou criadores registrados com permissão." :
           p.last_error ? "Fila automática: "+p.last_error :
           p.ready ? "Pipeline automático ligado · "+Number(p.downloaded||0)+" mídia(s) obtida(s) · AutoClip edita e envia para revisão." :
           "AutoClip indisponível ou sem modelo de IA. Verifique o status na biblioteca.";
+        pipe.textContent += stats;
       }
       if(categories) categories.textContent = (meta.categories?.length ? "Categorias recentes: " + meta.categories.join(" · ") : "Aguardando consulta de categorias.") + " · Streamers: " + (meta.monitored_streamers||0) + " · Ao vivo: " + (meta.live_streams||0);
       last.textContent = "Última busca: " + relativeTime(meta.last_sync) +
         (meta.last_error ? " · Erro: " + meta.last_error : "");
       const streamers=node("twitch-streamers");
       if(streamers){streamers.replaceChildren();for(const item of live.streamers||[]){const row=make("p",(item.name||item.broadcaster_id)+" · "+(item.is_live?"Ao vivo: "+item.title:"Offline na última consulta")+" · "+relativeTime(item.checked_at),"hint");streamers.append(row);}}
-      displayCandidates(listing.candidates || []);
+      displayCandidates(listing.candidates || [], gta6 ? Number((meta.auto_pipeline||{}).min_score||78) : 0);
     } catch (err) {
       state.textContent = "Monitor indisponível";
       state.className = "tag bad";
@@ -125,7 +138,7 @@
     try {
       const result = await api("/api/twitch/refresh","POST");
       if (typeof toast === "function")
-        toast("Twitch: " + result.processed + " clipe(s) catalogados. Nenhum vídeo foi baixado.");
+        toast("Twitch: " + result.processed + " registros catalogados. Candidatos elegíveis serão avaliados para AutoClip.");
     } catch (err) {
       if (typeof toast === "function") toast("Twitch: " + err.message);
     } finally {

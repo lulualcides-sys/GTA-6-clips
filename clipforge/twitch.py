@@ -176,6 +176,48 @@ class TwitchClient:
         }
         return list(self._get("clips", params).get("data", []))[:first]
 
+    def get_game_clips_paged(self, game_id: str, *, lookback_hours: int = 72,
+                             window_hours: int = 12, pages_per_window: int = 3,
+                             request_budget: int = 30) -> list[dict]:
+        """Get broader GTA VI metadata through bounded official Twitch pagination.
+
+        Twitch caps a single query at roughly 1000 entries; narrow windows
+        improve coverage without claiming to have enumerated every clip.
+        """
+        if not game_id.isdigit():
+            raise TwitchError("Game ID inválido")
+        window_hours = max(1, min(24, int(window_hours)))
+        pages_per_window = max(1, min(8, int(pages_per_window)))
+        request_budget = max(1, min(48, int(request_budget)))
+        lookback_hours = max(1, min(168, int(lookback_hours)))
+        end = datetime.now(timezone.utc)
+        earliest = end - timedelta(hours=lookback_hours)
+        seen = {}
+        calls = 0
+        while end > earliest and calls < request_budget:
+            start = max(earliest, end - timedelta(hours=window_hours))
+            params = {
+                "game_id": game_id, "first": 100,
+                "started_at": start.isoformat(timespec="seconds").replace("+00:00", "Z"),
+                "ended_at": end.isoformat(timespec="seconds").replace("+00:00", "Z"),
+            }
+            cursors = set()
+            for _ in range(pages_per_window):
+                if calls >= request_budget:
+                    break
+                response = self._get("clips", params)
+                calls += 1
+                for item in response.get("data", []):
+                    if isinstance(item, dict) and str(item.get("id", "")).strip():
+                        seen.setdefault(str(item["id"]), item)
+                cursor = str((response.get("pagination") or {}).get("cursor", ""))
+                if not cursor or cursor in cursors:
+                    break
+                cursors.add(cursor)
+                params["after"] = cursor
+            end = start
+        return list(seen.values())
+
     def get_clips(self, game_id: str, lookback_hours: int = 72,
                   first: int = 100) -> list[dict]:
         now = datetime.now(timezone.utc)
@@ -295,6 +337,8 @@ class TwitchDiscovery:
             "category_limit": bounded("TWITCH_TRENDING_CATEGORIES", DEFAULT_CATEGORY_LIMIT, 12),
             "clips_per_category": bounded("TWITCH_CLIPS_PER_CATEGORY", DEFAULT_CLIPS_PER_CATEGORY, 30),
             "lookback_hours": bounded("TWITCH_LOOKBACK_HOURS", 72, 168),
+            "gta6_window_hours": bounded("TWITCH_GTA6_WINDOW_HOURS", 12, 24),
+            "gta6_pages_per_window": bounded("TWITCH_GTA6_PAGES_PER_WINDOW", 3, 8),
         }
 
     def status(self) -> dict:
@@ -337,11 +381,13 @@ class TwitchDiscovery:
         names = ("grand theft auto vi", "grand theft auto 6") if mode == "gta6_only" else ("grand theft auto v", "grand theft auto 5")
         return "seen_at>=? AND lower(game_name) IN (?,?)", (cutoff, *names)
 
-    def list_candidates(self) -> list[dict]:
+    def list_candidates(self, limit: int = 100) -> list[dict]:
+        # UI requests 100; the permitted AutoClip queue can rank up to 1000.
+        limit = max(1, min(1000, int(limit)))
         where, params = self._candidate_filter(self.profile()["profile"])
         with self._db() as db:
             rows = db.execute("SELECT * FROM twitch_candidates WHERE " + where +
-                              " ORDER BY score DESC, view_count DESC LIMIT 100", params).fetchall()
+                              " ORDER BY score DESC, view_count DESC LIMIT ?", (*params, limit)).fetchall()
         return [dict(r) for r in rows]
 
     def list_streamers(self) -> list[dict]:
@@ -374,8 +420,18 @@ class TwitchDiscovery:
                 categories = [{"id": game_id, "name": "Grand Theft Auto VI" if mode == "gta6_only" else "Grand Theft Auto V"}]
             if any(not str(c.get("id", "")).isdigit() for c in categories):
                 raise TwitchError("Invalid Twitch game ID")
-            records_by_category = [(category, client.get_clips(category["id"],
-                lookback_hours=profile["lookback_hours"], first=profile["clips_per_category"])) for category in categories]
+            records_by_category = []
+            for category in categories:
+                if mode == "gta6_only" and hasattr(client, "get_game_clips_paged"):
+                    records = client.get_game_clips_paged(
+                        category["id"], lookback_hours=profile["lookback_hours"],
+                        window_hours=profile["gta6_window_hours"],
+                        pages_per_window=profile["gta6_pages_per_window"])
+                else:
+                    records = client.get_clips(
+                        category["id"], lookback_hours=profile["lookback_hours"],
+                        first=profile["clips_per_category"])
+                records_by_category.append((category, records))
             # Even if the owner's channel is not a globally trending game, its
             # explicitly authorized clips still enter the local intake.
             owned_id = os.getenv("TWITCH_EDITOR_ID", "").strip()

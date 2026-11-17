@@ -103,6 +103,16 @@ class AutoClipBridge:
             raise ValueError("Fonte mudou após conferência; não usar AutoClip.")
         return source
 
+    def model_ready(self):
+        """Avoid expensive downloads while the local editing model is absent."""
+        if not self.available():
+            return False
+        try:
+            self._prepare_local_ai()
+            return True
+        except (RuntimeError, OSError, ValueError, TypeError):
+            return False
+
     def queue(self, clip_id):
         if not self.available():
             raise ValueError("AutoClip desativado, não instalado ou Python 3.12 indisponível.")

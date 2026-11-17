@@ -1,4 +1,6 @@
 # GTA-6-clips — Operação Astra
+**Triagem GTA VI v0.5.1:** Helix paginado por janelas, até 1.000 candidatos em análise por rodada, filtro de pontuação/duração/engajamento, variedade de criadores e fila AutoClip somente para fontes autorizadas. Não promete identificar humor sem assistir ao vídeo. Veja [TWITCH](docs/TWITCH.md).
+
 **Pipeline v0.5.0 (Windows):** AutoClip real (Python 3.12, Whisper, MediaPipe) incluído no ZIP; buscas Twitch baixam automaticamente apenas mídia própria/editor autorizada com OAuth de usuário e direitos documentados. Saídas AutoClip validadas vão para **Em revisão**, nunca aprovação ou publicação automática. Ollama/modelo ainda é necessário separadamente. Veja [AUTOCLIP_ONLY](docs/AUTOCLIP_ONLY.md) e [DESKTOP_WINDOWS](docs/DESKTOP_WINDOWS.md).
 
 **Windows v0.4.3:** correção dos erros `0x80131515` ao carregar `Python.Runtime.dll` ou `Microsoft.Web.WebView2.Core.dll`. Após extrair o ZIP oficial, execute `Corrigir-e-Abrir-GTA6Clips.cmd` e confirme o reparo de bibliotecas exclusivamente na pasta `_internal`. A versão 0.4.2 não abrangia todas as DLLs. Veja [DESKTOP_WINDOWS](docs/DESKTOP_WINDOWS.md). Dados pessoais não são alterados.

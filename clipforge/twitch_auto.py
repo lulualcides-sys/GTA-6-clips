@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 
 from .twitch_download import DownloadError, download_clip
+from .curation import ranked_shortlist
 
 
 class TwitchAutoIngest:
@@ -24,6 +25,8 @@ class TwitchAutoIngest:
         self.last_error = None
         self.processed = 0
         self.attempted = 0
+        self.last_candidates_scanned = 0
+        self.last_quality_passed = 0
 
     def status(self):
         enabled = os.getenv("TWITCH_AUTO_DOWNLOAD", "1") == "1"
@@ -41,9 +44,19 @@ class TwitchAutoIngest:
             "last_error": self.last_error,
             "downloaded": self.processed,
             "attempted": self.attempted,
+            "last_candidates_scanned": self.last_candidates_scanned,
+            "last_quality_passed": self.last_quality_passed,
+            "min_score": self._minimum_score(),
             "ready": enabled and credentials and bool(allowed)
                      and self.runtime.autoclip_bridge.available(),
         }
+
+    @staticmethod
+    def _minimum_score():
+        try:
+            return max(0, min(100, int(os.getenv("TWITCH_AUTO_MIN_SCORE", "78"))))
+        except ValueError:
+            return 78
 
     def _allowed_sources(self):
         """Read rights declaration, not simply a public Twitch clip."""
@@ -75,6 +88,11 @@ class TwitchAutoIngest:
         if not self.runtime.autoclip_bridge.available():
             self.last_error = "Motor AutoClip indisponível: instale/configure o modelo de IA."
             return False
+        if (hasattr(self.runtime.autoclip_bridge, "model_ready")
+                and not self.runtime.autoclip_bridge.model_ready()):
+            self.last_error = ("Modelo de IA AutoClip indisponível. "
+                               "Configure/inicie Ollama antes de baixar vídeos.")
+            return False
         if not (os.getenv("TWITCH_USER_ACCESS_TOKEN", "").strip()
                 and os.getenv("TWITCH_EDITOR_ID", "").strip().isdigit()):
             self.last_error = ("Token OAuth de editor/broadcaster ausente. "
@@ -97,16 +115,26 @@ class TwitchAutoIngest:
                 return
             # Eligibility checked against rights allowlist and Twitch's real
             # editor/broadcaster grant. Do not download from arbitrary links.
-            items = self.runtime.twitch.list_candidates()
-            quota = min(3, max(1, int(os.getenv("TWITCH_AUTO_BATCH", "2"))))
+            items = self.runtime.twitch.list_candidates(limit=1000)
+            score_threshold = self._minimum_score()
+            per_creator = max(1, min(4, int(os.getenv("TWITCH_AUTO_PER_CREATOR", "2"))))
+            eligible = ranked_shortlist(
+                items, min_score=score_threshold, per_creator=per_creator,
+                gta6_only=os.getenv("TWITCH_AUTO_GTA6_ONLY", "1") == "1")
+            self.last_candidates_scanned = len(items)
+            self.last_quality_passed = len(eligible)
+            # A bounded batch avoids downloading gigabytes on every 15-minute
+            # refresh; increase through config.env within this safety ceiling.
+            batch_key = ("TWITCH_GTA6_BATCH" if
+                         os.getenv("TWITCH_AUTO_GTA6_ONLY", "1") == "1"
+                         else "TWITCH_AUTO_BATCH")
+            quota = min(12, max(1, int(os.getenv(batch_key, "5"))))
             editor = os.getenv("TWITCH_EDITOR_ID", "").strip()
             from .twitch_oauth import refreshed_token
             client_id = self.runtime.twitch.client_id
             token = refreshed_token(self.runtime.store.root.parent, client_id,
                                     self.runtime.twitch.secret)
-            for candidate in items:
-                if self.processed >= 10_000:  # long-lived session hard cap
-                    return
+            for candidate in eligible:
                 if quota <= 0:
                     break
                 clip_id = str(candidate.get("id", ""))

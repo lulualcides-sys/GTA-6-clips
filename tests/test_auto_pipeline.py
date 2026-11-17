@@ -6,6 +6,7 @@ import tempfile
 import threading
 import unittest
 from pathlib import Path
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import patch, Mock
 
@@ -22,12 +23,18 @@ class AutoIntakeTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.store = SimpleNamespace(root=self.root, incoming=self.root / "incoming")
         self.store.incoming.mkdir()
-        self.sample = {"id": "GoodClip42", "broadcaster_id": "111", "score": 98}
-        self.other = {"id": "OtherClip42", "broadcaster_id": "222", "score": 99}
+        metadata = {"view_count": 2500, "duration": 35,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "title": "Acidente absurdo com reação e risadas",
+                    "game_name": "Grand Theft Auto VI"}
+        self.sample = {"id": "GoodClip42", "broadcaster_id": "111",
+                       "score": 98, **metadata}
+        self.other = {"id": "OtherClip42", "broadcaster_id": "222",
+                      "score": 99, **metadata}
         self.twitch = SimpleNamespace(
             client_id="twitch-client-id",
             secret="test-secret",
-            list_candidates=lambda: [self.other, self.sample]
+            list_candidates=lambda limit=100: [self.other, self.sample]
         )
         self.bridge = SimpleNamespace(available=lambda: True)
         self.runtime = SimpleNamespace(store=self.store, twitch=self.twitch,
@@ -67,7 +74,7 @@ class AutoIntakeTests(unittest.TestCase):
         self.assertEqual(self.intake.processed, 1)
 
     def test_unlisted_broadcaster_never_downloaded(self):
-        self.twitch.list_candidates = lambda: [self.other]
+        self.twitch.list_candidates = lambda limit=100: [self.other]
         with patch("clipforge.twitch_oauth.refreshed_token", return_value="token"), \
              patch("clipforge.twitch_auto.download_clip") as download:
             self.intake._work()
