@@ -101,6 +101,7 @@ class CaptionService:
         self.folder.mkdir(parents=True, exist_ok=True)
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="whisper")
         self._queued = set()
+        self.on_complete = None
         with self._db() as db:
             db.execute("""CREATE TABLE IF NOT EXISTS clip_captions (
                 clip_id TEXT PRIMARY KEY, video_sha TEXT NOT NULL,
@@ -243,6 +244,11 @@ class CaptionService:
             detected = str(getattr(info, "language", language or "unknown"))[:10]
             self._set(clip_id, sha, "ready", model=model_name,
                       language=detected, cues=len(cues))
+            if self.on_complete is not None:
+                try:
+                    self.on_complete(clip_id)
+                except Exception as exc:
+                    print(f"Editorial refresh after transcription failed: {type(exc).__name__}", flush=True)
         except Exception as exc:
             # No absolute paths or private source values in public response.
             self._set(clip_id, sha, "failed", model=model_name,
