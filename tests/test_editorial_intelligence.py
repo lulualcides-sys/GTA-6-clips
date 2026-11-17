@@ -27,6 +27,7 @@ class EditorialTests(unittest.TestCase):
         self._clip("one000000000", "Creator A")
 
     def _clip(self, name, creator):
+        name = name.ljust(12, "0")  # Real Nexus IDs contain 12 alphanumeric chars.
         with self.store.lock, self.store._db() as db:
             db.execute("""INSERT INTO clips
                 (id,sha256,filename,creator,source_url,evidence,rights_status,
