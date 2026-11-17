@@ -43,7 +43,9 @@ async function load(){
     const [learned,metrics]=await Promise.all([request("/api/editorial/summary"),request("/api/metrics")]);
     $("summary").textContent=(learned.reviewed||0)+" avaliações · "+(learned.approval_rate??"—")+"% de aprovações (quando disponível).";
     $("performance").textContent=metrics.measured_publications?
-      "Métricas oficiais em "+metrics.measured_publications+" vídeo(s): "+(metrics.totals?.views||0)+" visualizações; retenção indisponível.":
+      "Métricas oficiais em "+metrics.measured_publications+" vídeo(s): "+(metrics.totals?.views??"não disponível")+
+      " visualizações; "+(metrics.retention?
+        "retenção medida em "+metrics.retention.measured_videos+" vídeo(s).":"retenção não disponível."):
       "Sem dados de desempenho verificados das plataformas. Nenhum número estimado.";
   }catch(e){if(/401|403|Unauthorized|não autorizado/i.test(e.message))showPair();tell(e.message);}
 }
