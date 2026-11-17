@@ -161,6 +161,21 @@ class TwitchClient:
             and str(item.get("name", "")).strip()
         ][:limit]
 
+    def get_broadcaster_clips(self, broadcaster_id: str, lookback_hours: int = 72,
+                              first: int = 15) -> list[dict]:
+        """Read official metadata for the authorized owner's own clips."""
+        if not broadcaster_id.isdigit():
+            raise TwitchError("Broadcaster ID inválido")
+        now = datetime.now(timezone.utc)
+        since = now - timedelta(hours=lookback_hours)
+        params = {
+            "broadcaster_id": broadcaster_id,
+            "first": max(1, min(first, 30)),
+            "started_at": since.isoformat(timespec="seconds").replace("+00:00", "Z"),
+            "ended_at": now.isoformat(timespec="seconds").replace("+00:00", "Z"),
+        }
+        return list(self._get("clips", params).get("data", []))[:first]
+
     def get_clips(self, game_id: str, lookback_hours: int = 72,
                   first: int = 100) -> list[dict]:
         now = datetime.now(timezone.utc)
@@ -361,6 +376,18 @@ class TwitchDiscovery:
                 raise TwitchError("Invalid Twitch game ID")
             records_by_category = [(category, client.get_clips(category["id"],
                 lookback_hours=profile["lookback_hours"], first=profile["clips_per_category"])) for category in categories]
+            # Even if the owner's channel is not a globally trending game, its
+            # explicitly authorized clips still enter the local intake.
+            owned_id = os.getenv("TWITCH_EDITOR_ID", "").strip()
+            if owned_id.isdigit() and owned_id in self.sources():
+                own_clips = client.get_broadcaster_clips(
+                    owned_id, lookback_hours=profile["lookback_hours"],
+                    first=profile["clips_per_category"])
+                if mode == "gta6_only":
+                    own_clips = [c for c in own_clips if str(c.get("game_id", "")) == game_id]
+                own_category = {"id": game_id if mode == "gta6_only" else "0",
+                                "name": "Meu canal Twitch"}
+                records_by_category.append((own_category, own_clips))
             broadcaster_ids = configured_ids("TWITCH_BROADCASTER_IDS", 100)
             streams = {str(row.get("user_id")): row for row in client.get_streams(broadcaster_ids)} if broadcaster_ids else {}
             allowlist = self.sources()
