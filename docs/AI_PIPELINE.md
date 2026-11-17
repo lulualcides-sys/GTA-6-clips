@@ -5,7 +5,7 @@
 ## Why two optional tools
 
 - **PySceneDetect** detects scene boundaries, not which GTA 6 event is entertaining. With `SMART_SCENES=1`, the source-media audio heuristic is nudged at most ~10 seconds toward a cut; if the optional package fails, the FFmpeg/audio pipeline continues as before.
-- **faster-whisper** transcribes already-rendered, rights-gated clips with actual speech/word timestamps. The generated SRT is fed into HyperFrames HTML templates. No speech means no invented captions.
+- **faster-whisper** transcribes already-rendered, rights-gated clips with actual speech/word timestamps. The generated SRT is fed into HyperFrames HTML templates. When its SHA-256 matches the analyzed AutoClip MP4, the editorial vision model can also use the bounded transcript as context. Stale SRTs are ignored; this does not mean the model heard raw audio. No speech means no invented captions.
 - Both steps are opt-in to control CPU, model download, disk usage and latency.
 
 ## Installation (dedicated worker / local machine)
