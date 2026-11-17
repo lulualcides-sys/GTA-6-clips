@@ -13,6 +13,10 @@
   verificando trechos pretos prolongados e silêncio prolongado. Os resultados são
   indicativos, não prova de defeito; áudio silencioso pode ser intencional. Persistência
   auditável em `editorial_insights`. Não altera MP4, não reprova sem intervenção humana.
+  Quando existe SRT gerado pelo faster-whisper para o mesmo MP4 (SHA-256 idêntico),
+  a transcrição limitada a 6.000 caracteres é enviada como contexto ao modelo visual.
+  SRT ausente, sem fala ou desatualizado não entra na análise. Isso não significa que
+  o modelo ouviu o áudio bruto; erros de reconhecimento continuam possíveis.
   Verificação avançada de sincronização facecam/ação e semântica de áudio ainda exige
   modelos/testes adicionais.
 - **Feedback e aprendizado:** aprovar/rejeitar cria `editorial_feedback` e histórico
