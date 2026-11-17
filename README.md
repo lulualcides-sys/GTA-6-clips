@@ -1,4 +1,7 @@
 # GTA-6-clips — Operação Astra
+
+**v0.6.0 (Nexus Clips BR):** relatórios visuais opcionais por Ollama com visão, avisos técnicos de QA sem alteração dos vídeos, feedback de rejeição usado em ranking conservador, aprovação móvel privada por Tailscale Serve com código temporário, métricas reais YouTube/TikTok quando a conta e o vídeo estão autorizados. Veja [documentação e limites](docs/EDITORIAL_INTELLIGENCE_V060.md).
+
 **Triagem GTA VI v0.5.1:** Helix paginado por janelas, até 1.000 candidatos em análise por rodada, filtro de pontuação/duração/engajamento, variedade de criadores e fila AutoClip somente para fontes autorizadas. Não promete identificar humor sem assistir ao vídeo. Veja [TWITCH](docs/TWITCH.md).
 
 **Pipeline v0.5.0 (Windows):** AutoClip real (Python 3.12, Whisper, MediaPipe) incluído no ZIP; buscas Twitch baixam automaticamente apenas mídia própria/editor autorizada com OAuth de usuário e direitos documentados. Saídas AutoClip validadas vão para **Em revisão**, nunca aprovação ou publicação automática. Ollama/modelo ainda é necessário separadamente. Veja [AUTOCLIP_ONLY](docs/AUTOCLIP_ONLY.md) e [DESKTOP_WINDOWS](docs/DESKTOP_WINDOWS.md).
