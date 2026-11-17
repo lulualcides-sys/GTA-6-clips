@@ -176,7 +176,8 @@ def make_handler(runtime: Runtime):
                 except LookupError:
                     return self._reply(404, {"error": "Clip not found"})
             if route == "/api/twitch/status":
-                return self._reply(200, runtime.twitch.status())
+                return self._reply(200, {**runtime.twitch.status(),
+                                         "auto_pipeline": runtime.twitch_auto.status()})
             if route == "/api/twitch/candidates":
                 return self._reply(200, {"candidates": runtime.twitch.list_candidates()})
             if route == "/api/twitch/streamers":
