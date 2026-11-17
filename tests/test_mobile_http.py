@@ -31,7 +31,7 @@ class PrivateMobileHttpTests(unittest.TestCase):
                 (id,sha256,filename,creator,source_url,evidence,rights_status,
                  input_path,output_path,start_sec,duration_sec,score,status,error,created_at)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
-                "review1", "d"*64, "clip.mp4", "Owner", "", "", "owned",
+                "review000001", "d"*64, "clip.mp4", "Owner", "", "", "owned",
                 "/none/source.mp4", str(output), 0, 35, 99, "ready", None, "2026-11-17"
             ))
             db.commit()
@@ -90,19 +90,19 @@ class PrivateMobileHttpTests(unittest.TestCase):
         self.assertEqual(status,200)
         self.assertEqual(len(clips["clips"]),1)
         self.assertNotIn("input_path",clips["clips"][0])
-        self.assertEqual(self.req("GET","/api/clips/review1/video",headers=auth)[0],200)
-        self.assertEqual(self.req("GET","/api/clips/review1/original",headers=auth)[0],401)
+        self.assertEqual(self.req("GET","/api/clips/review000001/video",headers=auth)[0],200)
+        self.assertEqual(self.req("GET","/api/clips/review000001/original",headers=auth)[0],401)
         self.assertEqual(self.req("GET","/api/publishing",headers=auth)[0],401)
         self.assertEqual(self.req("POST","/api/metrics/refresh",headers=auth)[0],401)
         # A mobile cookie without matching HTTPS origin cannot submit a review.
-        self.assertEqual(self.req("POST","/api/clips/review1/review",
+        self.assertEqual(self.req("POST","/api/clips/review000001/review",
                      {"decision":"reject","reason":"sem_graca"},headers=auth)[0],401)
-        status,review,_=self.req("POST","/api/clips/review1/review",
+        status,review,_=self.req("POST","/api/clips/review000001/review",
                 {"decision":"reject","reason":"sem_graca","note":"Teste"},
                 headers={**auth,"Origin":"https://"+mobile_host})
         self.assertEqual(status,200)
         self.assertEqual(review["status"],"rejected")
-        self.assertEqual(self.runtime.editorial.get("review1")["feedback"]["reason"],"sem_graca")
+        self.assertEqual(self.runtime.editorial.get("review000001")["feedback"]["reason"],"sem_graca")
 
     def test_wrong_origin_does_not_issue_cookie(self):
         owner={"Authorization":"Bearer "+os.environ["DASHBOARD_TOKEN"]}
