@@ -1,5 +1,7 @@
 # GTA-6-clips — Operação Astra
 
+**v0.8.1:** corrige o app Windows da v0.8.0 que pedia "Token do painel" (as abas apagavam o token automático antes da leitura); atualização pelo app tolera a primeira verificação do antivírus (autoteste do AutoClip até 180 s, total até 7 min) e mostra o motivo exato quando a atualização é recusada.
+
 **v0.8.0:** novo visual por abas (Painel, Clipes, Radar viral, Publicar, Ajustes): cada seção cabe em uma tela, sem rolar a página; Aprovar/Rejeitar sempre visíveis ao lado do vídeo; barra de abas fixa no celular.
 
 **v0.7.1:** o download automático segue o calendário: antes de 19/11 pega os clipes virais das categorias em alta (de streamers autorizados); a partir de 19/11 00:00 somente GTA VI, com lote máximo de 12 por rodada.

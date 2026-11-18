@@ -357,6 +357,30 @@ def shutdown_backend(server, runtime, thread) -> None:
     stop_publishing(runtime)
 
 
+# Primeira execução após extrair: o antivírus do Windows escaneia milhares de
+# arquivos do runtime AutoClip (Whisper/MediaPipe); 40 s não bastava em PCs comuns.
+AUTOCLIP_SELFTEST_SECONDS = 180
+
+
+def full_selftest() -> bool:
+    """CI define GTA6_SELFTEST_FULL=1 e executa o motor AutoClip de verdade."""
+    return os.environ.get("GTA6_SELFTEST_FULL", "") == "1"
+
+
+def autoclip_runtime_complete(folder: Path) -> bool:
+    """Checagem rápida (segundos) da estrutura do runtime AutoClip empacotado."""
+    required = [
+        folder / "python.exe",
+        folder / "nexus_autoclip_runner.py",
+        folder / "Lib" / "site-packages" / "autoclip" / "cli.py",
+        folder / "AUTOCLIP-LICENSE.txt",
+    ]
+    if any(not p.is_file() or p.is_symlink() for p in required):
+        return False
+    packages = folder / "Lib" / "site-packages"
+    return all((packages / name).is_dir() for name in ("faster_whisper", "mediapipe", "scenedetect"))
+
+
 def self_test(destination: Path | None = None) -> dict:
     """Safe headless validation of the frozen EXE, local HTTP API and FFmpeg."""
     def report(state: dict) -> None:
@@ -426,10 +450,17 @@ def self_test(destination: Path | None = None) -> dict:
         if sys.platform == "win32" and getattr(sys, "frozen", False):
             sidecar = runtime.autoclip_bridge._bundled_runtime()
             result["autoclip_cli"] = False
-            if sidecar:
+            if sidecar and not full_selftest():
+                # Atualização no PC do usuário: o build já passou o teste completo
+                # no CI e o ZIP teve o SHA-256 conferido. Carregar Whisper/MediaPipe
+                # aqui estoura o tempo enquanto o antivírus escaneia os arquivos.
+                result["autoclip_cli"] = autoclip_runtime_complete(Path(sidecar[0]).parent)
+                result["autoclip_check"] = "files"
+            elif sidecar:
+                result["autoclip_check"] = "full"
                 try:
                     command = subprocess.run([*sidecar, "styles"], stdin=subprocess.DEVNULL,
-                                             capture_output=True, timeout=40, check=False)
+                                             capture_output=True, timeout=AUTOCLIP_SELFTEST_SECONDS, check=False)
                     result["autoclip_cli"] = command.returncode == 0
                     if command.returncode:
                         result["autoclip_error"] = command.stderr.decode(

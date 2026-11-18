@@ -6,7 +6,12 @@
   const views = Array.from(document.querySelectorAll(".view[data-view]"));
   if (!tabs.length || !views.length) return;
 
+  // O app Windows entrega o token do painel no #desktop-token=…; app.js lê e
+  // limpa esse fragmento. Nunca sobrescrevê-lo antes disso.
+  const carriesToken = () => location.hash.startsWith("#desktop-token=");
+
   function remembered() {
+    if (carriesToken()) return "inicio";
     const fromHash = location.hash.replace("#", "");
     if (VIEWS.includes(fromHash)) return fromHash;
     try {
@@ -26,12 +31,12 @@
     });
     document.body.dataset.view = name;
     try { localStorage.setItem("nexus_view", name); } catch (_) { /* opcional */ }
-    if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
+    if (!carriesToken() && location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
     window.dispatchEvent(new CustomEvent("gta:view", { detail: name }));
   }
 
   tabs.forEach(t => t.addEventListener("click", () => show(t.dataset.view)));
-  window.addEventListener("hashchange", () => show(location.hash.replace("#", "")));
+  window.addEventListener("hashchange", () => { if (!carriesToken()) show(location.hash.replace("#", "")); });
   window.GTAShowView = show;
   // Selecionar um clipe em qualquer lugar leva à aba de revisão.
   window.addEventListener("gta:clip-selected", () => {
