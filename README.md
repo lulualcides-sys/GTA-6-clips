@@ -1,6 +1,6 @@
 # GTA-6-clips — Operação Astra
 
-**v0.8.1:** atualização pelo app tolera a primeira verificação do antivírus (autoteste do AutoClip até 180 s, total até 7 min) e mostra o motivo exato quando a atualização é recusada.
+**v0.8.1:** corrige o app Windows da v0.8.0 que pedia "Token do painel" (as abas apagavam o token automático antes da leitura); atualização pelo app tolera a primeira verificação do antivírus (autoteste do AutoClip até 180 s, total até 7 min) e mostra o motivo exato quando a atualização é recusada.
 
 **v0.8.0:** novo visual por abas (Painel, Clipes, Radar viral, Publicar, Ajustes): cada seção cabe em uma tela, sem rolar a página; Aprovar/Rejeitar sempre visíveis ao lado do vídeo; barra de abas fixa no celular.
 

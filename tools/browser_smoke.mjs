@@ -123,6 +123,18 @@ try {
   await page.emulateMedia({reducedMotion:"no-preference"});
   await page.screenshot({path:out+"/mission-desktop.png",fullPage:true});
 
+  // App Windows: token aleatório chega no fragmento #desktop-token=…; nenhum
+  // pedido de token pode aparecer (regressão da v0.8.0, quando as abas apagavam o fragmento).
+  const desktopPage=await browser.newPage({viewport:{width:1366,height:768}});
+  await desktopPage.goto(base+"/#desktop-token="+encodeURIComponent(token),{waitUntil:"domcontentloaded"});
+  await desktopPage.waitForFunction(()=>{
+    const label=document.querySelector("#mission-connection");
+    return label && label.textContent.includes("DADOS REAIS");
+  },null,{timeout:20000});
+  assert.equal(await desktopPage.locator("#login-modal").isVisible(),false,"App Windows não pode pedir token");
+  assert(!desktopPage.url().includes("desktop-token"),"Token não pode permanecer na URL");
+  await desktopPage.close();
+
   await page.setViewportSize({width:768,height:1024});
   const tabletOverflow=await page.evaluate(()=>
     document.documentElement.scrollWidth-window.innerWidth
