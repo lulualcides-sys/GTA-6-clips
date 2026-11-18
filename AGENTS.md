@@ -103,6 +103,10 @@ Consultar **docs/GTA6_EDITORIAL_READINESS.md** e **clipforge/gta6_readiness.py**
 
 Conectar OAuth Twitch real no Windows (segredos privados) e validar consulta exclusiva de GTA V antes do lançamento e GTA VI após a virada. Validar desempenho e qualidade da transcrição com vídeo autorizado, verificar seleção visual (não semântica), integrar dados para edição, concluir autenticação Twitch e publicação nas redes somente com canal GTA próprio. Não instalar o Arsenal completo em massa.
 
+## IA local do AutoClip e teste de conexões (v0.7.0, 18/11/2026)
+
+O motor AutoClip já vai no EXE (`autoclip_runtime/`). O usuário pediu a IA instalada direto no app: `clipforge/local_ai.py` instala o Ollama oficial **somente após clique do proprietário**, com assinatura Authenticode verificada, e baixa modelo de lista fechada. Não embutir pesos de modelo no ZIP nem no Git; não aceitar nomes de modelo arbitrários; não pular a verificação de assinatura. `clipforge/connection_check.py` faz uma chamada somente leitura por plataforma: nunca postar, nunca devolver tokens. Teste real no Windows do usuário ainda não foi feito.
+
 ## AutoClip e Postiz (integração opt-in, 16/11/2026)
 
 Consultar `docs/AUTOCLIP_POSTIZ_RUNTIME.md`. A ponte AutoClip via CLI gera até 3 prévias isoladas de fonte autorizada e permite importação manual para a biblioteca, criando novo clipe pendente de revisão (não altera original/edições/aprovações). A integração Postiz adiciona destinos privados à fila existente, mas depende de API key, IDs dos canais e opt-in; **não é postagem comprovada**. Não instalar AutoClip automaticamente no EXE (Python 3.11/12, dependências pesadas) e não copiar Postiz AGPL para este repositório. Preservar worker, deduplicação e validação de direitos; usar somente um publicador por canal. Testes obrigatórios: `tests/test_autoclip_postiz.py`, suíte geral e fumaça de navegador/Windows antes do lançamento. O usuário solicitou os dois dentro do Nexus; conclusão parcial precisa distinguir interface/código integrado de serviço local instalado/contas conectadas.

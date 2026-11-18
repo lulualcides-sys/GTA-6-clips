@@ -388,6 +388,9 @@ class Runtime:
         self.demo = SyntheticDemo(self)
         from .autoclip_bridge import AutoClipBridge
         self.autoclip_bridge = AutoClipBridge(self.store)
+        from .local_ai import LocalAI
+        self.local_ai = LocalAI(self.store.root)
+        self.autoclip_bridge.local_ai = self.local_ai
         from .editorial_intelligence import EditorialIntelligence
         from .performance_metrics import PerformanceMetrics
         self.editorial = EditorialIntelligence(self.store)

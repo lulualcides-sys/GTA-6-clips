@@ -51,6 +51,16 @@ def make_handler(runtime: Runtime):
                 runtime.autoclip_bridge = AutoClipBridge(runtime.store)
         return runtime.autoclip_bridge
 
+    def local_ai():
+        with runtime.store.lock:
+            if not hasattr(runtime, "local_ai"):
+                from .local_ai import LocalAI
+                runtime.local_ai = LocalAI(runtime.store.root)
+            bridge = autoclip()
+            if bridge.local_ai is None:
+                bridge.local_ai = runtime.local_ai
+        return runtime.local_ai
+
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, format, *args):
             """The Windows --windowed executable has sys.stderr=None.
@@ -207,7 +217,10 @@ def make_handler(runtime: Runtime):
             if route == "/api/twitch/streamers":
                 return self._reply(200, {"streamers": runtime.twitch.list_streamers()})
             if route == "/api/autoclip":
+                local_ai()  # Liga o início automático do Ollama ao AutoClip.
                 return self._reply(200, autoclip().status())
+            if route == "/api/local-ai":
+                return self._reply(200, local_ai().status())
             if route == "/api/publishing":
                 service = publishing()
                 return self._reply(200, {**service.status(), "jobs": service.all()})
@@ -300,6 +313,20 @@ def make_handler(runtime: Runtime):
                 if not self._owner_auth():
                     return self._reply(403, {"error": "Somente o computador pode iniciar o pareamento"})
                 return self._reply(200, {**mobile.new_code(), "port": self.server.server_port})
+            if route == "/api/connections/check":
+                if not self._owner_auth():
+                    return self._reply(403, {"error": "Somente o computador testa conexões"})
+                from .connection_check import check_all
+                return self._reply(200, check_all(runtime))
+            if route == "/api/local-ai/prepare":
+                if not self._owner_auth():
+                    return self._reply(403, {"error": "Somente o computador pode instalar a IA local"})
+                try:
+                    body = self._body()
+                    model = body.get("model", "") if isinstance(body, dict) else ""
+                    return self._reply(202, local_ai().prepare(model or "llama3.1:8b"))
+                except ValueError as exc:
+                    return self._reply(409, {"error": str(exc)[:200]})
             if route == "/api/metrics/refresh":
                 if not self._owner_auth():
                     return self._reply(403, {"error": "Somente o proprietário atualiza métricas"})

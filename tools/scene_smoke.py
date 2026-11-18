@@ -9,6 +9,12 @@ from clipforge.smart import find_cuts, scene_aware_start
 
 
 def main():
+    try:
+        import scenedetect  # noqa: F401
+    except ImportError:
+        raise SystemExit("SCENES SMOKE BLOCKED: PySceneDetect não instalado. "
+                         "Instale requirements-ai.txt (pip install -r requirements-ai.txt) "
+                         "ou rode no CI ai-scenes.yml.")
     with tempfile.TemporaryDirectory(prefix="gta-scenes-") as temp:
         movie = Path(temp) / "hard-cuts.mp4"
         subprocess.run([

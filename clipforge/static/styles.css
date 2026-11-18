@@ -43,3 +43,11 @@
 #twitch-oauth-modal input {margin:7px 0 11px}
 #twitch-oauth-modal .dialog-actions {gap:9px;justify-content:flex-end}
 #twitch-oauth-modal a {color:#a9dfff}
+
+/* IA local do AutoClip (Ollama + modelo) */
+.local-ai{margin-top:12px}
+.local-ai-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+.local-ai-row select{flex:1 1 200px;min-width:0;max-width:100%}
+.local-ai progress{width:100%;margin-top:8px;height:10px}
+.connections-result{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:4px;font-size:.9rem}
+.connections-result .good{color:#3ecf8e}.connections-result .bad{color:#ff6b6b}.connections-result .muted{opacity:.7}

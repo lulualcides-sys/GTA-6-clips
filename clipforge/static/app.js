@@ -211,10 +211,10 @@ async function refreshAutoclip(){
     byId("render").disabled=!selected||!ready||data.running||
       !["detected","failed","rejected"].includes((clips.find(c=>c.id===selected)||{}).status);
     stateNode.textContent=!data.enabled?"AutoClip desativado (AUTOCLIP_ENABLED=0).":
-      !data.installed?"AutoClip não instalado neste servidor. Rode autoclip doctor após instalar a CLI.":
+      !data.installed?"Motor AutoClip não encontrado. No Windows ele vem no app (v0.5.0+); no Linux instale a CLI.":
       job?.imports?.length ? "AutoClip: "+job.imports.length+" edição(ões) pronta(s) na biblioteca para aprovação.":
       job ? "AutoClip: "+job.status+" · "+(job.import_errors?.join("; ")||"Aguardando saídas e validação.") :
-      "AutoClip instalado · o Nexus edita automaticamente as fontes autorizadas e envia até 3 sugestões à revisão.";
+      "Motor AutoClip instalado · confira abaixo se a IA local está pronta para editar.";
     results.replaceChildren();
     if(job&&job.error)results.appendChild(el("p","hint",job.error));
     if(job?.import_errors?.length) results.appendChild(el("p","hint","QA AutoClip: "+job.import_errors.join("; ")));
@@ -262,6 +262,46 @@ byId("autoclip-run").addEventListener("click",async()=>{
     toast("AutoClip iniciado. Os resultados ficarão disponíveis apenas para revisão.");
   }catch(e){toast("AutoClip: "+e.message);}
   await refreshAutoclip();
+});
+/* IA local: instala Ollama oficial e baixa o modelo com um clique (somente no PC). */
+async function refreshLocalAI(){
+  const node=byId("local-ai-status"),button=byId("local-ai-prepare"),select=byId("local-ai-model"),bar=byId("local-ai-progress");
+  try{
+    const data=await api("/api/local-ai");
+    if(!select.options.length){(data.catalog||[]).forEach(m=>{const o=el("option","",m.label+" · ~"+m.size_gb+" GB");o.value=m.name;select.appendChild(o);});select.value=data.recommended;}
+    const job=data.job,running=job&&job.state==="running";
+    button.disabled=Boolean(running)||(!data.can_install&&!data.ollama_installed);
+    bar.hidden=!running;
+    if(running)bar.value=Number(job.progress)||0;
+    if(running)node.textContent=job.phase+(job.progress?" · "+Math.round(job.progress*100)+"%":"");
+    else if(job&&job.state==="failed")node.textContent="Falha ao preparar IA: "+job.error;
+    else if(data.model_ready)node.textContent="✓ IA local pronta ("+data.models.join(", ")+"). O AutoClip já pode editar.";
+    else if(data.ollama_running)node.textContent="Ollama ativo, mas sem modelo. Clique em Preparar para baixar o modelo.";
+    else if(data.ollama_installed)node.textContent="Ollama instalado e parado. Preparar inicia o serviço e baixa o modelo.";
+    else if(data.can_install)node.textContent="Falta a IA local. Preparar instala o Ollama oficial (assinatura verificada) e baixa o modelo. Gratuito, roda no seu PC.";
+    else node.textContent="Instale o Ollama (ollama.com/download) neste sistema; depois use Preparar.";
+    return data;
+  }catch(e){node.textContent="IA local: "+e.message;button.disabled=true;return null;}
+}
+byId("local-ai-prepare").addEventListener("click",async()=>{
+  byId("local-ai-prepare").disabled=true;
+  try{await api("/api/local-ai/prepare","POST",false,{model:byId("local-ai-model").value});toast("Preparando IA do AutoClip. Pode levar vários minutos.");}
+  catch(e){toast("IA local: "+e.message);}
+  await refreshLocalAI();
+});
+setInterval(refreshLocalAI,4000);refreshLocalAI();window.addEventListener("gta:auth-updated",()=>{refreshLocalAI();refreshAutoclip();});
+byId("connections-check").addEventListener("click",async()=>{
+  const button=byId("connections-check"),list=byId("connections-result");
+  button.disabled=true;list.replaceChildren(el("li","hint","Testando conexões (somente leitura, nada é postado)..."));
+  try{
+    const data=await api("/api/connections/check","POST");
+    list.replaceChildren();
+    [["twitch","Twitch"],["youtube","YouTube"],["tiktok","TikTok"],["postiz","Postiz"]].forEach(([key,label])=>{
+      const r=data[key]||{};
+      list.appendChild(el("li",r.ok?"good":(r.configured?"bad":"muted"),(r.ok?"✓ ":r.configured?"✗ ":"– ")+label+": "+(r.detail||"")));
+    });
+  }catch(e){list.replaceChildren(el("li","bad","Teste de conexões: "+e.message));}
+  finally{button.disabled=false;}
 });
 window.addEventListener("gta:clip-selected",()=>{clearAutoclipPreview();refreshAutoclip();});
 setInterval(refreshAutoclip,10000);
