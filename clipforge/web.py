@@ -318,6 +318,15 @@ def make_handler(runtime: Runtime):
                 if not self._owner_auth():
                     return self._reply(403, {"error": "Somente o computador pode iniciar o pareamento"})
                 return self._reply(200, {**mobile.new_code(), "port": self.server.server_port})
+            if route == "/api/twitch/policies":
+                if not self._owner_auth():
+                    return self._reply(403, {"error": "Somente o computador consulta a Twitch"})
+                from .viral_radar import radar, scan_policies
+                try:
+                    ids = [r["broadcaster_id"] for r in radar(runtime)["streamers"]]
+                    return self._reply(200, scan_policies(runtime, ids))
+                except ValueError as exc:
+                    return self._reply(409, {"error": str(exc)[:200]})
             if route == "/api/twitch/sources":
                 if not self._owner_auth():
                     return self._reply(403, {"error": "Somente o computador altera autorizações"})

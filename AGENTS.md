@@ -108,6 +108,7 @@ Conectar OAuth Twitch real no Windows (segredos privados) e validar consulta exc
 O motor AutoClip já vai no EXE (`autoclip_runtime/`). O usuário pediu a IA instalada direto no app: `clipforge/local_ai.py` instala o Ollama oficial **somente após clique do proprietário**, com assinatura Authenticode verificada, e baixa modelo de lista fechada. Não embutir pesos de modelo no ZIP nem no Git; não aceitar nomes de modelo arbitrários; não pular a verificação de assinatura. `clipforge/connection_check.py` faz uma chamada somente leitura por plataforma: nunca postar, nunca devolver tokens. Teste real no Windows do usuário ainda não foi feito.
 
 `clipforge/viral_radar.py` + `static/viral.js` (Radar Viral BR): ranking somente por metadados públicos (reusa `curation.qualifies`/`ranked_shortlist`), sem baixar mídia. O botão "Ele autorizou" grava `twitch_sources.json` com evidência obrigatória (somente token do proprietário). O usuário pediu baixar/postar clipes sem autorização "para resolver depois": **recusado** — não implementar download por yt-dlp/scraping nem pular a lista de autorizados.
+Leitura de bios (`POST /api/twitch/policies`, Get Users oficial) só **sugere** política de cortes (`allowed`/`restricted`/`unknown`; restrição sempre vence); a autorização exige confirmação do proprietário, com o trecho da bio salvo como evidência. Painéis da Twitch não estão na API oficial e não são lidos.
 
 ## AutoClip e Postiz (integração opt-in, 16/11/2026)
 

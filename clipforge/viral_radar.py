@@ -131,10 +131,91 @@ def radar(runtime, *, pt_only: bool = True, now: datetime | None = None) -> dict
             row["viral_clips"] += 1
     ranking = sorted(streamers.values(),
                      key=lambda r: (r["viral_clips"], r["total_views"]), reverse=True)[:25]
+    policies = read_policies(runtime.store.root)
     for row in ranking:
-        row["twitch_url"] = "https://www.twitch.tv/" + "".join(
+        policy = policies.get(row["broadcaster_id"], {})
+        login = policy.get("login") or "".join(
             ch for ch in row["name"].lower() if ch.isalnum() or ch == "_")
+        row["twitch_url"] = "https://www.twitch.tv/" + login
+        row["policy"] = {"status": policy.get("status", "unchecked"),
+                         "snippet": policy.get("snippet", ""),
+                         "checked_at": policy.get("checked_at", "")}
     return {"profile": profile["profile"], "focus_game": profile["focus_game"],
             "pt_only": pt_only, "min_score": min_score, "clips": clips,
             "streamers": ranking, "authorized_count": len(allowed),
             "scanned": len(items)}
+
+
+# --------------------------------------------------------------------------
+# Política pública de cortes na bio da Twitch (sugestão; nunca autoriza só).
+_ALLOW = ("cortes liberados", "corte liberado", "cortes estao liberados", "pode cortar",
+          "podem cortar", "liberado cortar", "liberado para cortes", "liberado pra cortes",
+          "pode clipar", "podem clipar", "clips liberados", "clipes liberados",
+          "cortes autorizados", "programa de cortes", "faca cortes", "facam cortes",
+          "cortes permitidos", "pode fazer cortes", "podem fazer cortes")
+_DENY = ("proibido", "nao autorizo", "nao autorizado", "nao pode cortar", "nao podem cortar",
+         "cortes nao", "nao liberado", "sem autorizacao", "nao permito", "nao e permitido",
+         "nao sao permitidos", "denuncio", "strike")
+
+
+def _plain(text: str) -> str:
+    import unicodedata
+    text = unicodedata.normalize("NFKD", str(text or ""))
+    return " ".join("".join(c for c in text if not unicodedata.combining(c)).casefold().split())
+
+
+def policy_hint(description: str) -> dict:
+    """'allowed' só quando há frase de liberação e nenhuma restrição na bio."""
+    plain = _plain(description)
+    if any(word in plain for word in _DENY):
+        return {"status": "restricted", "snippet": str(description or "")[:300]}
+    match = next((w for w in _ALLOW if w in plain), None)
+    if match:
+        return {"status": "allowed", "snippet": str(description or "")[:300], "match": match}
+    return {"status": "unknown", "snippet": ""}
+
+
+def _policies_file(root: Path) -> Path:
+    return Path(root) / "twitch_policies.json"
+
+
+def read_policies(root: Path) -> dict:
+    path = _policies_file(root)
+    if not path.is_file() or path.is_symlink() or path.stat().st_size > 512_000:
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def scan_policies(runtime, ids: list[str]) -> dict:
+    """Lê bios públicas pela API oficial e guarda a sugestão de política."""
+    twitch = runtime.twitch
+    if not (twitch.client or (twitch.client_id and twitch.secret)):
+        raise ValueError("Conecte a Twitch (Client ID/Secret) para ler as bios.")
+    from .twitch import TwitchClient, TwitchError
+    client = twitch.client or TwitchClient(twitch.client_id, twitch.secret)
+    try:
+        users = client.get_users(ids)
+    except TwitchError as exc:
+        raise ValueError(f"Twitch: {exc}") from exc
+    cache = read_policies(runtime.store.root)
+    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    for user in users:
+        ident = str(user.get("id", ""))
+        if not ident.isdigit():
+            continue
+        cache[ident] = {**policy_hint(str(user.get("description", ""))),
+                        "login": "".join(ch for ch in str(user.get("login", "")).lower()
+                                         if ch.isalnum() or ch == "_")[:40],
+                        "checked_at": stamp}
+    if len(cache) > 2000:
+        cache = dict(sorted(cache.items(), key=lambda kv: kv[1].get("checked_at", ""))[-2000:])
+    path = _policies_file(runtime.store.root)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(path)
+    return {"checked": len(users),
+            "allowed": sum(1 for u in users if cache.get(str(u.get("id")), {}).get("status") == "allowed")}

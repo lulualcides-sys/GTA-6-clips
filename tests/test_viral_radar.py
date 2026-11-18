@@ -100,3 +100,49 @@ class ViralRadarTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PolicyHintTest(unittest.TestCase):
+    def test_allowed_phrases(self):
+        for bio in ("Cortes liberados com crédito!", "Pode cortar à vontade, só marcar",
+                    "Programa de cortes oficial: link abaixo", "PODEM CLIPAR"):
+            self.assertEqual(vr.policy_hint(bio)["status"], "allowed", bio)
+
+    def test_restrictions_win_over_allowed_words(self):
+        for bio in ("Cortes NÃO liberados", "Proibido cortes sem autorização",
+                    "Cortes liberados, mas não autorizo reupload", "Não pode cortar minhas lives",
+                    "Pode cortar? Não. Denuncio reupload"):
+            self.assertEqual(vr.policy_hint(bio)["status"], "restricted", bio)
+
+    def test_unknown(self):
+        self.assertEqual(vr.policy_hint("Streamer de GTA, lives todo dia")["status"], "unknown")
+        self.assertEqual(vr.policy_hint("")["status"], "unknown")
+
+
+class ScanPoliciesTest(unittest.TestCase):
+    def test_scan_caches_policy_and_radar_shows_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            client = SimpleNamespace(get_users=lambda ids: [
+                {"id": "1", "login": "alpha", "description": "Cortes liberados com crédito"},
+                {"id": "2", "login": "beta", "description": "Proibido cortes"}])
+            twitch = FakeTwitch([clip("a", "1", 5000), clip("b", "2", 4000)])
+            twitch.client, twitch.client_id, twitch.secret = client, "x", "y"
+            runtime = SimpleNamespace(twitch=twitch, store=SimpleNamespace(root=root))
+            result = vr.scan_policies(runtime, ["1", "2"])
+            self.assertEqual(result, {"checked": 2, "allowed": 1})
+            rows = {r["broadcaster_id"]: r for r in vr.radar(runtime, now=NOW)["streamers"]}
+            self.assertEqual(rows["1"]["policy"]["status"], "allowed")
+            self.assertEqual(rows["1"]["twitch_url"], "https://www.twitch.tv/alpha")
+            self.assertEqual(rows["2"]["policy"]["status"], "restricted")
+            # A bio sozinha nunca autoriza: precisa da confirmação do proprietário.
+            self.assertFalse(rows["1"]["authorized"])
+            self.assertEqual(vr.authorized_ids(root), set())
+
+    def test_scan_requires_credentials(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            twitch = FakeTwitch([])
+            twitch.client, twitch.client_id, twitch.secret = None, "", ""
+            runtime = SimpleNamespace(twitch=twitch, store=SimpleNamespace(root=Path(tmp)))
+            with self.assertRaises(ValueError):
+                vr.scan_policies(runtime, ["1"])
