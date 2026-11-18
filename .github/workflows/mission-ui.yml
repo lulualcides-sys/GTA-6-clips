@@ -18,7 +18,7 @@ jobs:
   dashboard:
     # Playwright 1.56.1 não suporta Ubuntu 26.04; manter runner compatível.
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       DASHBOARD_TOKEN: mission-test-token-0123456789
       AUTO_SCAN: "0"
@@ -57,7 +57,7 @@ jobs:
       - name: Verify desktop and mobile dashboard and capture screenshots
         run: node tools/browser_smoke.mjs
       - name: Install FFmpeg for actual editor acceptance
-        run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends ffmpeg
       - name: Prepare owned synthetic media and start isolated editor server
         run: |
           python -m tools.astra_smoke --output "$RUNNER_TEMP/astra-editor-data"
