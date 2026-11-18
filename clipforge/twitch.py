@@ -131,6 +131,11 @@ class TwitchClient:
         """Resolve IDs configurados pela API oficial, incluindo categorias IRL."""
         return list(self._get("games", {"id": ids[:12]}).get("data", []))
 
+    def get_users(self, ids: list[str]) -> list[dict]:
+        """Perfis públicos (login, nome, bio) pela API oficial Get Users."""
+        ids = [i for i in ids if str(i).isdigit()][:100]
+        return list(self._get("users", {"id": ids}).get("data", [])) if ids else []
+
     def get_streams(self, broadcaster_ids: list[str]) -> list[dict]:
         """Polling leve; ausência na resposta indica offline, não falha de rede."""
         return list(self._get("streams", {"user_id": broadcaster_ids[:100], "first": 100}).get("data", []))

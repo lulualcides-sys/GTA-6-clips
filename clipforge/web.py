@@ -51,6 +51,16 @@ def make_handler(runtime: Runtime):
                 runtime.autoclip_bridge = AutoClipBridge(runtime.store)
         return runtime.autoclip_bridge
 
+    def local_ai():
+        with runtime.store.lock:
+            if not hasattr(runtime, "local_ai"):
+                from .local_ai import LocalAI
+                runtime.local_ai = LocalAI(runtime.store.root)
+            bridge = autoclip()
+            if bridge.local_ai is None:
+                bridge.local_ai = runtime.local_ai
+        return runtime.local_ai
+
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, format, *args):
             """The Windows --windowed executable has sys.stderr=None.
@@ -173,6 +183,7 @@ def make_handler(runtime: Runtime):
                       "/editor.js": ("editor.js", "text/javascript; charset=utf-8"),
                       "/styles.css": ("styles.css", "text/css; charset=utf-8"),
                       "/candidates.js": ("candidates.js", "text/javascript; charset=utf-8"),
+                      "/viral.js": ("viral.js", "text/javascript; charset=utf-8"),
                       "/agents.js": ("agents.js", "text/javascript; charset=utf-8"),
                       "/agents.css": ("agents.css", "text/css; charset=utf-8"),
                       "/studio-v2.css": ("studio-v2.css", "text/css; charset=utf-8"),
@@ -204,10 +215,17 @@ def make_handler(runtime: Runtime):
                                          "auto_pipeline": runtime.twitch_auto.status()})
             if route == "/api/twitch/candidates":
                 return self._reply(200, {"candidates": runtime.twitch.list_candidates()})
+            if route == "/api/twitch/viral":
+                from .viral_radar import radar
+                pt_only = parse_qs(urlsplit(self.path).query).get("pt", ["1"])[0] != "0"
+                return self._reply(200, radar(runtime, pt_only=pt_only))
             if route == "/api/twitch/streamers":
                 return self._reply(200, {"streamers": runtime.twitch.list_streamers()})
             if route == "/api/autoclip":
+                local_ai()  # Liga o início automático do Ollama ao AutoClip.
                 return self._reply(200, autoclip().status())
+            if route == "/api/local-ai":
+                return self._reply(200, local_ai().status())
             if route == "/api/publishing":
                 service = publishing()
                 return self._reply(200, {**service.status(), "jobs": service.all()})
@@ -300,6 +318,46 @@ def make_handler(runtime: Runtime):
                 if not self._owner_auth():
                     return self._reply(403, {"error": "Somente o computador pode iniciar o pareamento"})
                 return self._reply(200, {**mobile.new_code(), "port": self.server.server_port})
+            if route == "/api/twitch/policies":
+                if not self._owner_auth():
+                    return self._reply(403, {"error": "Somente o computador consulta a Twitch"})
+                from .viral_radar import radar, scan_policies
+                try:
+                    ids = [r["broadcaster_id"] for r in radar(runtime)["streamers"]]
+                    return self._reply(200, scan_policies(runtime, ids))
+                except ValueError as exc:
+                    return self._reply(409, {"error": str(exc)[:200]})
+            if route == "/api/twitch/sources":
+                if not self._owner_auth():
+                    return self._reply(403, {"error": "Somente o computador altera autorizações"})
+                from .viral_radar import add_source, remove_source
+                try:
+                    body = self._body()
+                    if not isinstance(body, dict):
+                        raise ValueError("JSON inválido")
+                    if body.get("action") == "remove":
+                        removed = remove_source(runtime.store.root, str(body.get("broadcaster_id", "")))
+                        return self._reply(200, {"removed": removed})
+                    added = add_source(runtime.store.root, body.get("broadcaster_id", ""),
+                                       body.get("creator", ""), body.get("rights_status", ""),
+                                       body.get("evidence", ""))
+                    return self._reply(200, {"added": added})
+                except ValueError as exc:
+                    return self._reply(400, {"error": str(exc)[:200]})
+            if route == "/api/connections/check":
+                if not self._owner_auth():
+                    return self._reply(403, {"error": "Somente o computador testa conexões"})
+                from .connection_check import check_all
+                return self._reply(200, check_all(runtime))
+            if route == "/api/local-ai/prepare":
+                if not self._owner_auth():
+                    return self._reply(403, {"error": "Somente o computador pode instalar a IA local"})
+                try:
+                    body = self._body()
+                    model = body.get("model", "") if isinstance(body, dict) else ""
+                    return self._reply(202, local_ai().prepare(model or "llama3.1:8b"))
+                except ValueError as exc:
+                    return self._reply(409, {"error": str(exc)[:200]})
             if route == "/api/metrics/refresh":
                 if not self._owner_auth():
                     return self._reply(403, {"error": "Somente o proprietário atualiza métricas"})

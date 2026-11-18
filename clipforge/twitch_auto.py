@@ -73,7 +73,7 @@ class TwitchAutoIngest:
             ident = str(source.get("id", ""))
             rights = source.get("rights_status")
             evidence = str(source.get("evidence", "")).strip()
-            creator = str(source.get("creator", "")).strip()
+            creator = str(source.get("creator") or source.get("name") or "").strip()
             if (ident.isdigit() and creator and rights in {"owned", "permission_granted"}
                     and (rights == "owned" or len(evidence) >= 8)):
                 result.append({

@@ -27,6 +27,7 @@ class AutoClipBridge:
         self.active = None
         self.max_pending = 25
         self.on_import = None
+        self.local_ai = None  # LocalAI opcional: inicia Ollama já instalado.
 
     def _load(self):
         try:
@@ -146,20 +147,22 @@ class AutoClipBridge:
         provider = os.getenv("AUTOCLIP_PROVIDER", "ollama" if self._bundled_runtime() else "").strip()
         if provider != "ollama":
             return []
+        if self.local_ai is not None:
+            self.local_ai.ensure_running()
         try:
             with urlopen("http://127.0.0.1:11434/api/tags", timeout=4) as response:
                 body = json.loads(response.read(200_000))
             models = [str(x.get("name", "")) for x in body.get("models", [])
                       if isinstance(x, dict) and x.get("name")]
         except (OSError, ValueError, TypeError) as exc:
-            raise RuntimeError("Ollama indisponível. Instale/inicie Ollama e um modelo local.") from exc
+            raise RuntimeError("IA local indisponível. Use 'Preparar IA do AutoClip' no painel.") from exc
         preferred = os.getenv("AUTOCLIP_OLLAMA_MODEL", "").strip()
         if preferred and preferred not in models:
             raise RuntimeError("Modelo Ollama configurado não está instalado.")
         if not models:
-            raise RuntimeError("Ollama sem modelos. Instale um modelo antes de editar.")
+            raise RuntimeError("Nenhum modelo de IA instalado. Use 'Preparar IA do AutoClip' no painel.")
         selected = preferred or next((v for v in ("llama3.1:8b", "qwen2.5:14b",
-                            "mistral-nemo:12b", "gemma2:9b") if v in models), models[0])
+                            "mistral-nemo:12b", "gemma2:9b", "llama3.2:3b") if v in models), models[0])
         self.home.mkdir(parents=True, exist_ok=True)
         conf = self.home / "config.json"
         try:
