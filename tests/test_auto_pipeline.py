@@ -133,3 +133,24 @@ class AutoClipAutoReviewTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AutoGta6CalendarTest(unittest.TestCase):
+    def _intake(self, profile):
+        twitch = SimpleNamespace(profile=lambda: {"profile": profile})
+        return TwitchAutoIngest(SimpleNamespace(twitch=twitch))
+
+    def test_follows_calendar_by_default(self):
+        with patch.dict(os.environ, {"TWITCH_AUTO_GTA6_ONLY": "1"}):
+            self.assertFalse(self._intake("trending")._gta6_only())
+            self.assertTrue(self._intake("gta6_only")._gta6_only())
+
+    def test_force_and_off(self):
+        with patch.dict(os.environ, {"TWITCH_AUTO_GTA6_ONLY": "force"}):
+            self.assertTrue(self._intake("trending")._gta6_only())
+        with patch.dict(os.environ, {"TWITCH_AUTO_GTA6_ONLY": "0"}):
+            self.assertFalse(self._intake("gta6_only")._gta6_only())
+
+    def test_missing_profile_stays_conservative(self):
+        intake = TwitchAutoIngest(SimpleNamespace(twitch=SimpleNamespace()))
+        self.assertTrue(intake._gta6_only())
