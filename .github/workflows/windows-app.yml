@@ -72,6 +72,8 @@ jobs:
         run: |
           $json = Join-Path $env:RUNNER_TEMP "gta6-desktop-selftest.json"
           $env:GTA6_SELFTEST_PATH = $json
+          # CI: teste completo, executando o motor AutoClip real.
+          $env:GTA6_SELFTEST_FULL = "1"
           $exe = (Resolve-Path "./dist/GTA6Clips/GTA6Clips.exe").Path
           $process = Start-Process -FilePath $exe -ArgumentList @("--self-test") -PassThru
           $deadline = (Get-Date).AddSeconds(45)
@@ -96,7 +98,7 @@ jobs:
           }
           if ($process.ExitCode -ne 0) { throw "Packaged EXE returned $($process.ExitCode)" }
           if ($result.status -ne "pass") { throw "Packaged EXE self-test failed" }
-          if (-not $result.ffmpeg -or -not $result.ffprobe -or -not $result.protected_api -or -not $result.pythonnet -or -not $result.webview2_core -or -not $result.autoclip_cli) {
+          if (-not $result.ffmpeg -or -not $result.ffprobe -or -not $result.protected_api -or -not $result.pythonnet -or -not $result.webview2_core -or -not $result.autoclip_cli -or $result.autoclip_check -ne "full") {
             throw "Missing native tools, managed WebView2.Core/pythonnet loader or protected API"
           }
       - name: Preserve frozen validation report

@@ -223,5 +223,41 @@ class LocalDesktopTests(unittest.TestCase):
         self.assertEqual(settings.read_text(), "AUTO_SCAN=0\n")
 
 
+class AutoClipQuickCheckTests(unittest.TestCase):
+    """Atualização no PC confere a estrutura; o CI roda o motor completo."""
+
+    def _runtime(self, root: Path, skip: str = "") -> Path:
+        files = ["python.exe", "nexus_autoclip_runner.py", "AUTOCLIP-LICENSE.txt",
+                 "Lib/site-packages/autoclip/cli.py"]
+        for rel in files:
+            if rel == skip:
+                continue
+            path = root / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("x")
+        for pkg in ("faster_whisper", "mediapipe", "scenedetect"):
+            if pkg != skip:
+                (root / "Lib" / "site-packages" / pkg).mkdir(parents=True, exist_ok=True)
+        return root
+
+    def test_complete_runtime_passes(self):
+        from clipforge.desktop import autoclip_runtime_complete
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertTrue(autoclip_runtime_complete(self._runtime(Path(tmp))))
+
+    def test_missing_pieces_fail(self):
+        from clipforge.desktop import autoclip_runtime_complete
+        for missing in ("python.exe", "Lib/site-packages/autoclip/cli.py", "mediapipe"):
+            with tempfile.TemporaryDirectory() as tmp:
+                self.assertFalse(autoclip_runtime_complete(self._runtime(Path(tmp), missing)), missing)
+
+    def test_full_mode_only_when_ci_flag_set(self):
+        from clipforge.desktop import full_selftest
+        with patch.dict(os.environ, {"GTA6_SELFTEST_FULL": "1"}):
+            self.assertTrue(full_selftest())
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertFalse(full_selftest())
+
+
 if __name__ == "__main__":
     unittest.main()
