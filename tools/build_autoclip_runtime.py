@@ -87,9 +87,9 @@ def main():
     env.pop("PYTHONHOME", None)
     env.pop("PYTHONPATH", None)
     validate = (
-        "import sys, pathlib, autoclip.cli, faster_whisper, mediapipe, scenedetect;"
+        "import sys, pathlib, autoclip.cli, faster_whisper, mediapipe, scenedetect, yt_dlp;"
         f"assert pathlib.Path(sys.prefix).resolve() == pathlib.Path(r'{target}').resolve();"
-        "print('BUNDLED AUTOCLIP PYTHON + WHISPER + MEDIAPIPE + SCENEDETECT OK')"
+        "print('BUNDLED AUTOCLIP PYTHON + WHISPER + MEDIAPIPE + SCENEDETECT + YT-DLP OK')"
     )
     subprocess.run([str(target / "python.exe"), "-c", validate],
                    check=True, env=env, timeout=100)

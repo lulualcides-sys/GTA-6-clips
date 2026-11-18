@@ -36,9 +36,12 @@ class TwitchAutoIngest:
             allowed = sum(1 for x in self._allowed_sources())
         except (OSError, ValueError, TypeError):
             allowed = 0
+        from .public_clip_download import enabled as public_enabled
+        public = public_enabled()
         return {
             "enabled": enabled,
             "editor_grant_present": credentials,
+            "public_download": public,
             "authorized_broadcasters": allowed,
             "running": self.running,
             "last_error": self.last_error,
@@ -47,7 +50,7 @@ class TwitchAutoIngest:
             "last_candidates_scanned": self.last_candidates_scanned,
             "last_quality_passed": self.last_quality_passed,
             "min_score": self._minimum_score(),
-            "ready": enabled and credentials and bool(allowed)
+            "ready": enabled and (credentials or public) and bool(allowed)
                      and self.runtime.autoclip_bridge.available(),
         }
 
@@ -110,8 +113,9 @@ class TwitchAutoIngest:
             self.last_error = ("Modelo de IA AutoClip indisponível. "
                                "Configure/inicie Ollama antes de baixar vídeos.")
             return False
+        from .public_clip_download import enabled as public_enabled
         if not (os.getenv("TWITCH_USER_ACCESS_TOKEN", "").strip()
-                and os.getenv("TWITCH_EDITOR_ID", "").strip().isdigit()):
+                and os.getenv("TWITCH_EDITOR_ID", "").strip().isdigit()) and not public_enabled():
             self.last_error = ("Token OAuth de editor/broadcaster ausente. "
                                "Client ID/Secret permitem apenas pesquisa.")
             return False
@@ -150,10 +154,19 @@ class TwitchAutoIngest:
             batch_key = "TWITCH_GTA6_BATCH" if gta6_only else "TWITCH_AUTO_BATCH"
             quota = min(12, max(1, int(os.getenv(batch_key, "12" if gta6_only else "5"))))
             editor = os.getenv("TWITCH_EDITOR_ID", "").strip()
-            from .twitch_oauth import refreshed_token
             client_id = self.runtime.twitch.client_id
-            token = refreshed_token(self.runtime.store.root.parent, client_id,
-                                    self.runtime.twitch.secret)
+            from .public_clip_download import download_public_clip, enabled as public_enabled
+            public = public_enabled()
+            token = ""
+            if os.getenv("TWITCH_USER_ACCESS_TOKEN", "").strip() and editor.isdigit():
+                from .twitch_oauth import refreshed_token
+                try:
+                    token = refreshed_token(self.runtime.store.root.parent, client_id,
+                                            self.runtime.twitch.secret)
+                except (OSError, ValueError, RuntimeError):
+                    if not public:
+                        raise
+                    token = ""
             for candidate in eligible:
                 if quota <= 0:
                     break
@@ -170,8 +183,22 @@ class TwitchAutoIngest:
                     self.attempted += 1
                     source = sources[owner_id]
                     proof = {**source, "duration_sec": 35}
-                    download_clip(clip_id, owner_id, editor, client_id, token,
-                                  proof, self.runtime.store.incoming)
+                    # 1º: API oficial (dono/editor). Se a Twitch recusar e o
+                    # proprietário ativou TWITCH_PUBLIC_DOWNLOAD=1, baixa o clipe
+                    # público via yt-dlp — somente de streamer autorizado.
+                    official_error = None
+                    if token:
+                        try:
+                            download_clip(clip_id, owner_id, editor, client_id, token,
+                                          proof, self.runtime.store.incoming)
+                        except DownloadError as exc:
+                            official_error = exc
+                    if not token or official_error is not None:
+                        if not public:
+                            raise official_error or DownloadError(
+                                "Sem acesso de editor; ative TWITCH_PUBLIC_DOWNLOAD=1")
+                        download_public_clip(clip_id, owner_id, proof,
+                                             self.runtime.store.incoming)
                     result = self.runtime.scan()
                     # scan() is the ONLY authority that queues AutoClip.
                     if not result["added"]:

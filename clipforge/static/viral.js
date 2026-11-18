@@ -79,7 +79,7 @@
         const li = make("li");
         li.appendChild(safeLink(c.url, c.title || "Clipe"));
         li.appendChild(make("span", (c.creator_name || "") + " · " + fmt(c.view_count) + " views · " +
-          Math.round(c.duration) + "s · nota " + c.score + (c.authorized ? " · ✓ será editado" : " · aguardando permissão"), "meta"));
+          Math.round(c.duration) + "s · nota " + c.score + (c.authorized ? " · ✓ autorizado" : " · aguardando permissão"), "meta"));
         clips.appendChild(li);
       });
     } catch (e) { state.textContent = "Radar viral: " + e.message; }

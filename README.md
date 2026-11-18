@@ -1,5 +1,7 @@
 # GTA-6-clips — Operação Astra
 
+**v0.8.2:** opção `TWITCH_PUBLIC_DOWNLOAD=1` (desligada por padrão): quando a conta não é editora do canal, baixa o clipe público via yt-dlp **somente de streamers autorizados** no Radar. Não é API oficial da Twitch e pode violar os Termos dela — risco assumido pelo proprietário.
+
 **v0.8.1:** corrige o app Windows da v0.8.0 que pedia "Token do painel" (as abas apagavam o token automático antes da leitura); atualização pelo app tolera a primeira verificação do antivírus (autoteste do AutoClip até 180 s, total até 7 min) e mostra o motivo exato quando a atualização é recusada.
 
 **v0.8.0:** novo visual por abas (Painel, Clipes, Radar viral, Publicar, Ajustes): cada seção cabe em uma tela, sem rolar a página; Aprovar/Rejeitar sempre visíveis ao lado do vídeo; barra de abas fixa no celular.
