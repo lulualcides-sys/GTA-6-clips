@@ -82,6 +82,23 @@ class TwitchAutoIngest:
                 })
         return result
 
+    def _gta6_only(self) -> bool:
+        """Segue o calendário: só GTA VI a partir da virada; antes, os clipes
+        virais do perfil ativo (categorias em alta). 'force' = sempre GTA VI;
+        '0' = nunca restringir."""
+        value = os.getenv("TWITCH_AUTO_GTA6_ONLY", "1").strip().lower()
+        if value == "force":
+            return True
+        if value == "0":
+            return False
+        profile = getattr(self.runtime.twitch, "profile", None)
+        if profile is None:
+            return True
+        try:
+            return profile()["profile"] == "gta6_only"
+        except (ValueError, TypeError, KeyError, RuntimeError):
+            return True
+
     def kick(self):
         if os.getenv("TWITCH_AUTO_DOWNLOAD", "1") != "1":
             return False
@@ -120,18 +137,18 @@ class TwitchAutoIngest:
             per_creator = max(1, min(4, int(os.getenv("TWITCH_AUTO_PER_CREATOR", "2"))))
             learning = getattr(self.runtime, "editorial", None)
             bias = learning.feedback_summary()["creator_bias"] if learning else {}
+            gta6_only = self._gta6_only()
             eligible = ranked_shortlist(
                 items, min_score=score_threshold, per_creator=per_creator,
-                gta6_only=os.getenv("TWITCH_AUTO_GTA6_ONLY", "1") == "1",
-                creator_bias=bias)
+                gta6_only=gta6_only, creator_bias=bias)
             self.last_candidates_scanned = len(items)
             self.last_quality_passed = len(eligible)
             # A bounded batch avoids downloading gigabytes on every 15-minute
             # refresh; increase through config.env within this safety ceiling.
-            batch_key = ("TWITCH_GTA6_BATCH" if
-                         os.getenv("TWITCH_AUTO_GTA6_ONLY", "1") == "1"
-                         else "TWITCH_AUTO_BATCH")
-            quota = min(12, max(1, int(os.getenv(batch_key, "5"))))
+            # GTA VI no ar = prioridade máxima: lote no teto de segurança (12),
+            # a menos que o config.env peça explicitamente outro valor.
+            batch_key = "TWITCH_GTA6_BATCH" if gta6_only else "TWITCH_AUTO_BATCH"
+            quota = min(12, max(1, int(os.getenv(batch_key, "12" if gta6_only else "5"))))
             editor = os.getenv("TWITCH_EDITOR_ID", "").strip()
             from .twitch_oauth import refreshed_token
             client_id = self.runtime.twitch.client_id

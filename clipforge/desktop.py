@@ -69,10 +69,11 @@ TWITCH_CLIENT_SECRET=
 TWITCH_AUTO_DOWNLOAD=1
 # Ate 12 downloads autorizados por busca; apenas candidatos com nota alta
 TWITCH_AUTO_BATCH=5
-# Independente da configuracao antiga: ate 12 fontes GTA VI aprovadas por rodada
-TWITCH_GTA6_BATCH=5
+# Depois da virada GTA VI: prioridade maxima (ate 12 downloads autorizados por rodada)
+TWITCH_GTA6_BATCH=12
 TWITCH_AUTO_MIN_SCORE=78
 TWITCH_AUTO_PER_CREATOR=2
+# 1 = segue o calendario (so GTA VI a partir de 19/11); force = sempre GTA VI
 TWITCH_AUTO_GTA6_ONLY=1
 TWITCH_GTA6_WINDOW_HOURS=12
 TWITCH_GTA6_PAGES_PER_WINDOW=3
