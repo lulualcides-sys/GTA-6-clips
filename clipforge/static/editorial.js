@@ -118,6 +118,7 @@
   window.addEventListener("gta:clips-updated",()=>{
     if(activeId)loadEvidence();
   });
+  window.addEventListener("gta:auth-updated",()=>{loadLearning();loadMetrics();});
   loadLearning();loadMetrics();loadEvidence();
   setInterval(()=>{loadLearning();loadMetrics();},60000);
 })();

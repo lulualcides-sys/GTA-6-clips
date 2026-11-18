@@ -56,7 +56,7 @@ Consultar **docs/GTA6_EDITORIAL_READINESS.md** e **clipforge/gta6_readiness.py**
 - clipforge/hyperframes.py: pós-produção opcional, exportação HTML/CSS + SRT, empacotamento, CLI local.
 - clipforge/templates/: presets de composição 9:16 próprios e sem dependência CDN.
 - clipforge/twitch.py: OAuth e busca somente de **metadados** (sem download). **Até 18/11/2026**, perfil `gta5_only`: consultar somente a categoria exata GTA V (que inclui streamers de GTA RP), de qualquer criador. **Em 19/11/2026, 00:00 America/Sao_Paulo** (`2026-11-19T03:00:00Z`), comutação automática para `gta6_only`: somente GTA VI, sem trazer registros antigos de GTA V. `TWITCH_GTA5_GAME_ID` pode indicar ID exato antes da virada; `TWITCH_GAME_ID` é reservado para o ID GTA VI depois. `TWITCH_GTA6_LAUNCH_AT` altera a data apenas se o calendário oficial mudar. PT-BR tem prioridade sem excluir outros idiomas, mas nunca misturar outros jogos. APIs continuam exigindo credenciais.
-- clipforge/static/: interface HTML/CSS/JS sem framework.
+- clipforge/static/: interface HTML/CSS/JS sem framework. Desde v0.8.0 o painel usa abas (`shell.js`/`shell.css`): cada `.view[data-view]` deve caber na tela no desktop (o smoke verifica ausência de rolagem da página); listas longas rolam dentro do próprio painel. Ao adicionar seções, colocá-las numa aba e manter os IDs usados pelos scripts.
 - tests/: testes de API, segurança e exportação HyperFrames; tools/smoke.py: render FFmpeg; tools/hyperframes_smoke.py: piloto HyperFrames.
 - docs/: arquitetura, arsenal, roadmap, operação, análise de cenas, legendas, fontes Twitch e Mission Control.
 - clipforge/static/agents.js e agents.css: dashboard de etapas ligado ao GET /api/agents, sem dados fictícios.

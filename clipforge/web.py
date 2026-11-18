@@ -187,6 +187,8 @@ def make_handler(runtime: Runtime):
                       "/agents.js": ("agents.js", "text/javascript; charset=utf-8"),
                       "/agents.css": ("agents.css", "text/css; charset=utf-8"),
                       "/studio-v2.css": ("studio-v2.css", "text/css; charset=utf-8"),
+                      "/shell.css": ("shell.css", "text/css; charset=utf-8"),
+                      "/shell.js": ("shell.js", "text/javascript; charset=utf-8"),
                       "/mobile-review.js": ("mobile-review.js", "text/javascript; charset=utf-8"),
                       "/mobile-review.css": ("mobile-review.css", "text/css; charset=utf-8"),
                       "/editorial.js": ("editorial.js", "text/javascript; charset=utf-8")}

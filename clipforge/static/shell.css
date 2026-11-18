@@ -1,0 +1,138 @@
+/* App shell: navegação lateral por abas, uma tela por seção, sem rolar a página.
+   Carregado por último; só reorganiza o layout, reaproveitando o tema Studio V2. */
+.view[hidden] {display:none !important}
+
+/* ---------- Desktop / notebook ---------- */
+@media (min-width: 900px) {
+  body.app-layout {
+    height:100vh;overflow:hidden;display:grid;
+    grid-template-columns:212px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);
+    grid-template-areas:"top top" "nav main";
+  }
+  body.app-layout::before {display:none}
+  .app-layout .topbar {grid-area:top;position:relative;min-height:0;padding:10px 20px}
+  .app-layout .topbar .mark {width:36px;height:36px;border-radius:10px}
+
+  .app-nav {
+    grid-area:nav;display:flex;flex-direction:column;gap:6px;padding:16px 12px;
+    border-right:1px solid rgba(141,166,196,.16);background:rgba(9,16,28,.6);overflow:auto
+  }
+  .app-main.shell {grid-area:main;max-width:none;width:100%;margin:0;padding:16px 18px;min-height:0;overflow:hidden}
+  .view {height:100%;min-height:0}
+
+  /* Painel: números no topo, pipeline e atividade preenchem o resto. */
+  .view-inicio {display:flex;flex-direction:column;gap:14px}
+  .view-inicio .stats {margin:0;flex:none}
+  .view-inicio .stat {min-height:0;padding:14px 18px}
+  .view-inicio .stat strong {font-size:28px;line-height:1.15}
+  .view-inicio .mission-wrap {margin:0;flex:1;min-height:0;display:flex;flex-direction:column}
+  .view-inicio .mission-hero {min-height:0;padding:10px 20px;display:flex;align-items:center;justify-content:space-between}
+  .view-inicio .mission-hero h2, .view-inicio .mission-hero .mission-lead {display:none}
+  .view-inicio .mission-hero .mission-sup {margin:0}
+  .view-inicio .mission-statusbar {padding:8px 20px}
+  .view-inicio .mission-grid {flex:1;min-height:0}
+  .view-inicio .mission-visual {overflow:auto;min-height:0;padding:16px 18px}
+  .view-inicio .agent-tiles {margin-bottom:12px}
+  .view-inicio .agent-nodes {gap:12px 18px}
+  .view-inicio .agent-unit {min-height:118px}
+  .view-inicio .mission-feed-panel {min-height:0;overflow:hidden}
+  .view-inicio .mission-feed {max-height:none;min-height:0;flex:1}
+
+  /* Clipes: lista | prévia e decisão | ajustes e lote — cada coluna rola sozinha. */
+  .view-clipes .workspace {
+    height:100%;display:grid;gap:14px;align-items:stretch;
+    grid-template-columns:minmax(230px,280px) minmax(0,1fr) minmax(260px,320px)
+  }
+  .view-clipes .workspace > .panel {min-height:0;overflow:auto;padding:18px}
+  .view-clipes .editor-panel {grid-column:auto}
+  .view-clipes .list-panel {display:flex;flex-direction:column}
+  .view-clipes .clips {max-height:none;flex:1;min-height:0}
+  .view-clipes .player-wrap {height:min(46vh,420px);max-height:none}
+  .view-clipes .details {margin:12px 0}
+
+  /* Telas em duas colunas (Radar, Publicar). */
+  .view-split {display:grid;gap:14px;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);align-items:stretch}
+  .view-split > .panel, .view-split > .view-stack {min-height:0;overflow:auto;margin:0}
+  .view-stack {display:flex;flex-direction:column;gap:14px}
+  .view-stack > .panel {margin:0}
+
+  /* Ajustes: cartões em grade, rolagem interna somente se a janela for baixa. */
+  .view-ajustes {overflow:auto;display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr));align-content:start}
+  .view-ajustes > .panel {margin:0}
+  .view-ajustes .guide-panel, .view-ajustes .desktop-toolbar {grid-column:1/-1}
+}
+
+/* ---------- Abas ---------- */
+.app-tab {
+  position:relative;display:flex;align-items:center;gap:11px;width:100%;
+  padding:11px 12px;border:1px solid transparent;border-radius:11px;background:transparent;
+  color:#a9bdd2;font-size:13px;font-weight:700;text-align:left;
+  transition:background .15s,color .15s,border-color .15s
+}
+.app-tab:hover {background:#16243a;color:#eef6ff}
+.app-tab.active {background:linear-gradient(120deg,#203a52,#172a40);border-color:#3b5a74;color:#fff}
+.app-tab:focus-visible {outline:2px solid #91dbf3;outline-offset:2px}
+.tab-icon {display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:#122034;font-size:14px;flex:none}
+.app-tab.active .tab-icon {background:#2d5068;color:#c9f3ff}
+.tab-label {flex:1;min-width:0}
+.tab-badge {min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#2f7d63;color:#fff;font-size:11px;display:grid;place-items:center}
+.tab-badge.warn {background:#a8642a}
+.tab-badge[hidden] {display:none}
+
+.settings-card .local-ai {margin:0}
+.desktop-toolbar.panel {position:static;margin:0}
+.desktop-toolbar.panel[hidden] {display:none}
+
+/* ---------- Celular / janelas estreitas: barra de abas fixa embaixo ---------- */
+@media (max-width: 899px) {
+  body.app-layout {padding-bottom:72px}
+  .app-nav {
+    position:fixed;left:0;right:0;bottom:0;z-index:60;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:2px;padding:6px 6px calc(6px + env(safe-area-inset-bottom));
+    background:rgba(9,16,28,.97);border-top:1px solid rgba(141,166,196,.2);backdrop-filter:blur(16px)
+  }
+  .app-tab {flex-direction:column;gap:3px;padding:6px 2px;font-size:10px;text-align:center;border-radius:9px}
+  .tab-icon {width:24px;height:24px;font-size:13px;background:transparent}
+  .tab-label {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+  .tab-badge {position:absolute;top:2px;right:calc(50% - 22px);min-width:16px;height:16px;font-size:9px;padding:0 4px}
+  .view {display:flex;flex-direction:column;gap:12px}
+  .view-split > *, .view-ajustes > * {margin:0}
+  .view-inicio .mission-wrap {margin:0}
+  .toast {bottom:84px}
+}
+
+/* ---------- Polimento de controles ---------- */
+.app-main select, .app-main input[type="text"], .app-main input:not([type]), .app-main input[type="number"],
+.app-main input[type="datetime-local"], dialog select {
+  background:#0d1526;border:1px solid #3a4d68;color:#eef4ff;border-radius:9px;padding:9px 11px;font-size:13px;max-width:100%
+}
+.app-main select:focus, .app-main input:focus {outline:2px solid #5fb7d0;outline-offset:1px}
+.settings-card .local-ai > strong {display:none}
+.settings-card .local-ai .local-ai-row select {flex:1 1 220px}
+
+/* Clipes: evidência e motivo de rejeição compactos e alinhados. */
+.editorial-evidence {font-size:13px;color:#b8c8da;background:#16243a;border:1px solid #2c3f58;border-radius:10px;padding:10px 12px;margin:0 0 12px}
+#editorial-controls {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:4px 10px;margin:0 0 12px;font-size:12px;color:#9fb2c9}
+#editorial-controls label {align-self:end}
+#editorial-controls select, #editorial-controls input {width:100%;margin:0}
+.view-clipes .details > p {grid-column:1/-1;margin:0}
+/* Decisão sempre visível na coluna da direita: Aprovar/Rejeitar em destaque. */
+.view-clipes .review-actions {display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-start;margin-bottom:6px}
+.view-clipes .review-actions .btn {padding:9px 12px;flex:1 1 auto}
+.view-clipes #approve, .view-clipes #reject {order:-1;flex:1 1 45%;padding:12px;font-size:13px}
+.view-clipes #approve {order:-2}
+.view-clipes .editor-panel .footnote {margin-top:6px}
+@media (min-width: 900px) {
+  .view-clipes .player-wrap {height:min(58vh,520px)}
+  .view-clipes .workspace {grid-template-columns:minmax(220px,270px) minmax(0,1fr) minmax(290px,350px)}
+}
+
+/* Publicar: texto técnico de status recolhido (clique para expandir). */
+#publication-state {display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+#publication-state.expanded {display:block}
+#publication-state::after {content:""}
+
+/* Radar: resultados da Twitch em coluna única dentro da tela dividida. */
+.view-radar .candidate-grid {grid-template-columns:1fr}
+.view-radar .candidate-grid > p {grid-column:1/-1}
+.view-radar .viral-grid h3 {margin-top:4px}

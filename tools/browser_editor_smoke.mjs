@@ -13,6 +13,7 @@ try {
   await page.goto(base);
   await page.locator("#token").fill(token);
   await page.locator("#login-form button[type=submit]").click();
+  await page.locator('.app-tab[data-view="clipes"]').click();
   try {
     await page.waitForFunction(()=>document.querySelector("#player").readyState>=2);
   } catch(error) {

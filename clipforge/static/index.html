@@ -1,27 +1,18 @@
 <!doctype html>
 <html lang="pt-BR">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>GTA CLIPS CONTROL</title><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/agents.css"><link rel="stylesheet" href="/studio-v2.css"></head>
-<body>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>GTA CLIPS CONTROL</title><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/agents.css"><link rel="stylesheet" href="/studio-v2.css"><link rel="stylesheet" href="/shell.css"></head>
+<body class="app-layout">
 <header class="topbar"><div class="brand"><span class="mark">VI</span><div><strong>NEXUS <em>CLIPS BR</em></strong><small>STUDIO / AUTOMATION WORKSPACE</small></div></div><div class="top-actions"><span id="connection" class="tag muted">Verificando</span><button id="scan" class="btn secondary">↻ Verificar pasta</button></div></header>
-<section id="desktop-toolbar" class="desktop-toolbar" hidden aria-label="Controles do aplicativo Windows">
-  <div class="desktop-tag">◈ APLICATIVO WINDOWS <span>·</span> processamento local</div>
-  <div class="desktop-buttons">
-    <button type="button" id="desktop-incoming" class="desktop-open">↧ Abrir vídeos para editar</button>
-    <button type="button" id="desktop-rendered" class="desktop-open">▣ Abrir clipes prontos</button>
-    <button type="button" id="desktop-settings" class="desktop-open">⚙ Configurações</button>
-    <button type="button" id="desktop-twitch-connect" class="desktop-open">Conectar Twitch</button>
-    <button type="button" id="desktop-twitch-authorize" class="desktop-open">Autorizar downloads Twitch</button>
-    <button type="button" id="desktop-mobile-pair" class="desktop-open">Vincular celular</button>
-    <span id="desktop-twitch-status" class="tag muted" role="status" aria-live="polite">Twitch: verificando</span>
-    <span id="desktop-update-status" class="desktop-update-status">Buscando atualização...</span>
-    <button type="button" id="desktop-update" class="desktop-open desktop-update" disabled>Verificar versão</button>
-  </div>
-</section>
-<main class="shell">
-<section class="section-head"><div><p class="eyebrow">VISÃO GERAL</p><h1>Central de produção</h1><p class="hint">Descoberta de tendências, edição e revisão em uma tela. Publicação depende de aprovação e direitos.</p></div><span class="tag">MVP · LOCAL FIRST</span></section>
-<nav class="workspace-nav" aria-label="Navegação rápida"><a href="#agent-control"><span class="nav-count">01</span> Pipeline <span class="nav-arrow" aria-hidden="true">↗</span></a><a href="#production-workspace"><span class="nav-count">02</span> Biblioteca e edição <span class="nav-arrow" aria-hidden="true">↗</span></a><a href="#twitch-monitor"><span class="nav-count">03</span> Descoberta Twitch <span class="nav-arrow" aria-hidden="true">↗</span></a></nav>
+<nav class="app-nav" aria-label="Seções do aplicativo">
+<button type="button" class="app-tab" data-view="inicio"><span class="tab-icon" aria-hidden="true">◧</span><span class="tab-label">Painel</span></button>
+<button type="button" class="app-tab" data-view="clipes"><span class="tab-icon" aria-hidden="true">▶</span><span class="tab-label">Clipes</span><span class="tab-badge" id="tab-badge-clipes" hidden></span></button>
+<button type="button" class="app-tab" data-view="radar"><span class="tab-icon" aria-hidden="true">◎</span><span class="tab-label">Radar viral</span></button>
+<button type="button" class="app-tab" data-view="publicar"><span class="tab-icon" aria-hidden="true">↑</span><span class="tab-label">Publicar</span></button>
+<button type="button" class="app-tab" data-view="ajustes"><span class="tab-icon" aria-hidden="true">⚙</span><span class="tab-label">Ajustes</span><span class="tab-badge warn" id="tab-badge-ajustes" hidden>!</span></button>
+</nav>
+<main class="shell app-main">
+<div class="view view-inicio" data-view="inicio">
 <section class="stats"><article class="stat"><small>ENCONTRADOS</small><strong id="stat-total">0</strong><span>arquivos válidos</span></article><article class="stat"><small>PROCESSANDO</small><strong id="stat-progress">0</strong><span>fila de trabalho</span></article><article class="stat"><small>EM REVISÃO</small><strong id="stat-ready">0</strong><span>vídeos aguardando</span></article><article class="stat"><small>APROVADOS</small><strong id="stat-approved">0</strong><span>não publicados</span></article></section>
-
 <section class="mission-wrap" id="agent-control" aria-label="Central de agentes e automações">
   <div class="mission-hero">
     <div>
@@ -82,17 +73,21 @@
     </aside>
   </div>
 </section>
+</div>
+<div class="view view-clipes" data-view="clipes" hidden>
 <section class="workspace" id="production-workspace" aria-label="Biblioteca e revisão de clipes">
 <aside class="panel list-panel"><div class="panel-head"><div><p class="eyebrow">BIBLIOTECA</p><h2>Clipes</h2></div><button class="btn text-btn" id="refresh">Atualizar</button></div><div class="filters"><button class="chip active" data-filter="all">Todos</button><button class="chip" data-filter="ready">Prontos</button><button class="chip" data-filter="failed">Falhas</button></div><div id="clip-list" class="clips"><p class="placeholder">Nenhum clipe importado.</p></div></aside>
 <section class="panel preview-panel"><div class="panel-head"><div><p class="eyebrow">MONITOR DE QUALIDADE</p><h2 id="detail-title">Selecione um clipe</h2></div><span id="detail-status" class="tag muted">Aguardando</span></div><div class="player-wrap"><div id="player-placeholder" class="player-placeholder"><span>▶</span><strong>Prévia indisponível</strong><small>Selecione uma saída AutoClip para assistir.</small></div><video id="player" controls playsinline preload="metadata" hidden></video></div><div class="details" id="details"><p class="hint">Os detalhes de origem e permissão aparecerão aqui.</p></div>
+</section>
+<section class="panel editor-panel" aria-label="Editor do corte">
+<div class="panel-head"><div><p class="eyebrow">DECISÃO</p><h2>Revisar clipe</h2></div><button id="load-original" class="btn secondary" disabled>Ver original</button></div>
 <div class="editorial-evidence" id="editorial-evidence" role="status" aria-live="polite">Análise do conteúdo: aguardando.</div>
 <div id="editorial-controls"><label for="editorial-reason">Motivo da rejeição</label>
 <select id="editorial-reason"><option value="sem_graca">Não é engraçado</option><option value="corte_ruim">Corte ruim</option><option value="repetido">Repetido</option><option value="titulo_fraco">Título fraco</option><option value="sem_contexto">Sem contexto</option><option value="audio_ruim">Áudio ruim</option><option value="enquadramento">Enquadramento</option><option value="outro">Outro motivo</option></select>
 <label for="editorial-note">Observação opcional</label>
 <input id="editorial-note" maxlength="240" placeholder="Ex.: piada termina antes do replay">
-</div><div class="review-actions"><button id="render" class="btn secondary" disabled>Editar com AutoClip</button><button id="transcribe" class="btn secondary" disabled>Gerar legendas IA</button><button id="hyperframes" class="btn secondary" disabled>Exportar HyperFrames</button><button id="autoclip-run" class="btn secondary" disabled hidden>AutoClip · sugerir cortes</button><button id="reject" class="btn danger" disabled>Rejeitar</button><button id="approve" class="btn primary" disabled>Aprovar clipe</button></div><label class="check-label"><input type="checkbox" id="hyperframes-captions"> Incluir transcrição disponível no HyperFrames (opcional)</label><p class="footnote">Aprovar não publica automaticamente. Direitos de terceiros exigem verificação fora do sistema.</p><p id="autoclip-status" class="hint" aria-live="polite">AutoClip: verificando instalação...</p><div id="local-ai" class="notice local-ai"><strong>IA do AutoClip</strong><p id="local-ai-status" class="hint" aria-live="polite">Verificando IA local...</p><div class="local-ai-row"><select id="local-ai-model" aria-label="Modelo de IA local"></select><button id="local-ai-prepare" class="btn secondary" type="button" disabled>Preparar IA do AutoClip</button></div><progress id="local-ai-progress" max="1" value="0" hidden></progress></div><div id="autoclip-results" class="publication-jobs" aria-live="polite"></div><video id="autoclip-preview" controls playsinline preload="metadata" hidden style="max-width:100%;max-height:420px"></video></section>
-<section class="panel editor-panel" aria-label="Editor do corte">
-<div class="panel-head"><div><p class="eyebrow">REVISÃO EDITORIAL</p><h2>Original e ajustes</h2></div><button id="load-original" class="btn secondary" disabled>Ver original</button></div>
+</div>
+<div class="review-actions"><button id="render" class="btn secondary" disabled>Editar com AutoClip</button><button id="transcribe" class="btn secondary" disabled>Gerar legendas IA</button><button id="hyperframes" class="btn secondary" disabled>Exportar HyperFrames</button><button id="autoclip-run" class="btn secondary" disabled hidden>AutoClip · sugerir cortes</button><button id="reject" class="btn danger" disabled>Rejeitar</button><button id="approve" class="btn primary" disabled>Aprovar clipe</button></div><label class="check-label"><input type="checkbox" id="hyperframes-captions"> Incluir transcrição disponível no HyperFrames (opcional)</label><p class="footnote">Aprovar não publica automaticamente. Direitos de terceiros exigem verificação fora do sistema.</p><p id="autoclip-status" class="hint" aria-live="polite">AutoClip: verificando instalação...</p><div id="autoclip-results" class="publication-jobs" aria-live="polite"></div><video id="autoclip-preview" controls playsinline preload="metadata" hidden style="max-width:100%;max-height:420px"></video>
 <video id="original-player" controls playsinline preload="metadata" hidden></video>
 <form id="edit-form"><fieldset id="edit-fields" disabled hidden>
 <div class="edit-grid"><label>Início (segundos)<input id="edit-start" type="number" min="0" step="0.1" required></label><label>Duração (10–60 s)<input id="edit-duration" type="number" min="10" max="60" step="0.1" required></label></div>
@@ -106,8 +101,15 @@
 <p id="edit-state" class="hint">Edição manual desativada: somente o AutoClip gera novos vídeos. As sugestões seguem para revisão e aprovação.</p>
 <details><summary>Aprovação em lote</summary><div id="batch-clips" class="batch-clips"></div><button id="approve-batch" class="btn secondary" type="button">Aprovar selecionados</button></details>
 </section>
-<aside class="panel guide-panel"><p class="eyebrow">OPERAÇÃO</p><h2>Como alimentar</h2><ol><li>Coloque o vídeo autorizado em <code>data/incoming</code>.</li><li>Crie o arquivo correspondente <code>.rights.json</code> com criador e autorização.</li><li>A varredura inicia exclusivamente o AutoClip quando <code>AUTO_RENDER=1</code> e o motor estiver instalado/ativado; nunca usa FFmpeg como alternativa.</li><li>Assista ao resultado e aprove ou rejeite.</li></ol><div class="notice"><strong>Publicação com confirmação</strong><p>A fila exige conta conectada e autorização. Aprovação editorial não significa publicação. A busca Twitch consulta metadados, sem baixar vídeos.</p></div><a class="guide-link" href="https://github.com/lulualcides-sys/GTA-6-clips" target="_blank" rel="noopener noreferrer">Abrir repositório ↗</a></aside>
 </section>
+</div>
+<div class="view view-split view-radar" data-view="radar" hidden>
+<section class="panel viral-panel" id="viral-radar" aria-label="Radar viral"><div class="panel-head"><div><p class="eyebrow">RADAR VIRAL · BRASIL</p><h2>Clipes com potencial viral</h2></div><div class="local-ai-row"><button id="viral-policies" type="button" class="btn secondary">Ler bios: quem libera cortes?</button><button id="viral-refresh" type="button" class="btn secondary">↻ Atualizar radar</button></div></div>
+<p id="viral-state" class="hint" aria-live="polite">Carregando radar...</p>
+<label class="check-label"><input type="checkbox" id="viral-pt" checked> Somente streamers em português</label>
+<div class="viral-grid"><div><h3>Streamers em alta (peça permissão)</h3><ol id="viral-streamers" class="viral-list"></ol></div><div><h3>Clipes mais promissores</h3><ol id="viral-clips" class="viral-list"></ol></div></div>
+<p class="footnote">Potencial viral é estimado só por métricas públicas da Twitch (views, velocidade, duração, idioma, título); não garante viralização. O app só baixa e edita clipes de streamers marcados como autorizados.</p>
+<dialog id="viral-auth-modal"><form id="viral-auth-form" method="dialog"><h3 id="viral-auth-title">Marcar streamer como autorizado</h3><label for="viral-auth-evidence">Como e quando ele autorizou?</label><input id="viral-auth-evidence" maxlength="500" placeholder="Ex.: me adicionou como editor na Twitch em 19/11/2026" required><div class="local-ai-row"><button type="submit" class="btn primary">Salvar autorização</button><button type="button" id="viral-auth-cancel" class="btn secondary">Cancelar</button></div></form></dialog></section>
 <section class="twitch-section panel" id="twitch-monitor">
   <div class="panel-head">
     <div><p class="eyebrow">MONITORAMENTO · TWITCH HELIX</p><h2 id="twitch-heading">Descoberta de clipes da Twitch</h2>
@@ -127,18 +129,13 @@
   </div>
   <div class="twitch-hint">A busca consulta somente metadados pela API oficial. Não baixa vídeos nem publica. Para reutilizar conteúdo, registre autorização do criador.</div>
 </section>
-<section class="panel viral-panel" id="viral-radar" aria-label="Radar viral"><div class="panel-head"><div><p class="eyebrow">RADAR VIRAL · BRASIL</p><h2>Clipes com potencial viral</h2></div><div class="local-ai-row"><button id="viral-policies" type="button" class="btn secondary">Ler bios: quem libera cortes?</button><button id="viral-refresh" type="button" class="btn secondary">↻ Atualizar radar</button></div></div>
-<p id="viral-state" class="hint" aria-live="polite">Carregando radar...</p>
-<label class="check-label"><input type="checkbox" id="viral-pt" checked> Somente streamers em português</label>
-<div class="viral-grid"><div><h3>Streamers em alta (peça permissão)</h3><ol id="viral-streamers" class="viral-list"></ol></div><div><h3>Clipes mais promissores</h3><ol id="viral-clips" class="viral-list"></ol></div></div>
-<p class="footnote">Potencial viral é estimado só por métricas públicas da Twitch (views, velocidade, duração, idioma, título); não garante viralização. O app só baixa e edita clipes de streamers marcados como autorizados.</p>
-<dialog id="viral-auth-modal"><form id="viral-auth-form" method="dialog"><h3 id="viral-auth-title">Marcar streamer como autorizado</h3><label for="viral-auth-evidence">Como e quando ele autorizou?</label><input id="viral-auth-evidence" maxlength="500" placeholder="Ex.: me adicionou como editor na Twitch em 19/11/2026" required><div class="local-ai-row"><button type="submit" class="btn primary">Salvar autorização</button><button type="button" id="viral-auth-cancel" class="btn secondary">Cancelar</button></div></form></dialog></section>
+</div>
+<div class="view view-split view-publicar" data-view="publicar" hidden>
 <section class="panel publishing-panel" aria-label="Fila de publicação"><div class="panel-head"><div><p class="eyebrow">DISTRIBUIÇÃO</p><h2>Publicações</h2></div><button id="publication-process" type="button" class="btn secondary">Processar próximo</button></div>
-<p id="publication-state" class="hint">Consultando conexões e limites…</p><div class="local-ai-row"><button id="connections-check" type="button" class="btn secondary">Testar conexões (Twitch, YouTube, TikTok, Postiz)</button></div><ul id="connections-result" class="connections-result" aria-live="polite"></ul>
-<form id="publication-form" class="edit-grid"><label>Plataforma<select id="publication-platform"><option value="youtube">YouTube Shorts</option><option value="tiktok">TikTok</option><option value="postiz_youtube">Postiz → YouTube privado</option><option value="postiz_tiktok">Postiz → TikTok privado</option><option value="instagram">Instagram Reels</option></select></label><label>Título<input id="publication-title" maxlength="100" required></label><label>Agendar (seu horário local)<input id="publication-schedule" type="datetime-local"></label><button type="submit" class="btn secondary">Enfileirar clipe aprovado</button></form>
+<p id="publication-state" class="hint">Consultando conexões e limites…</p><form id="publication-form" class="edit-grid"><label>Plataforma<select id="publication-platform"><option value="youtube">YouTube Shorts</option><option value="tiktok">TikTok</option><option value="postiz_youtube">Postiz → YouTube privado</option><option value="postiz_tiktok">Postiz → TikTok privado</option><option value="instagram">Instagram Reels</option></select></label><label>Título<input id="publication-title" maxlength="100" required></label><label>Agendar (seu horário local)<input id="publication-schedule" type="datetime-local"></label><button type="submit" class="btn secondary">Enfileirar clipe aprovado</button></form>
 <div id="publication-jobs" class="publication-jobs" aria-live="polite"></div>
 </section>
-<section class="panel" id="editorial-learning-panel" aria-label="Aprendizado editorial">
+<div class="view-stack"><section class="panel" id="editorial-learning-panel" aria-label="Aprendizado editorial">
   <div class="panel-head"><div><p class="eyebrow">INTELIGÊNCIA EDITORIAL</p><h2>Feedback e aprendizado</h2></div></div>
   <p class="hint" id="editorial-learning-summary">Sem avaliações registradas.</p>
   <div class="hint" id="mobile-pair-info">Aprovação pelo celular requer conexão privada Tailscale Serve e um código temporário.</div>
@@ -150,6 +147,27 @@
   <div id="editorial-metrics-table"></div>
   <p class="hint">Retenção somente quando a plataforma disponibilizar OAuth e endpoint adequados. Nenhum valor é estimado.</p>
 </section>
+</div></div>
+<div class="view view-ajustes" data-view="ajustes" hidden>
+<section class="panel settings-card"><div class="panel-head"><div><p class="eyebrow">EDIÇÃO</p><h2>IA do AutoClip</h2></div></div><div id="local-ai" class="local-ai"><strong>IA do AutoClip</strong><p id="local-ai-status" class="hint" aria-live="polite">Verificando IA local...</p><div class="local-ai-row"><select id="local-ai-model" aria-label="Modelo de IA local"></select><button id="local-ai-prepare" class="btn secondary" type="button" disabled>Preparar IA do AutoClip</button></div><progress id="local-ai-progress" max="1" value="0" hidden></progress></div></section>
+<section class="panel settings-card"><div class="panel-head"><div><p class="eyebrow">CONTAS</p><h2>Conexões</h2></div></div><div class="local-ai-row"><button id="connections-check" type="button" class="btn secondary">Testar conexões (Twitch, YouTube, TikTok, Postiz)</button></div><ul id="connections-result" class="connections-result" aria-live="polite"></ul>
+</section>
+<section id="desktop-toolbar" class="desktop-toolbar panel" hidden aria-label="Controles do aplicativo Windows">
+  <div class="desktop-tag">◈ APLICATIVO WINDOWS <span>·</span> processamento local</div>
+  <div class="desktop-buttons">
+    <button type="button" id="desktop-incoming" class="desktop-open">↧ Abrir vídeos para editar</button>
+    <button type="button" id="desktop-rendered" class="desktop-open">▣ Abrir clipes prontos</button>
+    <button type="button" id="desktop-settings" class="desktop-open">⚙ Configurações</button>
+    <button type="button" id="desktop-twitch-connect" class="desktop-open">Conectar Twitch</button>
+    <button type="button" id="desktop-twitch-authorize" class="desktop-open">Autorizar downloads Twitch</button>
+    <button type="button" id="desktop-mobile-pair" class="desktop-open">Vincular celular</button>
+    <span id="desktop-twitch-status" class="tag muted" role="status" aria-live="polite">Twitch: verificando</span>
+    <span id="desktop-update-status" class="desktop-update-status">Buscando atualização...</span>
+    <button type="button" id="desktop-update" class="desktop-open desktop-update" disabled>Verificar versão</button>
+  </div>
+</section>
+<aside class="panel guide-panel"><p class="eyebrow">OPERAÇÃO</p><h2>Como alimentar</h2><ol><li>Coloque o vídeo autorizado em <code>data/incoming</code>.</li><li>Crie o arquivo correspondente <code>.rights.json</code> com criador e autorização.</li><li>A varredura inicia exclusivamente o AutoClip quando <code>AUTO_RENDER=1</code> e o motor estiver instalado/ativado; nunca usa FFmpeg como alternativa.</li><li>Assista ao resultado e aprove ou rejeite.</li></ol><div class="notice"><strong>Publicação com confirmação</strong><p>A fila exige conta conectada e autorização. Aprovação editorial não significa publicação. A busca Twitch consulta metadados, sem baixar vídeos.</p></div><a class="guide-link" href="https://github.com/lulualcides-sys/GTA-6-clips" target="_blank" rel="noopener noreferrer">Abrir repositório ↗</a></aside>
+</div>
 </main>
 <dialog id="twitch-oauth-modal">
   <form id="twitch-oauth-form" method="dialog">
@@ -169,4 +187,4 @@
 </dialog>
 <div id="message" class="toast" role="status" aria-live="polite" hidden></div>
 <dialog id="login-modal"><form method="dialog" id="login-form"><p class="eyebrow">ACESSO RESTRITO</p><h2>Token do painel</h2><p class="hint">Informe DASHBOARD_TOKEN. Salvo apenas nesta aba.</p><input id="token" type="password" autocomplete="off" placeholder="Token" required><div class="dialog-actions"><button class="btn primary" type="submit">Entrar</button></div></form></dialog>
-<script src="/app.js" defer></script><script src="/editor.js" defer></script><script src="/candidates.js" defer></script><script src="/viral.js" defer></script><script src="/agents.js" defer></script><script src="/editorial.js" defer></script></body></html>
+<script src="/shell.js" defer></script><script src="/app.js" defer></script><script src="/editor.js" defer></script><script src="/candidates.js" defer></script><script src="/viral.js" defer></script><script src="/agents.js" defer></script><script src="/editorial.js" defer></script></body></html>
