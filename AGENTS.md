@@ -112,6 +112,20 @@ O motor AutoClip já vai no EXE (`autoclip_runtime/`). O usuário pediu a IA ins
 **Download público via yt-dlp (v0.8.2, 18/11/2026, decisão do usuário):** a API oficial Get Clips Download só entrega a mídia ao dono/editor do canal. Para streamers **autorizados** (bio que libera cortes confirmada pelo proprietário ou permissão registrada) sem acesso de editor, `clipforge/public_clip_download.py` baixa o clipe público com o yt-dlp já incluído no runtime AutoClip. Travas obrigatórias: desligado por padrão (`TWITCH_PUBLIC_DOWNLOAD=1` no config.env), API oficial tentada primeiro quando houver token, somente IDs em `twitch_sources.json` com evidência, manifesto gravado com `download_method=public_clip_page_yt_dlp`. Não é API oficial: pode violar os Termos da Twitch; o proprietário assumiu esse risco. Nunca contornar DRM, login, conteúdo pago, nem estender a streamers não autorizados.
 Leitura de bios (`POST /api/twitch/policies`, Get Users oficial) só **sugere** política de cortes (`allowed`/`restricted`/`unknown`; restrição sempre vence); a autorização exige confirmação do proprietário, com o trecho da bio salvo como evidência. Painéis da Twitch não estão na API oficial e não são lidos.
 
+## YouTube: radar e download de canais autorizados (v0.9.0, 18/11/2026, pedido do usuário)
+
+`clipforge/youtube_radar.py` (radar, autorizações em `youtube_sources.json`, cache `youtube_radar.json`), `clipforge/youtube_download.py` (yt-dlp) e `clipforge/youtube_auto.py` (entrada automática → AutoClip). A interface fica em `static/youtube.js`, numa aba própria. Descoberta somente pela YouTube Data API v3 oficial, com a chave do usuário (`YOUTUBE_API_KEY`). A cota é de 10.000 unidades/dia, e `search.list` custa 100: manter o cache de 30 min e não fazer busca por canal. A política de cortes é lida nas descrições do canal e dos vídeos (reusa `viral_radar.policy_hint`) e só **sugere**; restrição vence, e a autorização exige confirmação do proprietário com evidência.
+
+Travas obrigatórias do download (não oficial; pode violar os Termos do YouTube; risco assumido pelo proprietário):
+- desligado por padrão (`YOUTUBE_PUBLIC_DOWNLOAD=1`);
+- somente canais em `youtube_sources.json` com evidência;
+- o `channel_id` lido pelo yt-dlp precisa bater com o canal autorizado;
+- sem lives e sem vídeos para membros, pagos, com DRM ou que exigem login;
+- limite de `YOUTUBE_MAX_MINUTES` e 4 GiB, até 1080p;
+- manifesto com `download_method=youtube_public_yt_dlp` e `source_duration_sec`.
+
+Nunca baixar de canal não autorizado nem burlar paywall/DRM. O Deno (runtime JS exigido pelo yt-dlp para o YouTube) é empacotado no `autoclip_runtime/` com versão e SHA-256 fixados em `tools/build_autoclip_runtime.py`, e o yt-dlp-ejs vem via `yt-dlp[default]`. Cookies: `YOUTUBE_COOKIES_BROWSER` (recomendar conta Google secundária e Firefox). Timeout do AutoClip escala com `source_duration_sec` (2x, de 30 min até 3 h). A ingestão não relê arquivos inalterados (impressão digital caminho/tamanho/mtime), para não reler GBs a cada varredura. Nada é aprovado ou publicado automaticamente.
+
 ## AutoClip e Postiz (integração opt-in, 16/11/2026)
 
 Consultar `docs/AUTOCLIP_POSTIZ_RUNTIME.md`. A ponte AutoClip via CLI gera até 3 prévias isoladas de fonte autorizada e permite importação manual para a biblioteca, criando novo clipe pendente de revisão (não altera original/edições/aprovações). A integração Postiz adiciona destinos privados à fila existente, mas depende de API key, IDs dos canais e opt-in; **não é postagem comprovada**. Não instalar AutoClip automaticamente no EXE (Python 3.11/12, dependências pesadas) e não copiar Postiz AGPL para este repositório. Preservar worker, deduplicação e validação de direitos; usar somente um publicador por canal. Testes obrigatórios: `tests/test_autoclip_postiz.py`, suíte geral e fumaça de navegador/Windows antes do lançamento. O usuário solicitou os dois dentro do Nexus; conclusão parcial precisa distinguir interface/código integrado de serviço local instalado/contas conectadas.

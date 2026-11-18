@@ -298,7 +298,7 @@ byId("connections-check").addEventListener("click",async()=>{
   try{
     const data=await api("/api/connections/check","POST");
     list.replaceChildren();
-    [["twitch","Twitch"],["youtube","YouTube"],["tiktok","TikTok"],["postiz","Postiz"]].forEach(([key,label])=>{
+    [["twitch","Twitch"],["youtube","YouTube (publicar)"],["youtube_radar","YouTube (radar)"],["tiktok","TikTok"],["postiz","Postiz"]].forEach(([key,label])=>{
       const r=data[key]||{};
       list.appendChild(el("li",r.ok?"good":(r.configured?"bad":"muted"),(r.ok?"✓ ":r.configured?"✗ ":"– ")+label+": "+(r.detail||"")));
     });

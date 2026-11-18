@@ -7,6 +7,7 @@
 <button type="button" class="app-tab" data-view="inicio"><span class="tab-icon" aria-hidden="true">◧</span><span class="tab-label">Painel</span></button>
 <button type="button" class="app-tab" data-view="clipes"><span class="tab-icon" aria-hidden="true">▶</span><span class="tab-label">Clipes</span><span class="tab-badge" id="tab-badge-clipes" hidden></span></button>
 <button type="button" class="app-tab" data-view="radar"><span class="tab-icon" aria-hidden="true">◎</span><span class="tab-label">Radar viral</span></button>
+<button type="button" class="app-tab" data-view="youtube"><span class="tab-icon" aria-hidden="true">▷</span><span class="tab-label">YouTube</span></button>
 <button type="button" class="app-tab" data-view="publicar"><span class="tab-icon" aria-hidden="true">↑</span><span class="tab-label">Publicar</span></button>
 <button type="button" class="app-tab" data-view="ajustes"><span class="tab-icon" aria-hidden="true">⚙</span><span class="tab-label">Ajustes</span><span class="tab-badge warn" id="tab-badge-ajustes" hidden>!</span></button>
 </nav>
@@ -106,6 +107,7 @@
 <div class="view view-split view-radar" data-view="radar" hidden>
 <section class="panel viral-panel" id="viral-radar" aria-label="Radar viral"><div class="panel-head"><div><p class="eyebrow">RADAR VIRAL · BRASIL</p><h2>Clipes com potencial viral</h2></div><div class="local-ai-row"><button id="viral-policies" type="button" class="btn secondary">Ler bios: quem libera cortes?</button><button id="viral-refresh" type="button" class="btn secondary">↻ Atualizar radar</button></div></div>
 <p id="viral-state" class="hint" aria-live="polite">Carregando radar...</p>
+<p id="viral-download-mode" class="hint" aria-live="polite"></p><button id="viral-public-toggle" type="button" class="btn secondary" hidden>Ativar download público (não oficial)</button>
 <label class="check-label"><input type="checkbox" id="viral-pt" checked> Somente streamers em português</label>
 <div class="viral-grid"><div><h3>Streamers em alta (peça permissão)</h3><ol id="viral-streamers" class="viral-list"></ol></div><div><h3>Clipes mais promissores</h3><ol id="viral-clips" class="viral-list"></ol></div></div>
 <p class="footnote">Potencial viral é estimado só por métricas públicas da Twitch (views, velocidade, duração, idioma, título); não garante viralização. O app só baixa e edita clipes de streamers marcados como autorizados.</p>
@@ -129,6 +131,29 @@
   </div>
   <div class="twitch-hint">A busca consulta somente metadados pela API oficial. Não baixa vídeos nem publica. Para reutilizar conteúdo, registre autorização do criador.</div>
 </section>
+</div>
+<div class="view view-split view-youtube" data-view="youtube" hidden>
+<section class="panel viral-panel" id="youtube-radar" aria-label="Radar YouTube"><div class="panel-head"><div><p class="eyebrow">RADAR YOUTUBE · BRASIL</p><h2>YouTubers em alta (peça permissão)</h2></div><div class="local-ai-row"><button id="youtube-connect" type="button" class="btn secondary" hidden>Conectar YouTube</button><button id="youtube-refresh" type="button" class="btn secondary">↻ Atualizar</button></div></div>
+<p id="youtube-state" class="hint" aria-live="polite">Carregando radar do YouTube...</p>
+<p id="youtube-pipeline" class="hint" aria-live="polite">Pipeline YouTube: verificando...</p>
+<label class="check-label"><input type="checkbox" id="youtube-pt"> Somente vídeos em português</label>
+<ol id="youtube-channels" class="viral-list"></ol>
+<dialog id="youtube-auth-modal"><form id="youtube-auth-form" method="dialog"><h3 id="youtube-auth-title">Marcar canal como autorizado</h3><label for="youtube-auth-evidence">Como e quando ele autorizou?</label><input id="youtube-auth-evidence" maxlength="500" placeholder="Ex.: descrição do canal diz 'cortes liberados' (lida em 19/11/2026)" required><div class="local-ai-row"><button type="submit" class="btn primary">Salvar autorização</button><button type="button" id="youtube-auth-cancel" class="btn secondary">Cancelar</button></div></form></dialog></section>
+<section class="panel viral-panel" aria-label="Vídeos em alta no YouTube"><div class="panel-head"><div><p class="eyebrow">VÍDEOS · METADADOS PÚBLICOS</p><h2>Vídeos com potencial de corte</h2></div><div class="local-ai-row"><button id="youtube-run" type="button" class="btn primary">Baixar e editar agora</button></div></div>
+<ol id="youtube-videos" class="viral-list"></ol>
+<p class="footnote">Nota estimada só por métricas públicas (views por hora, engajamento, idioma, duração); não garante viralização. O app só baixa vídeos de canais que você marcou como autorizados, e só com o download do YouTube ligado. Baixar do YouTube não tem API oficial e pode violar os Termos do YouTube: risco seu. Nada é aprovado ou publicado sozinho.</p></section>
+<dialog id="youtube-settings-modal"><form id="youtube-settings-form" method="dialog">
+  <p class="eyebrow">CONEXÃO LOCAL · YOUTUBE DATA API v3</p>
+  <h2>Conectar YouTube</h2>
+  <p class="hint">Crie uma chave gratuita no <a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank" rel="noopener noreferrer">Google Cloud</a> (ative a YouTube Data API v3 e crie uma "Chave de API"). Fica só no seu PC.</p>
+  <label for="youtube-api-key">Chave da API</label>
+  <input id="youtube-api-key" type="password" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Deixe vazio para manter a chave salva">
+  <label class="check-label"><input type="checkbox" id="youtube-public-download"> Baixar vídeos dos canais autorizados (não oficial, risco seu)</label>
+  <label for="youtube-cookies">Cookies do navegador (o YouTube costuma exigir login)</label>
+  <select id="youtube-cookies"><option value="">Nenhum</option><option value="firefox">Firefox (recomendado)</option><option value="edge">Edge</option><option value="chrome">Chrome</option><option value="brave">Brave</option></select>
+  <p class="hint">Use um navegador logado numa conta Google <strong>secundária</strong>, nunca a do canal onde você publica, e feche esse navegador durante os downloads.</p>
+  <div class="dialog-actions"><button type="button" class="btn secondary" id="youtube-settings-cancel">Cancelar</button><button type="submit" class="btn primary" id="youtube-settings-save">Salvar no PC</button></div>
+</form></dialog>
 </div>
 <div class="view view-split view-publicar" data-view="publicar" hidden>
 <section class="panel publishing-panel" aria-label="Fila de publicação"><div class="panel-head"><div><p class="eyebrow">DISTRIBUIÇÃO</p><h2>Publicações</h2></div><button id="publication-process" type="button" class="btn secondary">Processar próximo</button></div>
@@ -187,4 +212,4 @@
 </dialog>
 <div id="message" class="toast" role="status" aria-live="polite" hidden></div>
 <dialog id="login-modal"><form method="dialog" id="login-form"><p class="eyebrow">ACESSO RESTRITO</p><h2>Token do painel</h2><p class="hint">Informe DASHBOARD_TOKEN. Salvo apenas nesta aba.</p><input id="token" type="password" autocomplete="off" placeholder="Token" required><div class="dialog-actions"><button class="btn primary" type="submit">Entrar</button></div></form></dialog>
-<script src="/app.js" defer></script><script src="/shell.js" defer></script><script src="/editor.js" defer></script><script src="/candidates.js" defer></script><script src="/viral.js" defer></script><script src="/agents.js" defer></script><script src="/editorial.js" defer></script></body></html>
+<script src="/app.js" defer></script><script src="/shell.js" defer></script><script src="/editor.js" defer></script><script src="/candidates.js" defer></script><script src="/viral.js" defer></script><script src="/youtube.js" defer></script><script src="/agents.js" defer></script><script src="/editorial.js" defer></script></body></html>

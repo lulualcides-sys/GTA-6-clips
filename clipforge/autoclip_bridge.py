@@ -187,9 +187,28 @@ class AutoClipBridge:
         tmp.replace(conf)
         return ["--provider", "ollama"]
 
+    @staticmethod
+    def _timeout_for(source: Path) -> int:
+        """30 min para clipes curtos; vídeos longos do YouTube ganham 2x a duração (até 3 h).
+
+        A duração vem do manifesto gravado no download (sem rodar ffprobe aqui).
+        """
+        override = os.getenv("AUTOCLIP_TIMEOUT_SECONDS", "").strip()
+        if override.isdigit():
+            return max(600, min(10800, int(override)))
+        seconds = 0.0
+        sidecar = Path(str(source) + ".rights.json")
+        try:
+            if sidecar.is_file() and not sidecar.is_symlink() and sidecar.stat().st_size < 1_000_000:
+                seconds = float(json.loads(sidecar.read_text(encoding="utf-8")).get("source_duration_sec") or 0)
+        except (OSError, ValueError, TypeError, AttributeError):
+            seconds = 0.0
+        return int(max(1800, min(10800, seconds * 2)))
+
     def _run(self, clip_id):
         try:
             source = str(self._source(clip_id))
+            timeout = self._timeout_for(Path(source))
             provider_options = self._prepare_local_ai()
             self.exports.mkdir(parents=True, exist_ok=True)
             before = {p.name for p in self.exports.iterdir() if p.is_dir() and not p.is_symlink()}
@@ -202,7 +221,7 @@ class AutoClipBridge:
                  "--ratio", "9:16", "--style", "boxed", *provider_options],
                 env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT, text=True, errors="replace",
-                timeout=1800, check=False
+                timeout=timeout, check=False
             )
             if result.returncode != 0:
                 raise RuntimeError("CLI retornou código de erro; verificar AutoClip local.")

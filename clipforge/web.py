@@ -184,6 +184,7 @@ def make_handler(runtime: Runtime):
                       "/styles.css": ("styles.css", "text/css; charset=utf-8"),
                       "/candidates.js": ("candidates.js", "text/javascript; charset=utf-8"),
                       "/viral.js": ("viral.js", "text/javascript; charset=utf-8"),
+                      "/youtube.js": ("youtube.js", "text/javascript; charset=utf-8"),
                       "/agents.js": ("agents.js", "text/javascript; charset=utf-8"),
                       "/agents.css": ("agents.css", "text/css; charset=utf-8"),
                       "/studio-v2.css": ("studio-v2.css", "text/css; charset=utf-8"),
@@ -221,6 +222,12 @@ def make_handler(runtime: Runtime):
                 from .viral_radar import radar
                 pt_only = parse_qs(urlsplit(self.path).query).get("pt", ["1"])[0] != "0"
                 return self._reply(200, radar(runtime, pt_only=pt_only))
+            if route == "/api/youtube/radar":
+                from .youtube_radar import radar as youtube_radar
+                pt_only = parse_qs(urlsplit(self.path).query).get("pt", ["0"])[0] == "1"
+                return self._reply(200, youtube_radar(runtime, pt_only=pt_only))
+            if route == "/api/youtube/status":
+                return self._reply(200, runtime.youtube_auto.status())
             if route == "/api/twitch/streamers":
                 return self._reply(200, {"streamers": runtime.twitch.list_streamers()})
             if route == "/api/autoclip":
@@ -343,6 +350,35 @@ def make_handler(runtime: Runtime):
                     added = add_source(runtime.store.root, body.get("broadcaster_id", ""),
                                        body.get("creator", ""), body.get("rights_status", ""),
                                        body.get("evidence", ""))
+                    return self._reply(200, {"added": added})
+                except ValueError as exc:
+                    return self._reply(400, {"error": str(exc)[:200]})
+            if route == "/api/youtube/radar/refresh":
+                if not self._owner_auth():
+                    return self._reply(403, {"error": "Somente o computador consulta o YouTube"})
+                from .youtube_radar import radar as youtube_radar
+                return self._reply(200, youtube_radar(runtime, force=True))
+            if route == "/api/youtube/run":
+                if not self._owner_auth():
+                    return self._reply(403, {"error": "Somente o computador inicia downloads"})
+                started = runtime.youtube_auto.kick()
+                state = runtime.youtube_auto.status()
+                if not started:
+                    return self._reply(409, {"started": False,
+                                             "error": state.get("last_error") or "Já em execução."})
+                return self._reply(202, {"started": True, **state})
+            if route == "/api/youtube/sources":
+                if not self._owner_auth():
+                    return self._reply(403, {"error": "Somente o computador altera autorizações"})
+                from .youtube_radar import add_source as yt_add, remove_source as yt_remove
+                try:
+                    body = self._body()
+                    if body.get("action") == "remove":
+                        removed = yt_remove(runtime.store.root, str(body.get("channel_id", "")))
+                        return self._reply(200, {"removed": removed})
+                    added = yt_add(runtime.store.root, body.get("channel_id", ""),
+                                   body.get("creator", ""), body.get("rights_status", ""),
+                                   body.get("evidence", ""))
                     return self._reply(200, {"added": added})
                 except ValueError as exc:
                     return self._reply(400, {"error": str(exc)[:200]})

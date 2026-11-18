@@ -57,6 +57,19 @@ def check_youtube() -> dict:
         return {"configured": True, "ok": False, "detail": _http_error(exc)}
 
 
+def check_youtube_radar() -> dict:
+    """Chave da Data API (radar/descoberta). Uma chamada de 1 unidade de cota."""
+    from .youtube_radar import YouTubeAPI, YouTubeError, api_key
+    key = api_key()
+    if not key:
+        return {"configured": False, "ok": False, "detail": "YOUTUBE_API_KEY não configurada (radar)."}
+    try:
+        YouTubeAPI(key).most_popular_gaming(limit=1)
+    except YouTubeError as exc:
+        return {"configured": True, "ok": False, "detail": str(exc)[:160]}
+    return {"configured": True, "ok": True, "detail": "Chave da YouTube Data API válida (radar)."}
+
+
 def check_tiktok() -> dict:
     token = os.getenv("TIKTOK_ACCESS_TOKEN", "")
     if not token:
@@ -94,4 +107,5 @@ def check_postiz() -> dict:
 
 def check_all(runtime) -> dict:
     return {"twitch": check_twitch(runtime), "youtube": check_youtube(),
+            "youtube_radar": check_youtube_radar(),
             "tiktok": check_tiktok(), "postiz": check_postiz()}

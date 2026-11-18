@@ -45,6 +45,11 @@ CONFIG_KEYS = frozenset({
     "WHISPER_MODEL", "WHISPER_LANGUAGE", "MAX_SOURCE_SECONDS",
     "PUBLISHING_ENABLED", "PUBLISHING_AUTO_ENABLED", "PUBLISHING_DAILY_LIMIT",
     "PUBLISHING_MAX_POLLS", "YOUTUBE_ACCESS_TOKEN", "TIKTOK_ACCESS_TOKEN",
+    "YOUTUBE_API_KEY", "YOUTUBE_PUBLIC_DOWNLOAD", "YOUTUBE_COOKIES_BROWSER",
+    "YOUTUBE_MAX_MINUTES", "YOUTUBE_AUTO_BATCH", "YOUTUBE_AUTO_PER_CHANNEL",
+    "YOUTUBE_WINDOW_DAYS", "YOUTUBE_MIN_SUBSCRIBERS", "YOUTUBE_POLL_SECONDS",
+    "YOUTUBE_SEARCH_QUERY", "YOUTUBE_SEARCH_DAYS", "YOUTUBE_AUTO_GTA6_ONLY",
+    "AUTOCLIP_TIMEOUT_SECONDS",
 })
 DEFAULT_CONFIG = """# GTA VI Clips - configuracoes locais. Reinicie o app apos editar.
 # Credenciais privadas: nao envie este arquivo para o GitHub.
@@ -86,6 +91,18 @@ TWITCH_REFRESH_TOKEN=
 TWITCH_POLL_SECONDS=900
 # Até o lançamento, categorias populares; depois, apenas GTA VI:
 TWITCH_GTA6_LAUNCH_AT=2026-11-19T03:00:00+00:00
+
+# YouTube: radar de YouTubers grandes (chave gratuita da YouTube Data API v3)
+# e download SOMENTE de canais autorizados no app. Use o botao "Conectar YouTube".
+YOUTUBE_API_KEY=
+# 1 = baixa videos publicos via yt-dlp dos canais autorizados. NAO oficial:
+# pode violar os Termos do YouTube (risco seu).
+YOUTUBE_PUBLIC_DOWNLOAD=0
+# Navegador logado para cookies (firefox recomendado). Use conta Google secundaria.
+YOUTUBE_COOKIES_BROWSER=
+YOUTUBE_MAX_MINUTES=60
+YOUTUBE_AUTO_BATCH=2
+YOUTUBE_MIN_SUBSCRIBERS=100000
 
 # Publicação desativada por padrão. Ative somente com direitos e contas válidas.
 # Tokens OAuth são privados; obtenha-os pelos fluxos oficiais das plataformas.
@@ -322,6 +339,66 @@ class DesktopBridge:
 
     def open_settings(self):
         return self._open(self.home / "config.env")
+
+    def _update_config(self, updates: dict) -> None:
+        """Troca atômica de chaves conhecidas no config.env local; aplica no processo."""
+        if any(key not in CONFIG_KEYS for key in updates):
+            raise ValueError("Chave de configuração desconhecida")
+        conf = initialize_settings(self.home)
+        pending = dict(updates)
+        output = []
+        for line in conf.read_text(encoding="utf-8-sig").splitlines():
+            key = line.split("=", 1)[0].strip() if "=" in line else ""
+            output.append(f"{key}={pending.pop(key)}" if key in pending else line)
+        output.extend(f"{k}={v}" for k, v in pending.items())
+        temp = self.home / ("config-" + secrets.token_hex(7) + ".tmp")
+        try:
+            with temp.open("x", encoding="utf-8") as f:
+                f.write("\n".join(output) + "\n")
+            os.replace(temp, conf)
+        finally:
+            temp.unlink(missing_ok=True)
+        os.environ.update({k: str(v) for k, v in updates.items()})
+
+    def save_youtube_settings(self, api_key: str, public_download: bool,
+                              cookies_browser: str) -> dict:
+        """Chave da Data API validada com 1 chamada de leitura; nunca devolvida ao JS."""
+        from .youtube_download import BROWSERS
+        from .youtube_radar import YouTubeAPI, YouTubeError
+        if not isinstance(api_key, str) or not isinstance(cookies_browser, str):
+            return {"ok": False, "error": "Dados inválidos"}
+        api_key, browser = api_key.strip(), cookies_browser.strip().lower()
+        if browser not in BROWSERS:
+            return {"ok": False, "error": "Navegador de cookies inválido"}
+        updates = {"YOUTUBE_PUBLIC_DOWNLOAD": "1" if public_download is True else "0",
+                   "YOUTUBE_COOKIES_BROWSER": browser}
+        if api_key:
+            try:
+                YouTubeAPI(api_key).most_popular_gaming(limit=1)
+            except YouTubeError as exc:
+                return {"ok": False, "error": str(exc)[:200]}
+            updates["YOUTUBE_API_KEY"] = api_key
+        elif not os.getenv("YOUTUBE_API_KEY", "").strip():
+            return {"ok": False, "error": "Cole a chave da YouTube Data API v3"}
+        try:
+            self._update_config(updates)
+        except (OSError, ValueError):
+            return {"ok": False, "error": "Não foi possível salvar configurações locais"}
+        started = False
+        if self._runtime is not None:
+            started = self._runtime.youtube_auto.kick()
+        return {"ok": True, "public_download": updates["YOUTUBE_PUBLIC_DOWNLOAD"] == "1",
+                "started": started}
+
+    def set_twitch_public_download(self, enabled: bool) -> dict:
+        """Liga/desliga o download público (não oficial) só para streamers autorizados."""
+        try:
+            self._update_config({"TWITCH_PUBLIC_DOWNLOAD": "1" if enabled is True else "0"})
+        except (OSError, ValueError):
+            return {"ok": False, "error": "Não foi possível salvar configurações locais"}
+        if enabled is True and self._runtime is not None:
+            self._runtime.twitch_auto.kick()
+        return {"ok": True, "public_download": enabled is True}
 
 
 def start_backend(data_dir: Path, token: str):

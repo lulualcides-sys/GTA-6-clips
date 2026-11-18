@@ -36,7 +36,7 @@ try {
   await page.locator('.app-tab[data-view="ajustes"]').click();
   assert(await page.locator("#local-ai").isVisible(),"Aba Ajustes deve mostrar a IA do AutoClip");
   await page.locator("#connections-check").click();
-  await page.waitForFunction(()=>document.querySelectorAll("#connections-result li").length===4,null,{timeout:20000});
+  await page.waitForFunction(()=>document.querySelectorAll("#connections-result li").length===5,null,{timeout:20000});
   assert.equal(await page.locator("#connections-result li.good").count(),0);
   // Radar viral: dados reais (vazios sem Twitch), nunca clipes inventados.
   await page.waitForFunction(()=>{const n=document.querySelector("#viral-state");return n&&n.textContent.includes("potencial viral");},null,{timeout:20000});
@@ -53,11 +53,18 @@ try {
   const theme=await page.request.get(base+"/studio-v2.css");
   assert.equal(theme.status(),200,"Studio V2 stylesheet must be served by the real app");
   assert.match(await theme.text(),/Studio V2/);
-  // Layout por abas: 5 seções, cada uma cabe na tela sem rolar a página inteira.
-  assert.equal(await page.locator(".app-tab[data-view]").count(),5);
+  // Radar YouTube: sem chave, nada inventado; só pede a conexão.
+  await page.locator('.app-tab[data-view="youtube"]').click();
+  await page.waitForFunction(()=>{const n=document.querySelector("#youtube-state");return n&&n.textContent.includes("Conecte o YouTube");},null,{timeout:20000});
+  assert.equal(await page.locator("#youtube-channels li.hint").count(),1);
+  assert.equal(await page.locator("#youtube-videos li.hint").count(),1);
+  assert(((await page.locator("#youtube-pipeline").textContent())||"").includes("conecte a chave"));
+  assert.equal(await page.locator("#youtube-run").isDisabled(),true,"Sem chave/autorização não pode baixar");
+  // Layout por abas: 6 seções, cada uma cabe na tela sem rolar a página inteira.
+  assert.equal(await page.locator(".app-tab[data-view]").count(),6);
   assert.equal(await page.locator("#production-workspace").count(),1);
   assert.equal(await page.locator("#twitch-monitor").count(),1);
-  for (const view of ["inicio","clipes","radar","publicar","ajustes"]) {
+  for (const view of ["inicio","clipes","radar","youtube","publicar","ajustes"]) {
     await page.locator(`.app-tab[data-view="${view}"]`).click();
     assert.equal(await page.locator(`.view[data-view="${view}"]`).isVisible(),true,view+" visível");
     assert.equal(await page.locator(".view:not([hidden])").count(),1,"Somente uma aba visível");
