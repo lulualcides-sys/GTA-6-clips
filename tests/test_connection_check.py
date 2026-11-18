@@ -14,7 +14,7 @@ class ConnectionCheckTest(unittest.TestCase):
         runtime = SimpleNamespace(twitch=SimpleNamespace(client=None, client_id="", secret=""))
         with mock.patch.dict(os.environ, {}, clear=True):
             result = cc.check_all(runtime)
-        self.assertEqual(set(result), {"twitch", "youtube", "tiktok", "postiz"})
+        self.assertEqual(set(result), {"twitch", "youtube", "youtube_radar", "tiktok", "postiz"})
         self.assertTrue(all(not r["configured"] and not r["ok"] for r in result.values()))
 
     def test_twitch_valid_and_gta6_lookup(self):

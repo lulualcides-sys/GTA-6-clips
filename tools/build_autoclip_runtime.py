@@ -14,6 +14,32 @@ from pathlib import Path
 
 AUTOCLIP_COMMIT = "5d0eac36fa615b79dd2104083bf273a96f8d68bb"
 AUTOCLIP_REPO = "https://github.com/artbyjazi/autoclip.git"
+# YouTube exige runtime JavaScript para o yt-dlp (EJS). Deno oficial, fixado por
+# versão e SHA-256 (conferido contra o .sha256sum publicado na release).
+DENO_VERSION = "v2.9.8"
+DENO_ZIP_SHA256 = "cba84b26e0df5ae7f74fc66b86a95b866872a86292ebd84fa1e959927edd93bf"
+DENO_URL = (f"https://github.com/denoland/deno/releases/download/{DENO_VERSION}/"
+            "deno-x86_64-pc-windows-msvc.zip")
+
+
+def bundle_deno(target: Path) -> Path:
+    import hashlib
+    import io
+    import zipfile
+    with urllib.request.urlopen(DENO_URL, timeout=120) as response:
+        data = response.read(200_000_000)
+    if hashlib.sha256(data).hexdigest() != DENO_ZIP_SHA256:
+        raise SystemExit("Deno ZIP SHA-256 mismatch: abort packaging")
+    with zipfile.ZipFile(io.BytesIO(data)) as archive:
+        names = archive.namelist()
+        if names != ["deno.exe"]:
+            raise SystemExit(f"Unexpected Deno archive layout: {names[:5]}")
+        exe = target / "deno.exe"
+        exe.write_bytes(archive.read("deno.exe"))
+    (target / "DENO-SOURCE.txt").write_text(
+        f"{DENO_URL}\nSHA-256: {DENO_ZIP_SHA256}\nLicense: MIT (https://github.com/denoland/deno)\n",
+        encoding="utf-8")
+    return exe
 
 
 def _ignore_stdlib(directory, names):
@@ -48,7 +74,10 @@ def main():
     subprocess.run([
         sys.executable, "-m", "pip", "install", "--disable-pip-version-check",
         "--no-cache-dir", "--no-compile", "--target", str(package_dir), spec,
+        # [default] traz o yt-dlp-ejs na versão casada com o yt-dlp (YouTube).
+        "yt-dlp[default]",
     ], check=True, timeout=1800)
+    deno = bundle_deno(target)
 
     (target / "nexus_autoclip_runner.py").write_text(
         "from autoclip.cli import app\n"
@@ -87,12 +116,17 @@ def main():
     env.pop("PYTHONHOME", None)
     env.pop("PYTHONPATH", None)
     validate = (
-        "import sys, pathlib, autoclip.cli, faster_whisper, mediapipe, scenedetect;"
+        "import sys, pathlib, autoclip.cli, faster_whisper, mediapipe, scenedetect, yt_dlp, yt_dlp_ejs;"
         f"assert pathlib.Path(sys.prefix).resolve() == pathlib.Path(r'{target}').resolve();"
-        "print('BUNDLED AUTOCLIP PYTHON + WHISPER + MEDIAPIPE + SCENEDETECT OK')"
+        "print('BUNDLED AUTOCLIP PYTHON + WHISPER + MEDIAPIPE + SCENEDETECT + YT-DLP + EJS OK')"
     )
     subprocess.run([str(target / "python.exe"), "-c", validate],
                    check=True, env=env, timeout=100)
+    version = subprocess.run([str(deno), "--version"], capture_output=True, text=True,
+                             check=True, env=env, timeout=60).stdout
+    if not version.startswith("deno " + DENO_VERSION.lstrip("v")):
+        raise SystemExit("Bundled Deno did not report the pinned version")
+    print("BUNDLED DENO OK: " + version.splitlines()[0])
     subprocess.run([str(target / "python.exe"),
                     str(target / "nexus_autoclip_runner.py"), "styles"],
                    check=True, env=env, timeout=100)

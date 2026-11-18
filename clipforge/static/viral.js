@@ -32,12 +32,56 @@
       const body = remove ? { action: "remove", broadcaster_id: row.broadcaster_id }
         : { broadcaster_id: row.broadcaster_id, creator: row.name, rights_status: "permission_granted", evidence: evidence.value };
       await api("/api/twitch/sources", "POST", false, body);
-      toast(remove ? "Autorização removida: " + row.name : row.name + " autorizado. O app vai baixar e editar os clipes dele automaticamente.");
+      if (remove) toast("Autorização removida: " + row.name);
+      else {
+        // A Twitch só entrega o arquivo oficial ao dono/editor do canal.
+        const mode = await downloadMode();
+        toast(row.name + " autorizado. " + (mode.public ? "O app vai baixar e editar os clipes dele automaticamente."
+          : mode.editor ? "Downloads saem só se você for editor do canal dele na Twitch (ou ative o download público)."
+          : "Para baixar: peça para ele te adicionar como editor na Twitch ou ative o download público."));
+      }
     } catch (e) { toast("Autorização: " + e.message); }
     await load();
   }
 
+  async function downloadMode() {
+    try {
+      const auto = (await api("/api/twitch/status")).auto_pipeline || {};
+      return { public: !!auto.public_download, editor: !!auto.editor_grant_present };
+    } catch (_) { return { public: false, editor: false }; }
+  }
+  const modeLine = node("viral-download-mode"), publicToggle = node("viral-public-toggle");
+  async function showDownloadMode() {
+    if (!modeLine) return;
+    const mode = await downloadMode();
+    modeLine.textContent = mode.public ? "Download: clipes públicos dos autorizados (yt-dlp, não oficial)" +
+        (mode.editor ? " + API oficial quando você é editor." : ".")
+      : mode.editor ? "Download: só API oficial. Funciona apenas nos canais em que você é editor."
+      : "Download desligado para outros canais: a Twitch só libera o arquivo ao dono/editor do canal.";
+    const bridge = window.pywebview && window.pywebview.api;
+    if (publicToggle) {
+      publicToggle.hidden = !(bridge && typeof bridge.set_twitch_public_download === "function");
+      publicToggle.textContent = mode.public ? "Desativar download público" : "Ativar download público (não oficial, risco seu)";
+      publicToggle.dataset.on = mode.public ? "1" : "0";
+    }
+  }
+  if (publicToggle) publicToggle.addEventListener("click", async () => {
+    const bridge = window.pywebview && window.pywebview.api;
+    if (!bridge) return;
+    publicToggle.disabled = true;
+    try {
+      const turnOn = publicToggle.dataset.on !== "1";
+      const r = await bridge.set_twitch_public_download(turnOn);
+      if (!r || !r.ok) toast((r && r.error) || "Não foi possível salvar.");
+      else toast(turnOn ? "Download público ligado: só de streamers autorizados. Pode violar os Termos da Twitch."
+        : "Download público desligado.");
+    } catch (e) { toast("Twitch: " + e.message); }
+    finally { publicToggle.disabled = false; await showDownloadMode(); }
+  });
+  window.addEventListener("pywebviewready", showDownloadMode);
+
   async function load() {
+    showDownloadMode();
     try {
       const data = await api("/api/twitch/viral?pt=" + (ptOnly && !ptOnly.checked ? "0" : "1"));
       state.textContent = (data.scanned ? data.scanned + " clipes analisados · " : "Nenhum clipe catalogado ainda (busque na Twitch). · ") +
@@ -79,7 +123,7 @@
         const li = make("li");
         li.appendChild(safeLink(c.url, c.title || "Clipe"));
         li.appendChild(make("span", (c.creator_name || "") + " · " + fmt(c.view_count) + " views · " +
-          Math.round(c.duration) + "s · nota " + c.score + (c.authorized ? " · ✓ será editado" : " · aguardando permissão"), "meta"));
+          Math.round(c.duration) + "s · nota " + c.score + (c.authorized ? " · ✓ autorizado" : " · aguardando permissão"), "meta"));
         clips.appendChild(li);
       });
     } catch (e) { state.textContent = "Radar viral: " + e.message; }

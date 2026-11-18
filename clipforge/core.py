@@ -79,6 +79,9 @@ class ClipStore:
             folder.mkdir(parents=True, exist_ok=True)
         self.database = self.root / "clips.sqlite3"
         self.lock = threading.RLock()
+        # Arquivos já conferidos (caminho, tamanho, mtime): evita reler GBs de
+        # vídeos longos do YouTube a cada varredura. Mudou o arquivo, confere de novo.
+        self._known_files: set[tuple] = set()
         with self._db() as db:
             db.execute("""CREATE TABLE IF NOT EXISTS clips (
                 id TEXT PRIMARY KEY, sha256 TEXT NOT NULL UNIQUE,
@@ -204,6 +207,11 @@ class ClipStore:
         media = self.incoming / sidecar.name.removesuffix(".rights.json")
         if media.suffix.lower() not in SUPPORTED or not media.is_file() or media.is_symlink():
             raise ValueError("Missing or unsupported video")
+        media_stat, sidecar_stat = media.stat(), sidecar.stat()
+        fingerprint = (str(media), media_stat.st_size, media_stat.st_mtime_ns,
+                       sidecar_stat.st_size, sidecar_stat.st_mtime_ns)
+        if fingerprint in self._known_files:
+            return None
         meta = json.loads(sidecar.read_text(encoding="utf-8"))
         rights = str(meta.get("rights_status", ""))
         creator = str(meta.get("creator", "")).strip()
@@ -248,6 +256,7 @@ class ClipStore:
                 tuple(item.values()),
             )
             inserted = db.execute("SELECT changes()").fetchone()[0]
+            self._known_files.add(fingerprint)
             if inserted:
                 db.execute("INSERT INTO clip_edits (clip_id,settings) VALUES (?,?)",
                            (item["id"], json.dumps(settings, ensure_ascii=False)))
@@ -400,6 +409,8 @@ class Runtime:
         from .twitch_auto import TwitchAutoIngest
         self.twitch_auto = TwitchAutoIngest(self)
         self.twitch.on_refreshed = self.twitch_auto.kick
+        from .youtube_auto import YouTubeAutoIngest
+        self.youtube_auto = YouTubeAutoIngest(self)
         # Jobs herdados de FFmpeg NÃO podem ser retomados: preservamos fontes
         # e MP4s existentes, e falhamos fechado em vez de renderizar novamente.
         with self.store.lock, self.store._db() as db:
@@ -479,6 +490,8 @@ class Runtime:
                     print(f"Background scan failed: {exc}", flush=True)
                 time.sleep(self.poll_seconds)
         threading.Thread(target=loop, name="clip-scanner", daemon=True).start()
+        # YouTube: só age com download ligado, chave, canais autorizados e IA pronta.
+        self.youtube_auto.start_polling()
         if os.getenv("NEXUS_PERFORMANCE_POLL", "1") == "1":
             def metrics_loop():
                 while True:

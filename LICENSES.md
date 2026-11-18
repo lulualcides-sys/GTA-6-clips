@@ -5,6 +5,8 @@
 - **FFmpeg and ffprobe**: bundled as separate unmodified CLI executables. FFmpeg's applicable license can be LGPL or GPL, depending on build flags and binary distribution. See https://ffmpeg.org/legal.html, https://ffmpeg.org/download.html and the binary supplier for exact version, licenses and corresponding source.
 - **pywebview**: Python/native WebView wrapper, distributed as package dependencies. Project: https://github.com/r0x0r/pywebview. Check installed package license.
 - **PyInstaller**: used to freeze the Windows desktop distribution. Project: https://pyinstaller.org.
+- **yt-dlp** (Unlicense, https://github.com/yt-dlp/yt-dlp) and **yt-dlp-ejs**: installed inside `autoclip_runtime/` as AutoClip dependencies; used only for sources the owner marked as authorized.
+- **Deno** (MIT, https://github.com/denoland/deno): unmodified `deno.exe`, pinned version and SHA-256 in `tools/build_autoclip_runtime.py`, required by yt-dlp to solve YouTube's JavaScript challenges.
 - **Microsoft Edge WebView2 Runtime**: provided by Microsoft and **not** redistributed in this portable ZIP. Runtime license and requirements: https://developer.microsoft.com/microsoft-edge/webview2/.
 
 Redistribution of FFmpeg binaries must comply with the license **of the exact compiled build**, including applicable notices and corresponding source availability. An unsigned executable does not provide proof of safe content.

@@ -107,8 +107,24 @@ Conectar OAuth Twitch real no Windows (segredos privados) e validar consulta exc
 
 O motor AutoClip já vai no EXE (`autoclip_runtime/`). O usuário pediu a IA instalada direto no app: `clipforge/local_ai.py` instala o Ollama oficial **somente após clique do proprietário**, com assinatura Authenticode verificada, e baixa modelo de lista fechada. Não embutir pesos de modelo no ZIP nem no Git; não aceitar nomes de modelo arbitrários; não pular a verificação de assinatura. `clipforge/connection_check.py` faz uma chamada somente leitura por plataforma: nunca postar, nunca devolver tokens. Teste real no Windows do usuário ainda não foi feito.
 
-`clipforge/viral_radar.py` + `static/viral.js` (Radar Viral BR): ranking somente por metadados públicos (reusa `curation.qualifies`/`ranked_shortlist`), sem baixar mídia. O botão "Ele autorizou" grava `twitch_sources.json` com evidência obrigatória (somente token do proprietário). O usuário pediu baixar/postar clipes sem autorização "para resolver depois": **recusado** — não implementar download por yt-dlp/scraping nem pular a lista de autorizados.
+`clipforge/viral_radar.py` + `static/viral.js` (Radar Viral BR): ranking somente por metadados públicos (reusa `curation.qualifies`/`ranked_shortlist`), sem baixar mídia. O botão "Ele autorizou" grava `twitch_sources.json` com evidência obrigatória (somente token do proprietário). O usuário pediu baixar/postar clipes sem autorização "para resolver depois": **recusado** — nunca baixar de streamer fora da lista de autorizados.
+
+**Download público via yt-dlp (v0.8.2, 18/11/2026, decisão do usuário):** a API oficial Get Clips Download só entrega a mídia ao dono/editor do canal. Para streamers **autorizados** (bio que libera cortes confirmada pelo proprietário ou permissão registrada) sem acesso de editor, `clipforge/public_clip_download.py` baixa o clipe público com o yt-dlp já incluído no runtime AutoClip. Travas obrigatórias: desligado por padrão (`TWITCH_PUBLIC_DOWNLOAD=1` no config.env), API oficial tentada primeiro quando houver token, somente IDs em `twitch_sources.json` com evidência, manifesto gravado com `download_method=public_clip_page_yt_dlp`. Não é API oficial: pode violar os Termos da Twitch; o proprietário assumiu esse risco. Nunca contornar DRM, login, conteúdo pago, nem estender a streamers não autorizados.
 Leitura de bios (`POST /api/twitch/policies`, Get Users oficial) só **sugere** política de cortes (`allowed`/`restricted`/`unknown`; restrição sempre vence); a autorização exige confirmação do proprietário, com o trecho da bio salvo como evidência. Painéis da Twitch não estão na API oficial e não são lidos.
+
+## YouTube: radar e download de canais autorizados (v0.9.0, 18/11/2026, pedido do usuário)
+
+`clipforge/youtube_radar.py` (radar, autorizações em `youtube_sources.json`, cache `youtube_radar.json`), `clipforge/youtube_download.py` (yt-dlp) e `clipforge/youtube_auto.py` (entrada automática → AutoClip). A interface fica em `static/youtube.js`, numa aba própria. Descoberta somente pela YouTube Data API v3 oficial, com a chave do usuário (`YOUTUBE_API_KEY`). A cota é de 10.000 unidades/dia, e `search.list` custa 100: manter o cache de 30 min e não fazer busca por canal. A política de cortes é lida nas descrições do canal e dos vídeos (reusa `viral_radar.policy_hint`) e só **sugere**; restrição vence, e a autorização exige confirmação do proprietário com evidência.
+
+Travas obrigatórias do download (não oficial; pode violar os Termos do YouTube; risco assumido pelo proprietário):
+- desligado por padrão (`YOUTUBE_PUBLIC_DOWNLOAD=1`);
+- somente canais em `youtube_sources.json` com evidência;
+- o `channel_id` lido pelo yt-dlp precisa bater com o canal autorizado;
+- sem lives e sem vídeos para membros, pagos, com DRM ou que exigem login;
+- limite de `YOUTUBE_MAX_MINUTES` e 4 GiB, até 1080p;
+- manifesto com `download_method=youtube_public_yt_dlp` e `source_duration_sec`.
+
+Nunca baixar de canal não autorizado nem burlar paywall/DRM. O Deno (runtime JS exigido pelo yt-dlp para o YouTube) é empacotado no `autoclip_runtime/` com versão e SHA-256 fixados em `tools/build_autoclip_runtime.py`, e o yt-dlp-ejs vem via `yt-dlp[default]`. Cookies: `YOUTUBE_COOKIES_BROWSER` (recomendar conta Google secundária e Firefox). Timeout do AutoClip escala com `source_duration_sec` (2x, de 30 min até 3 h). A ingestão não relê arquivos inalterados (impressão digital caminho/tamanho/mtime), para não reler GBs a cada varredura. Nada é aprovado ou publicado automaticamente.
 
 ## AutoClip e Postiz (integração opt-in, 16/11/2026)
 

@@ -87,7 +87,7 @@
 @media (max-width: 899px) {
   body.app-layout {padding-bottom:72px}
   .app-nav {
-    position:fixed;left:0;right:0;bottom:0;z-index:60;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+    position:fixed;left:0;right:0;bottom:0;z-index:60;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));
     gap:2px;padding:6px 6px calc(6px + env(safe-area-inset-bottom));
     background:rgba(9,16,28,.97);border-top:1px solid rgba(141,166,196,.2);backdrop-filter:blur(16px)
   }
@@ -136,4 +136,8 @@
 .view-radar .candidate-grid {grid-template-columns:1fr}
 .view-radar .candidate-grid > p {grid-column:1/-1}
 .view-radar .viral-grid h3 {margin-top:4px}
+.view-youtube select {width:100%;background:#0d1526;border:1px solid #415473;color:#fff;border-radius:9px;padding:10px;margin:8px 0}
+#youtube-settings-modal select {width:100%;background:#0d1526;border:1px solid #415473;color:#fff;border-radius:9px;padding:10px;margin:8px 0}
+#youtube-settings-modal .check-label {display:flex;gap:10px;align-items:center;margin:6px 0}
+#youtube-settings-modal input[type=checkbox] {width:auto;margin:0}
 .desktop-update-status{white-space:normal;max-width:100%;overflow-wrap:anywhere}
