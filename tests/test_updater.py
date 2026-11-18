@@ -222,6 +222,28 @@ class ArchiveAndStageTests(unittest.TestCase):
         self.assertNotIn("ffmpeg", str(ctx.exception))
         self.assertEqual(timeouts, [SELFTEST_TIMEOUT_SECONDS])
 
+    def test_selftest_exception_is_explained_not_silent(self):
+        from clipforge.updater import UpdateError
+        service=UpdateService(self.home)
+        validated=validate_release(sample_release())
+        data=bundle_bytes()
+        def fake_download(_release, output):
+            output.write_bytes(data)
+        def fake_run(cmd,env,**kwargs):
+            Path(env["GTA6_SELFTEST_PATH"]).write_text(json.dumps({
+                "phase":"exception","status":"fail","last_phase":"server_started",
+                "type":"URLError","message":"porta ocupada"}))
+            return SimpleNamespace(returncode=3)
+        with patch("clipforge.updater.check_latest",return_value=validated),\
+             patch("clipforge.updater._download",side_effect=fake_download),\
+             patch("clipforge.updater.subprocess.run",side_effect=fake_run):
+            with self.assertRaises(UpdateError) as ctx:
+                service.stage()
+        text=str(ctx.exception)
+        self.assertIn("server_started", text)
+        self.assertIn("URLError", text)
+        self.assertIn("instalação preservada", text)
+
     def test_windows_helper_refuses_persistent_data_folder_as_install(self):
         root=self.home
         updates=root/"updates"

@@ -216,6 +216,11 @@ class UpdateService:
                                       "pythonnet", "webview2_core", "autoclip_cli")
                           if k in outcome and not outcome.get(k)]
                 detail = (" (falhou: " + ", ".join(failed) + ")") if failed else ""
+                if not failed and outcome.get("phase") == "exception":
+                    # Autoteste quebrou: mostrar etapa e erro em vez de mensagem muda.
+                    detail = (" (erro em " + str(outcome.get("last_phase") or "início")[:40] +
+                              ": " + str(outcome.get("type") or "")[:40] + " " +
+                              str(outcome.get("message") or "")[:160] + ")")
                 raise UpdateError("A nova versão falhou na validação" + detail +
                                   "; instalação preservada")
             final = root / ("ready-" + version)

@@ -11,6 +11,7 @@ import os
 import re
 import secrets
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
@@ -401,23 +402,44 @@ class DesktopBridge:
         return {"ok": True, "public_download": enabled is True}
 
 
-def start_backend(data_dir: Path, token: str):
-    """Bind only localhost; fixed preferred port helps private Tailscale Serve."""
+class LocalHTTPServer(ThreadingHTTPServer):
+    """Servidor local que nunca compartilha porta com outro processo.
+
+    No Windows, SO_REUSEADDR (padrão do HTTPServer) permite abrir uma porta já
+    em uso: o autoteste da atualização acabava falando com o app antigo aberto.
+    """
+    allow_reuse_address = sys.platform != "win32"
+    exclusive_on_windows = True
+
+    def server_bind(self):
+        if sys.platform == "win32" and hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
+def start_backend(data_dir: Path, token: str, port: int | None = None):
+    """Bind only localhost; fixed preferred port helps private Tailscale Serve.
+
+    `port=0` força porta efêmera (autoteste), sem disputar a porta do app aberto.
+    """
     os.environ["HOST"] = "127.0.0.1"
     os.environ["DASHBOARD_TOKEN"] = token
     os.environ["CLIPS_DATA_DIR"] = str(data_dir)
     runtime = Runtime(data_dir)
+    if port is not None:
+        wanted = port
+    else:
+        try:
+            wanted = int(os.getenv("NEXUS_LOCAL_PORT", "8855"))
+            if not 0 <= wanted <= 65535:
+                raise ValueError("Invalid local port")
+        except (ValueError, TypeError):
+            wanted = 8855
     try:
-        wanted = int(os.getenv("NEXUS_LOCAL_PORT", "8855"))
-        if not 0 <= wanted <= 65535:
-            raise ValueError("Invalid local port")
-    except (ValueError, TypeError):
-        wanted = 8855
-    try:
-        server = ThreadingHTTPServer(("127.0.0.1", wanted), make_handler(runtime))
+        server = LocalHTTPServer(("127.0.0.1", wanted), make_handler(runtime))
     except OSError:
         # Never bind to a public IP or disrupt another app using that port.
-        server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(runtime))
+        server = LocalHTTPServer(("127.0.0.1", 0), make_handler(runtime))
     runtime.start_polling()
     runtime.twitch.start_polling()
     start_publishing(runtime)
@@ -525,7 +547,8 @@ def self_test(destination: Path | None = None) -> dict:
                 )
             report({**result, "phase": "webview2_checked"})
         token = secrets.token_urlsafe(32)
-        server, runtime, thread = start_backend(home / "data", token)
+        # Porta efêmera: durante a atualização o app antigo continua na 8855.
+        server, runtime, thread = start_backend(home / "data", token, port=0)
         # Validate the complete AutoClip sidecar inside the actual frozen EXE.
         if sys.platform == "win32" and getattr(sys, "frozen", False):
             sidecar = runtime.autoclip_bridge._bundled_runtime()
