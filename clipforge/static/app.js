@@ -170,15 +170,17 @@ function mountDesktopControls() {
     try{
       const result=await bridge.install_update();
       if(!result?.ok){
-        updateStatus.textContent="Instalação atual preservada";
-        toast(result?.error||"Falha ao verificar atualização");
+        const reason=result?.error||"Falha ao verificar atualização";
+        updateStatus.textContent="Não atualizou: "+reason;
+        updateStatus.title=reason;
+        toast(reason);
         busy=false;
         updateButton.disabled=false;
       }else{
         updateStatus.textContent="Reiniciando para "+result.latest;
       }
     }catch(error){
-      updateStatus.textContent="Instalação atual preservada";
+      updateStatus.textContent="Não atualizou: "+error.message;
       toast("Atualização: "+error.message);
       busy=false;
       updateButton.disabled=false;

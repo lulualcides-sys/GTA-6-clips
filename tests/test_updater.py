@@ -196,6 +196,32 @@ class ArchiveAndStageTests(unittest.TestCase):
         self.assertEqual((self.home/"data"/"clips.sqlite3").read_bytes(),b"existing-user-database")
         self.assertIn("keep-private",(self.home/"config.env").read_text())
 
+    def test_failed_selftest_names_component_and_allows_slow_first_run(self):
+        from clipforge.updater import SELFTEST_TIMEOUT_SECONDS, UpdateError
+        from clipforge.desktop import AUTOCLIP_SELFTEST_SECONDS
+        # Antivírus na primeira execução: o limite total cobre o AutoClip.
+        self.assertGreater(SELFTEST_TIMEOUT_SECONDS, AUTOCLIP_SELFTEST_SECONDS + 60)
+        service=UpdateService(self.home)
+        validated=validate_release(sample_release())
+        data=bundle_bytes()
+        timeouts=[]
+        def fake_download(_release, output):
+            output.write_bytes(data)
+        def fake_run(cmd,env,**kwargs):
+            timeouts.append(kwargs.get("timeout"))
+            Path(env["GTA6_SELFTEST_PATH"]).write_text(json.dumps({
+                "status":"fail","phase":"complete","ffmpeg":True,"autoclip_cli":False
+            }))
+            return SimpleNamespace(returncode=1)
+        with patch("clipforge.updater.check_latest",return_value=validated),\
+             patch("clipforge.updater._download",side_effect=fake_download),\
+             patch("clipforge.updater.subprocess.run",side_effect=fake_run):
+            with self.assertRaises(UpdateError) as ctx:
+                service.stage()
+        self.assertIn("autoclip_cli", str(ctx.exception))
+        self.assertNotIn("ffmpeg", str(ctx.exception))
+        self.assertEqual(timeouts, [SELFTEST_TIMEOUT_SECONDS])
+
     def test_windows_helper_refuses_persistent_data_folder_as_install(self):
         root=self.home
         updates=root/"updates"

@@ -357,6 +357,11 @@ def shutdown_backend(server, runtime, thread) -> None:
     stop_publishing(runtime)
 
 
+# Primeira execução após extrair: o antivírus do Windows escaneia milhares de
+# arquivos do runtime AutoClip (Whisper/MediaPipe); 40 s não bastava em PCs comuns.
+AUTOCLIP_SELFTEST_SECONDS = 180
+
+
 def self_test(destination: Path | None = None) -> dict:
     """Safe headless validation of the frozen EXE, local HTTP API and FFmpeg."""
     def report(state: dict) -> None:
@@ -429,7 +434,7 @@ def self_test(destination: Path | None = None) -> dict:
             if sidecar:
                 try:
                     command = subprocess.run([*sidecar, "styles"], stdin=subprocess.DEVNULL,
-                                             capture_output=True, timeout=40, check=False)
+                                             capture_output=True, timeout=AUTOCLIP_SELFTEST_SECONDS, check=False)
                     result["autoclip_cli"] = command.returncode == 0
                     if command.returncode:
                         result["autoclip_error"] = command.stderr.decode(

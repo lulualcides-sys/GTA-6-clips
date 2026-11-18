@@ -164,6 +164,11 @@ def _extract_verified(archive: Path, destination: Path) -> Path:
     return destination
 
 
+# Cobre o autoteste completo do novo EXE, incluindo o AutoClip (até 180 s) na
+# primeira execução, quando o antivírus ainda está escaneando os arquivos.
+SELFTEST_TIMEOUT_SECONDS = 420
+
+
 class UpdateService:
     def __init__(self, home: Path):
         self.home = home
@@ -195,18 +200,24 @@ class UpdateService:
             try:
                 result = subprocess.run(
                     [str(extracted / "GTA6Clips.exe"), "--self-test"],
-                    env=environment, check=False, timeout=100,
+                    env=environment, check=False, timeout=SELFTEST_TIMEOUT_SECONDS,
                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                 )
             except (OSError, subprocess.TimeoutExpired) as exc:
-                raise UpdateError("O novo executável falhou no autoteste") from exc
+                raise UpdateError("O novo executável não terminou o autoteste a tempo "
+                                  "(antivírus ainda verificando?). Tente de novo.") from exc
             try:
                 outcome = json.loads(report.read_text(encoding="utf-8"))
             except (OSError, ValueError) as exc:
                 raise UpdateError("O novo programa não concluiu o autoteste") from exc
             if (result.returncode or outcome.get("status") != "pass"
                     or outcome.get("phase") != "complete"):
-                raise UpdateError("A nova versão falhou na validação; instalação preservada")
+                failed = [k for k in ("ffmpeg", "ffprobe", "health", "protected_api",
+                                      "pythonnet", "webview2_core", "autoclip_cli")
+                          if k in outcome and not outcome.get(k)]
+                detail = (" (falhou: " + ", ".join(failed) + ")") if failed else ""
+                raise UpdateError("A nova versão falhou na validação" + detail +
+                                  "; instalação preservada")
             final = root / ("ready-" + version)
             if final.exists():
                 if final.is_symlink():
