@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace as NS
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from clipforge.core import ClipStore
 from clipforge.captions import CaptionService, cues_from_segments, to_srt, timestamp
@@ -53,8 +53,11 @@ class CaptionsTests(unittest.TestCase):
 
     def test_opt_in_worker_writes_only_private_srt(self):
         digest = hashlib.sha256(self.video.read_bytes()).hexdigest()
+        callback = Mock()
+        self.service.on_complete = callback
         with patch("clipforge.captions.whisper_model",return_value=self.fake_model()):
             self.service._run(self.cid,digest,"base")
+        callback.assert_called_once_with(self.cid)
         state = self.service.status(self.cid)
         self.assertEqual(state["status"],"ready")
         self.assertEqual(state["language"],"pt")
