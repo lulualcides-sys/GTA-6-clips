@@ -183,6 +183,7 @@ def make_handler(runtime: Runtime):
                       "/editor.js": ("editor.js", "text/javascript; charset=utf-8"),
                       "/styles.css": ("styles.css", "text/css; charset=utf-8"),
                       "/candidates.js": ("candidates.js", "text/javascript; charset=utf-8"),
+                      "/viral.js": ("viral.js", "text/javascript; charset=utf-8"),
                       "/agents.js": ("agents.js", "text/javascript; charset=utf-8"),
                       "/agents.css": ("agents.css", "text/css; charset=utf-8"),
                       "/studio-v2.css": ("studio-v2.css", "text/css; charset=utf-8"),
@@ -214,6 +215,10 @@ def make_handler(runtime: Runtime):
                                          "auto_pipeline": runtime.twitch_auto.status()})
             if route == "/api/twitch/candidates":
                 return self._reply(200, {"candidates": runtime.twitch.list_candidates()})
+            if route == "/api/twitch/viral":
+                from .viral_radar import radar
+                pt_only = parse_qs(urlsplit(self.path).query).get("pt", ["1"])[0] != "0"
+                return self._reply(200, radar(runtime, pt_only=pt_only))
             if route == "/api/twitch/streamers":
                 return self._reply(200, {"streamers": runtime.twitch.list_streamers()})
             if route == "/api/autoclip":
@@ -313,6 +318,23 @@ def make_handler(runtime: Runtime):
                 if not self._owner_auth():
                     return self._reply(403, {"error": "Somente o computador pode iniciar o pareamento"})
                 return self._reply(200, {**mobile.new_code(), "port": self.server.server_port})
+            if route == "/api/twitch/sources":
+                if not self._owner_auth():
+                    return self._reply(403, {"error": "Somente o computador altera autorizações"})
+                from .viral_radar import add_source, remove_source
+                try:
+                    body = self._body()
+                    if not isinstance(body, dict):
+                        raise ValueError("JSON inválido")
+                    if body.get("action") == "remove":
+                        removed = remove_source(runtime.store.root, str(body.get("broadcaster_id", "")))
+                        return self._reply(200, {"removed": removed})
+                    added = add_source(runtime.store.root, body.get("broadcaster_id", ""),
+                                       body.get("creator", ""), body.get("rights_status", ""),
+                                       body.get("evidence", ""))
+                    return self._reply(200, {"added": added})
+                except ValueError as exc:
+                    return self._reply(400, {"error": str(exc)[:200]})
             if route == "/api/connections/check":
                 if not self._owner_auth():
                     return self._reply(403, {"error": "Somente o computador testa conexões"})

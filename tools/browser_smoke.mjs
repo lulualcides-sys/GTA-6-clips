@@ -36,6 +36,9 @@ try {
   await page.locator("#connections-check").click();
   await page.waitForFunction(()=>document.querySelectorAll("#connections-result li").length===4,null,{timeout:20000});
   assert.equal(await page.locator("#connections-result li.good").count(),0);
+  // Radar viral: dados reais (vazios sem Twitch), nunca clipes inventados.
+  await page.waitForFunction(()=>{const n=document.querySelector("#viral-state");return n&&n.textContent.includes("potencial viral");},null,{timeout:20000});
+  assert.equal(await page.locator("#viral-clips li.hint").count(),1);
   assert.equal(await page.locator(".agent-unit").count(),9);
   const states=await page.locator(".agent-unit").evaluateAll(nodes=>
     nodes.map(x=>({name:x.querySelector(".agent-name")?.textContent,state:x.dataset.state}))
