@@ -1,5 +1,7 @@
 # GTA-6-clips — Operação Astra
 
+**v0.8.0:** novo visual por abas (Painel, Clipes, Radar viral, Publicar, Ajustes): cada seção cabe em uma tela, sem rolar a página; Aprovar/Rejeitar sempre visíveis ao lado do vídeo; barra de abas fixa no celular.
+
 **v0.7.1:** o download automático segue o calendário: antes de 19/11 pega os clipes virais das categorias em alta (de streamers autorizados); a partir de 19/11 00:00 somente GTA VI, com lote máximo de 12 por rodada.
 
 **v0.7.0:** botão **Preparar IA do AutoClip** — no Windows instala o Ollama oficial (assinatura digital conferida antes de executar), inicia o serviço local e baixa o modelo escolhido com barra de progresso; o AutoClip passa a iniciar o Ollama sozinho quando já instalado. Novo botão **Testar conexões** (Twitch, YouTube, TikTok, Postiz) com chamadas somente leitura, que também informa se a categoria GTA VI já existe na Twitch. Novo **Radar Viral BR**: lista os clipes com maior potencial viral (métricas públicas da Twitch, prioridade PT-BR) e os streamers em alta para pedir permissão; o botão **Ler bios** encontra quem libera cortes publicamente na bio da Twitch e deixa a confirmação pronta; **Ele autorizou** registra a permissão e a partir daí o app baixa e edita os clipes daquele streamer automaticamente. Veja [AUTOCLIP_ONLY.md](docs/AUTOCLIP_ONLY.md).

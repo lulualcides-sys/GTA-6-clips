@@ -33,6 +33,8 @@ try {
   },null,{timeout:20000});
   assert.equal(await page.locator("#local-ai-model option").count(),2);
   // Teste de conexões: somente leitura; sem credenciais todos ficam "não configurado".
+  await page.locator('.app-tab[data-view="ajustes"]').click();
+  assert(await page.locator("#local-ai").isVisible(),"Aba Ajustes deve mostrar a IA do AutoClip");
   await page.locator("#connections-check").click();
   await page.waitForFunction(()=>document.querySelectorAll("#connections-result li").length===4,null,{timeout:20000});
   assert.equal(await page.locator("#connections-result li.good").count(),0);
@@ -51,13 +53,22 @@ try {
   const theme=await page.request.get(base+"/studio-v2.css");
   assert.equal(theme.status(),200,"Studio V2 stylesheet must be served by the real app");
   assert.match(await theme.text(),/Studio V2/);
-  assert.equal(await page.locator(".workspace-nav a").count(),3);
+  // Layout por abas: 5 seções, cada uma cabe na tela sem rolar a página inteira.
+  assert.equal(await page.locator(".app-tab[data-view]").count(),5);
   assert.equal(await page.locator("#production-workspace").count(),1);
   assert.equal(await page.locator("#twitch-monitor").count(),1);
-  const themeApplied=await page.locator(".section-head").evaluate(node=>
+  for (const view of ["inicio","clipes","radar","publicar","ajustes"]) {
+    await page.locator(`.app-tab[data-view="${view}"]`).click();
+    assert.equal(await page.locator(`.view[data-view="${view}"]`).isVisible(),true,view+" visível");
+    assert.equal(await page.locator(".view:not([hidden])").count(),1,"Somente uma aba visível");
+    const overflow=await page.evaluate(()=>document.documentElement.scrollHeight-window.innerHeight);
+    assert(overflow<=2,`Aba ${view} não pode rolar a página no desktop (${overflow}px)`);
+  }
+  await page.locator('.app-tab[data-view="inicio"]').click();
+  const themeApplied=await page.locator(".panel").first().evaluate(node=>
     getComputedStyle(node).borderRadius
   );
-  assert.equal(themeApplied,"20px","Visual theme must apply, not merely load");
+  assert.equal(themeApplied,"17px","Visual theme must apply, not merely load");
   // Isolated CSS fixture; never changes real telemetry or renders fake activity.
   const animationCheck=await page.evaluate(()=>{
     const fixture=document.createElement("div");
