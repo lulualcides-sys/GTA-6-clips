@@ -222,6 +222,52 @@ class ArchiveAndStageTests(unittest.TestCase):
         self.assertNotIn("ffmpeg", str(ctx.exception))
         self.assertEqual(timeouts, [SELFTEST_TIMEOUT_SECONDS])
 
+    def test_staging_never_renames_directory_and_helper_accepts_it(self):
+        # WinError 5 no PC do usuário: renomear a pasta extraída logo após o
+        # autoteste. A extração precisa ir direto para a pasta final.
+        service=UpdateService(self.home)
+        updates=self.home/"updates"
+        (updates/"ready-v0.0.1-old").mkdir(parents=True)
+        (updates/"gta6-leftover").mkdir()
+        validated=validate_release(sample_release())
+        data=bundle_bytes()
+        def fake_download(_release, output):
+            output.write_bytes(data)
+        def fake_run(cmd,env,**kwargs):
+            Path(env["GTA6_SELFTEST_PATH"]).write_text(json.dumps({"status":"pass","phase":"complete"}))
+            return SimpleNamespace(returncode=0)
+        with patch("clipforge.updater.check_latest",return_value=validated),\
+             patch("clipforge.updater._download",side_effect=fake_download),\
+             patch("clipforge.updater.subprocess.run",side_effect=fake_run),\
+             patch("clipforge.updater.os.replace",side_effect=AssertionError("rename proibido")):
+            release, staged = service.stage()
+        self.assertEqual(staged.parent, updates)
+        self.assertTrue(staged.name.startswith("ready-"+release["latest"]+"-"))
+        self.assertFalse((updates/"ready-v0.0.1-old").exists())
+        self.assertFalse((updates/"gta6-leftover").exists())
+        installed=Path(self.tmp.name)/"install"
+        (installed).mkdir()
+        (installed/"GTA6Clips.exe").write_bytes(b"x")
+        (installed/"GTA6ClipsUpdater.exe").write_bytes(b"x")
+        validate_paths(self.home, staged, installed)
+
+    def test_failed_selftest_removes_staged_copy(self):
+        from clipforge.updater import UpdateError
+        service=UpdateService(self.home)
+        validated=validate_release(sample_release())
+        data=bundle_bytes()
+        def fake_download(_release, output):
+            output.write_bytes(data)
+        def fake_run(cmd,env,**kwargs):
+            Path(env["GTA6_SELFTEST_PATH"]).write_text(json.dumps({"status":"fail","phase":"complete","health":False}))
+            return SimpleNamespace(returncode=2)
+        with patch("clipforge.updater.check_latest",return_value=validated),\
+             patch("clipforge.updater._download",side_effect=fake_download),\
+             patch("clipforge.updater.subprocess.run",side_effect=fake_run):
+            with self.assertRaises(UpdateError):
+                service.stage()
+        self.assertEqual(list((self.home/"updates").glob("ready-*")), [])
+
     def test_interrupted_selftest_reports_stage_and_error(self):
         from clipforge.updater import UpdateError
         service=UpdateService(self.home)

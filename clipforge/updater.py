@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import re
+import secrets
 import shutil
 import stat
 import subprocess
@@ -189,11 +190,20 @@ class UpdateService:
             raise UpdateError("Pasta de atualização não confiável")
         root.mkdir(parents=True, exist_ok=True)
         version = release["latest"]
-        with tempfile.TemporaryDirectory(prefix="gta6-", dir=root) as tmp:
+        _cleanup_previous_stages(root)
+        # Extrai direto na pasta final "ready-…": no Windows, renomear a pasta logo
+        # após o autoteste falhava com WinError 5 (antivírus/arquivos ainda abertos).
+        final = root / f"ready-{version}-{secrets.token_hex(4)}"
+        with tempfile.TemporaryDirectory(prefix="gta6-", dir=root,
+                                         ignore_cleanup_errors=True) as tmp:
             tmp_path = Path(tmp)
             archive = tmp_path / ASSET_NAME
             _download(release, archive)
-            extracted = _extract_verified(archive, tmp_path / "extracted")
+            try:
+                extracted = _extract_verified(archive, final)
+            except BaseException:
+                shutil.rmtree(final, ignore_errors=True)
+                raise
             # Check new binaries before replacing the working version.
             report = tmp_path / "test.json"
             environment = dict(os.environ, GTA6_SELFTEST_PATH=str(report))
@@ -204,11 +214,13 @@ class UpdateService:
                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                 )
             except (OSError, subprocess.TimeoutExpired) as exc:
+                shutil.rmtree(final, ignore_errors=True)
                 raise UpdateError("O novo executável não terminou o autoteste a tempo "
                                   "(antivírus ainda verificando?). Tente de novo.") from exc
             try:
                 outcome = json.loads(report.read_text(encoding="utf-8"))
             except (OSError, ValueError) as exc:
+                shutil.rmtree(final, ignore_errors=True)
                 raise UpdateError("O novo programa não concluiu o autoteste") from exc
             if (result.returncode or outcome.get("status") != "pass"
                     or outcome.get("phase") != "complete"):
@@ -223,12 +235,16 @@ class UpdateService:
                     reason = str(outcome.get("type", "") + ": " + str(outcome.get("message", ""))).strip(": ")
                     detail = f" (etapa {stage}, código {result.returncode}" + (
                         f", {reason[:120]}" if reason else "") + ")"
+                shutil.rmtree(final, ignore_errors=True)
                 raise UpdateError("A nova versão falhou na validação" + detail +
                                   "; instalação preservada")
-            final = root / ("ready-" + version)
-            if final.exists():
-                if final.is_symlink():
-                    raise UpdateError("Diretório de atualização inseguro")
-                shutil.rmtree(final)
-            os.replace(extracted, final)
-            return release, final
+            return release, extracted
+
+
+def _cleanup_previous_stages(root: Path) -> None:
+    """Remove tentativas antigas; pastas ainda presas pelo Windows ficam para depois."""
+    for item in root.iterdir():
+        if item.is_symlink() or not item.is_dir():
+            continue
+        if item.name.startswith(("ready-v", "gta6-")):
+            shutil.rmtree(item, ignore_errors=True)
