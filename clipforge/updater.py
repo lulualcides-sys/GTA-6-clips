@@ -215,7 +215,14 @@ class UpdateService:
                 failed = [k for k in ("ffmpeg", "ffprobe", "health", "protected_api",
                                       "pythonnet", "webview2_core", "autoclip_cli")
                           if k in outcome and not outcome.get(k)]
-                detail = (" (falhou: " + ", ".join(failed) + ")") if failed else ""
+                if failed:
+                    detail = " (falhou: " + ", ".join(failed) + ")"
+                else:
+                    # Teste interrompido: mostrar etapa e erro técnico curto.
+                    stage = outcome.get("last_phase") or outcome.get("phase") or "?"
+                    reason = str(outcome.get("type", "") + ": " + str(outcome.get("message", ""))).strip(": ")
+                    detail = f" (etapa {stage}, código {result.returncode}" + (
+                        f", {reason[:120]}" if reason else "") + ")"
                 raise UpdateError("A nova versão falhou na validação" + detail +
                                   "; instalação preservada")
             final = root / ("ready-" + version)

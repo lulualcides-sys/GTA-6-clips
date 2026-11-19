@@ -223,6 +223,38 @@ class LocalDesktopTests(unittest.TestCase):
         self.assertEqual(settings.read_text(), "AUTO_SCAN=0\n")
 
 
+class SelfTestIsolationTests(unittest.TestCase):
+    """O atualizador repassa o ambiente do app aberto; o teste não pode usá-lo."""
+
+    USER_ENV = {"TWITCH_CLIENT_ID": "real", "TWITCH_CLIENT_SECRET": "real-secret",
+                "TWITCH_ENABLED": "1", "TWITCH_AUTO_DOWNLOAD": "1",
+                "TWITCH_PUBLIC_DOWNLOAD": "1", "YOUTUBE_API_KEY": "real-key",
+                "YOUTUBE_PUBLIC_DOWNLOAD": "1", "AUTO_SCAN": "1", "AUTO_RENDER": "1",
+                "PUBLISHING_ENABLED": "1", "POSTIZ_API_KEY": "k", "NEXUS_LOCAL_PORT": "8855",
+                "GTA6_SELFTEST_PATH": "/keep/me"}
+
+    def test_isolation_removes_user_settings_and_disables_automation(self):
+        from clipforge.desktop import isolate_selftest_environment
+        with patch.dict(os.environ, self.USER_ENV):
+            isolate_selftest_environment()
+            for key in ("TWITCH_CLIENT_ID", "TWITCH_CLIENT_SECRET", "TWITCH_PUBLIC_DOWNLOAD",
+                        "YOUTUBE_API_KEY", "YOUTUBE_PUBLIC_DOWNLOAD", "POSTIZ_API_KEY"):
+                self.assertNotIn(key, os.environ)
+            self.assertEqual(os.environ["TWITCH_ENABLED"], "0")
+            self.assertEqual(os.environ["AUTO_SCAN"], "0")
+            self.assertEqual(os.environ["PUBLISHING_ENABLED"], "0")
+            self.assertEqual(os.environ["GTA6_SELFTEST_PATH"], "/keep/me")
+
+    def test_selftest_passes_with_real_user_environment(self):
+        from clipforge.desktop import self_test
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, self.USER_ENV):
+            report = Path(tmp) / "report.json"
+            result = self_test(report)
+            saved = json.loads(report.read_text(encoding="utf-8"))
+        self.assertEqual(result["status"], "pass", result)
+        self.assertEqual(saved["phase"], "complete")
+
+
 class AutoClipQuickCheckTests(unittest.TestCase):
     """Atualização no PC confere a estrutura; o CI roda o motor completo."""
 
