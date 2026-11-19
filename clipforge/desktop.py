@@ -461,6 +461,24 @@ def autoclip_runtime_complete(folder: Path) -> bool:
     return all((packages / name).is_dir() for name in ("faster_whisper", "mediapipe", "scenedetect"))
 
 
+_SELFTEST_ENV_PREFIXES = ("TWITCH_", "YOUTUBE_", "POSTIZ_", "TIKTOK_", "PUBLISHING_",
+                          "AUTOCLIP_", "NEXUS_")
+_SELFTEST_ENV_KEYS = ("AUTO_SCAN", "AUTO_RENDER", "AUTO_TRANSCRIBE", "SMART_SCENES",
+                      "ENABLE_SYNTHETIC_DEMO", "POLL_SECONDS", "MAX_SOURCE_SECONDS")
+
+
+def isolate_selftest_environment() -> None:
+    """O atualizador roda o novo EXE com o ambiente do app aberto (config.env do
+    usuário). Sem isolar, o teste liga Twitch/YouTube/downloads reais, que seguram
+    arquivos abertos e quebram o teste no Windows. O teste usa só valores neutros."""
+    for key in list(os.environ):
+        if key.startswith(_SELFTEST_ENV_PREFIXES) or key in _SELFTEST_ENV_KEYS:
+            os.environ.pop(key, None)
+    os.environ.update({"TWITCH_ENABLED": "0", "TWITCH_AUTO_DOWNLOAD": "0",
+                       "AUTO_SCAN": "0", "AUTO_RENDER": "0", "AUTO_TRANSCRIBE": "0",
+                       "PUBLISHING_ENABLED": "0", "NEXUS_LOCAL_PORT": "0"})
+
+
 def self_test(destination: Path | None = None) -> dict:
     """Safe headless validation of the frozen EXE, local HTTP API and FFmpeg."""
     def report(state: dict) -> None:
@@ -468,8 +486,11 @@ def self_test(destination: Path | None = None) -> dict:
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_text(json.dumps(state, indent=2), encoding="utf-8")
 
+    isolate_selftest_environment()
     report({"phase": "entry", "status": "running"})
-    with tempfile.TemporaryDirectory(prefix="gta6-desktop-qa-") as root:
+    # Windows não apaga arquivos ainda abertos (SQLite/logs de threads daemon);
+    # isso não pode transformar um teste aprovado em falha.
+    with tempfile.TemporaryDirectory(prefix="gta6-desktop-qa-", ignore_cleanup_errors=True) as root:
         home = Path(root)
         tools = find_ffmpeg_tools()
         result = {
