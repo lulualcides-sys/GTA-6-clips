@@ -1,5 +1,7 @@
 # GTA-6-clips — Operação Astra
 
+**v0.13.0:** checklist **"O que falta para funcionar"** no Painel: mostra o estado real de cada etapa (motor, IA, Twitch/YouTube, canais autorizados, download, primeiro download, cortes, publicação), destaca o passo que está travando e tem o botão que resolve (preparar IA, ligar download, verificar agora) ou abre a aba certa.
+
 **v0.12.0:** erros de download explicados em português; **notificação nativa do Windows** quando algo falha (grátis, sem instalar nada); sugestões do AutoClip podem ser **recortadas antes de importar** e **refeitas** com as configurações atuais.
 
 **v0.11.0:** **gravação da live em tempo real** de streamers autorizados (opcional, aba Atividade); ao fim da live, a gravação vai para o AutoClip. No Exportar, o início e o fim do trecho podem ser marcados tocando o vídeo.

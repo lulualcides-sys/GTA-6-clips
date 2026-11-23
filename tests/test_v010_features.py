@@ -420,3 +420,42 @@ class SuggestionEditTest(unittest.TestCase):
         self.bridge.jobs["c1"] = {"status": "running"}
         with self.assertRaises(ValueError):
             self.bridge.redo("c1")
+
+
+class ReadinessTest(unittest.TestCase):
+    def _runtime(self, **over):
+        base = dict(
+            autoclip_bridge=SimpleNamespace(available=lambda: True, status=lambda: {"running": False, "pending": 0}),
+            twitch=SimpleNamespace(status=lambda: {"configured": True}),
+            youtube_auto=SimpleNamespace(status=lambda: {"api_key_present": False, "authorized_channels": 0,
+                                                         "enabled": False, "last_error": None}),
+            twitch_auto=SimpleNamespace(status=lambda: {"authorized_broadcasters": 2, "editor_grant_present": False,
+                                                        "public_download": True, "last_error": None}),
+            ingest_log=SimpleNamespace(counts=lambda: {"done": 1}),
+            store=SimpleNamespace(all=lambda: [{"status": "ready"}]))
+        base.update(over)
+        return SimpleNamespace(**base)
+
+    def test_first_missing_step_is_next_and_actions_are_real_routes(self):
+        from clipforge.readiness import check
+        ai = SimpleNamespace(status=lambda: {"model_ready": False, "models": [], "recommended": "llama3.1:8b", "job": None})
+        data = check(self._runtime(), None, ai)
+        self.assertEqual(data["next"], "ai")
+        step = next(s for s in data["steps"] if s["key"] == "ai")
+        self.assertEqual(step["action"]["target"], "/api/local-ai/prepare")
+        self.assertFalse(data["working"])
+
+    def test_all_ready_and_publish_optional(self):
+        from clipforge.readiness import check
+        ai = SimpleNamespace(status=lambda: {"model_ready": True, "models": ["llama3.1:8b"], "job": None})
+        data = check(self._runtime(), SimpleNamespace(status=lambda: {"platforms": []}), ai)
+        self.assertTrue(data["working"])
+        self.assertEqual(data["done"], data["total"])
+        self.assertFalse(next(s for s in data["steps"] if s["key"] == "publish")["ok"])
+
+    def test_download_off_blocks(self):
+        from clipforge.readiness import check
+        ai = SimpleNamespace(status=lambda: {"model_ready": True, "models": ["x"], "job": None})
+        rt = self._runtime(twitch_auto=SimpleNamespace(status=lambda: {"authorized_broadcasters": 1,
+                           "editor_grant_present": False, "public_download": False, "last_error": None}))
+        self.assertEqual(check(rt, None, ai)["next"], "download")
