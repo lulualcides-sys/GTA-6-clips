@@ -130,7 +130,7 @@ Nunca baixar de canal não autorizado nem burlar paywall/DRM. O Deno (runtime JS
 
 Ver `docs/V010_AUTOMACAO.md`.
 - `ingest_log.py`: todo download (Twitch/YouTube/VOD) registra status, erro e modo (`automatico`/`manual`). Novos downloaders devem chamar `ingest_log.record`.
-- `live_monitor.py`: só consulta streamers autorizados (Get Streams oficial) e baixa a VOD ao fim da live apenas com `TWITCH_LIVE_VOD_DOWNLOAD=1` e `TWITCH_PUBLIC_DOWNLOAD=1`. Não gravar a live em tempo real sem novo pedido.
+- `live_monitor.py`: só consulta streamers autorizados (Get Streams oficial) e baixa a VOD ao fim da live apenas com `TWITCH_LIVE_VOD_DOWNLOAD=1` e `TWITCH_PUBLIC_DOWNLOAD=1`. Gravação em tempo real (v0.11.0, pedido do usuário): `live_recorder.py`, só autorizados, opt-in `TWITCH_LIVE_RECORD=1` + `TWITCH_PUBLIC_DOWNLOAD=1`, limite de duração, remux sem reencode.
 - `autoclip_settings.py`: opções viram argumentos reais da CLI. A legenda personalizada é registrada pelo `RUNNER_SOURCE` (gera o `nexus_autoclip_runner.py` do build) como preset `nexus_custom`.
 - `exporter.py`: **exceção autorizada à regra SOMENTE AUTOCLIP**. A conversão (formato, resolução, qualidade, trecho) gera **cópias** em `data/exports`; o MP4 do AutoClip nunca é alterado. Metadados só para organização e procedência; é proibido adicionar remoção de origem ou qualquer mecanismo para enganar detectores de conteúdo duplicado.
 - `notifications.py`: só falhas reais; marcar automático/manual.

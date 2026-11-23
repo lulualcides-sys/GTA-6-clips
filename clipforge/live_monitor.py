@@ -33,7 +33,7 @@ def _int_env(name: str, default: int, low: int, high: int) -> int:
 
 
 class TwitchLiveMonitor:
-    def __init__(self, runtime, *, downloader=None):
+    def __init__(self, runtime, *, downloader=None, recorder=None):
         self.runtime = runtime
         self.lock = threading.RLock()
         self.running = False
@@ -41,9 +41,14 @@ class TwitchLiveMonitor:
         self.last_error = None
         self.live_now: list[dict] = []
         self._started = False
+        self._recorded: set[str] = set()
         if downloader is None:
             from .public_clip_download import download_public_vod as downloader
         self.downloader = downloader
+        if recorder is None:
+            from .live_recorder import LiveRecorder
+            recorder = LiveRecorder(runtime.store.root, runtime.store.incoming)
+        self.recorder = recorder
         with self._db() as db:
             db.execute("""CREATE TABLE IF NOT EXISTS live_sessions (
                 stream_id TEXT PRIMARY KEY, broadcaster_id TEXT NOT NULL,
@@ -85,7 +90,10 @@ class TwitchLiveMonitor:
         with self._db() as db:
             rows = db.execute("SELECT * FROM live_sessions ORDER BY COALESCE(ended_at, started_at) DESC "
                               "LIMIT 30").fetchall()
+        from . import live_recorder
         return {"enabled": self.enabled(), "vod_download": self.vod_download_enabled(),
+                "live_record": live_recorder.enabled(),
+                "recording_now": sorted(self.recorder.active),
                 "running": self.running, "last_run": self.last_run, "last_error": self.last_error,
                 "live_now": list(self.live_now), "sessions": [dict(r) for r in rows],
                 "poll_seconds": _int_env("TWITCH_LIVE_POLL_SECONDS", 120, 60, 3600)}
@@ -131,7 +139,10 @@ class TwitchLiveMonitor:
                               "title": s.get("title", ""), "game": s.get("game_name", ""),
                               "viewers": s.get("viewer_count", 0)}
                              for s in streams if str(s.get("user_id")) in sources]
+            self._recordings(streams, live_ids, sources, trigger)
             for row in ended:
+                if row["stream_id"] in self._recorded:
+                    continue  # a gravação em tempo real já virou fonte do AutoClip
                 self._handle_ended(client, row, sources, trigger)
             self.last_error = None
             return {"started": True, "live": len(self.live_now), "ended": len(ended)}
@@ -141,6 +152,41 @@ class TwitchLiveMonitor:
         finally:
             with self.lock:
                 self.running = False
+
+    def _recordings(self, streams, live_ids, sources, trigger) -> None:
+        from . import live_recorder
+        if live_recorder.enabled():
+            for stream in streams:
+                sid, uid = str(stream.get("id", "")), str(stream.get("user_id", ""))
+                if uid not in sources or self.recorder.is_recording(sid) or sid in self._recorded:
+                    continue
+                try:
+                    self.recorder.start(sid, stream.get("user_login", ""),
+                                        {**sources[uid], "broadcaster_id": uid})
+                    self._set(sid, error="Gravando a live em tempo real…")
+                except DownloadError as exc:
+                    self._set(sid, error=str(exc)[:200])
+        for sid in list(self.recorder.active):
+            if self.recorder.poll(sid, sid in live_ids) != "finished":
+                continue
+            info = self.recorder.active[sid]
+            uid = str(info["manifest"].get("broadcaster_id", ""))
+            title = next((str(s.get("title", "")) for s in streams if str(s.get("id")) == sid), "")
+            record(self.runtime, "start", "twitch", "live", uid, "live-" + sid,
+                   source_name=str(info["manifest"].get("creator", "")), title=title or "Live gravada",
+                   trigger=trigger)
+            self._recorded.add(sid)
+            try:
+                self.recorder.finalize(sid, title)
+                result = self.runtime.scan()
+                if not result["added"]:
+                    raise DownloadError("Gravação recebida, mas a ingestão rejeitou a mídia.")
+                self._set(sid, status="recorded", error="")
+                record(self.runtime, "finish", "twitch", "live-" + sid, "done")
+            except (DownloadError, OSError, ValueError) as exc:
+                self._recorded.discard(sid)  # sem gravação válida: tenta a VOD depois
+                self._set(sid, error="Gravação falhou: " + str(exc)[:180])
+                record(self.runtime, "finish", "twitch", "live-" + sid, "failed", str(exc))
 
     def _set(self, stream_id: str, **fields) -> None:
         keys = ", ".join(f"{k}=?" for k in fields)

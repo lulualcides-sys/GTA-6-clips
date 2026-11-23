@@ -284,3 +284,74 @@ class WebRoutesTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LiveRecorderTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        (self.root / "incoming").mkdir()
+
+    def _recorder(self, finished=True):
+        from clipforge.live_recorder import LiveRecorder
+        procs = []
+
+        def popen(cmd, **kw):
+            out = Path(cmd[cmd.index("-o") + 1])
+            out.parent.mkdir(parents=True, exist_ok=True)
+            subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "testsrc=s=640x360:r=15:d=3",
+                            "-f", "lavfi", "-i", "sine=d=3", "-c:v", "libx264", "-preset", "ultrafast",
+                            "-c:a", "aac", "-f", "mpegts", str(out)], check=True, timeout=60)
+            proc = Mock()
+            proc.poll.return_value = 0 if finished else None
+            procs.append((cmd, proc))
+            return proc
+        return LiveRecorder(self.root, self.root / "incoming", popen=popen, command=["yt-dlp"]), procs
+
+    def test_record_finalize_with_manifest(self):
+        rec, procs = self._recorder()
+        manifest = {"creator": "A", "rights_status": "permission_granted", "evidence": "bio libera",
+                    "broadcaster_id": "111"}
+        rec.start("12345", "Streamer_A", manifest)
+        self.assertEqual(procs[0][0][-1], "https://www.twitch.tv/streamer_a")
+        self.assertEqual(rec.poll("12345", still_live=False), "finished")
+        target = rec.finalize("12345", "GTA VI ao vivo")
+        meta = json.loads(Path(str(target) + ".rights.json").read_text(encoding="utf-8"))
+        self.assertEqual(meta["download_method"], "live_recording_yt_dlp")
+        self.assertGreater(meta["source_duration_sec"], 2)
+        self.assertFalse(list((self.root / "recordings").glob("*.ts")))
+
+    def test_still_live_keeps_recording_and_blocks_unauthorized(self):
+        rec, _ = self._recorder(finished=False)
+        with self.assertRaises(DownloadError):
+            rec.start("1", "x_y", {"rights_status": "public", "broadcaster_id": "1"})
+        with self.assertRaises(DownloadError):
+            rec.start("1", "../evil", {"rights_status": "owned", "broadcaster_id": "1"})
+        rec.start("1", "abc", {"rights_status": "owned", "broadcaster_id": "1", "creator": "a"})
+        self.assertEqual(rec.poll("1", still_live=True), "recording")
+        self.assertEqual(rec.poll("1", still_live=False), "finished")
+
+    def test_monitor_records_and_skips_vod(self):
+        from clipforge.live_monitor import TwitchLiveMonitor
+        rec, _ = self._recorder()
+        client = Mock()
+        client.get_streams.side_effect = [[{"id": "77", "user_id": "111", "user_login": "aut", "title": "T"}], []]
+        sources = [{"broadcaster_id": "111", "creator": "Aut", "rights_status": "owned", "evidence": ""}]
+        runtime = SimpleNamespace(
+            store=SimpleNamespace(database=self.root / "db.sqlite3", incoming=self.root / "incoming", root=self.root),
+            twitch=SimpleNamespace(client=client, client_id="c", secret="s"),
+            twitch_auto=SimpleNamespace(_allowed_sources=lambda: sources),
+            scan=Mock(return_value={"added": ["x"]}))
+        runtime.ingest_log = IngestLog(runtime.store.database, threading.RLock())
+        vod = Mock()
+        monitor = TwitchLiveMonitor(runtime, downloader=vod, recorder=rec)
+        with patch.dict(os.environ, {"TWITCH_LIVE_RECORD": "1", "TWITCH_PUBLIC_DOWNLOAD": "1",
+                                     "TWITCH_LIVE_VOD_DOWNLOAD": "1"}):
+            monitor.check()
+            monitor.check()
+        self.assertEqual(monitor.status()["sessions"][0]["status"], "recorded")
+        vod.assert_not_called()
+        client.get_latest_vod.assert_not_called()
+        self.assertEqual(runtime.ingest_log.list()[0]["kind"], "live")
+        self.assertTrue((self.root / "incoming" / "twitch-live-77.mp4").is_file())

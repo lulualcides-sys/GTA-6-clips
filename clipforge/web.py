@@ -442,12 +442,14 @@ def make_handler(runtime: Runtime):
                     return self._reply(403, {"error": "Somente o computador altera o monitor de lives"})
                 try:
                     body = self._body()
-                    if not isinstance(body, dict) or set(body) - {"vod_download", "public_download"} \
+                    if not isinstance(body, dict) or set(body) - {"vod_download", "public_download", "record"} \
                             or any(not isinstance(v, bool) for v in body.values()):
                         raise ValueError("Envie vod_download/public_download como true/false")
                     updates = {}
                     if "vod_download" in body:
                         updates["TWITCH_LIVE_VOD_DOWNLOAD"] = "1" if body["vod_download"] else "0"
+                    if "record" in body:
+                        updates["TWITCH_LIVE_RECORD"] = "1" if body["record"] else "0"
                     if "public_download" in body:
                         updates["TWITCH_PUBLIC_DOWNLOAD"] = "1" if body["public_download"] else "0"
                     from .twitch_oauth import save_private_config

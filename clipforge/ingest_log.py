@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 PLATFORMS = {"twitch", "youtube"}
-KINDS = {"clip", "video", "vod"}
+KINDS = {"clip", "video", "vod", "live"}
 STATUSES = {"queued", "downloading", "done", "failed", "skipped"}
 TRIGGERS = {"automatico", "manual"}
 

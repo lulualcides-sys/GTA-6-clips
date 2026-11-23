@@ -37,9 +37,10 @@
       const live = await api("/api/live");
       $("live-summary").textContent = !live.enabled ? "Monitor de lives desligado (TWITCH_LIVE_MONITOR=0)." :
         `${live.live_now.length} ao vivo agora · verificação a cada ${Math.round(live.poll_seconds / 60)} min · ` +
-        (live.vod_download ? "VOD baixada automaticamente ao fim da live." : "Download de VOD desligado: marque a opção acima.") +
+        (live.live_record ? "Gravando lives em tempo real" + (live.recording_now.length ? " (" + live.recording_now.length + " agora)" : "") + ". " : "") + (live.vod_download ? "VOD baixada automaticamente ao fim da live." : "Download de VOD desligado.") +
         (live.last_error ? " · " + live.last_error : "");
       $("live-vod").checked = !!live.vod_download;
+      $("live-record").checked = !!live.live_record;
       const list = $("live-rows"); list.replaceChildren();
       if (!live.sessions.length) list.appendChild(make("li", "Nenhuma live registrada dos streamers autorizados ainda.", "hint"));
       live.sessions.forEach(s => {
@@ -70,6 +71,20 @@
     } catch (_) { /* token ainda não informado */ }
   }
   $("ingest-filter").addEventListener("change", loadActivity);
+  $("live-record").addEventListener("change", async () => {
+    const on = $("live-record").checked;
+    try { await api("/api/live/settings", "POST", false, on ? {record: true, public_download: true} : {record: false});
+      toast(on ? "Gravação em tempo real ligada para streamers autorizados." : "Gravação em tempo real desligada."); }
+    catch (e) { toast("Lives: " + e.message); $("live-record").checked = !on; }
+    loadActivity();
+  });
+  /* Marcar trecho tocando o vídeo do corte */
+  [["exp-mark-start", "exp-start"], ["exp-mark-end", "exp-end"]].forEach(([btn, field]) =>
+    $(btn).addEventListener("click", () => {
+      const player = $("player");
+      if (!player || player.hidden || !player.duration) { toast("Abra o corte no player primeiro."); return; }
+      $(field).value = player.currentTime.toFixed(1);
+    }));
   $("live-vod").addEventListener("change", async () => {
     const on = $("live-vod").checked;
     try { await api("/api/live/settings", "POST", false, on ? {vod_download: true, public_download: true} : {vod_download: false});

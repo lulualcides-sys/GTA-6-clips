@@ -61,3 +61,12 @@ A detecção de melhores momentos, os vários cortes por vídeo, o formato 9:16,
   - TikTok: precisa da Content Posting API aprovada pelo TikTok; até a aprovação, os posts ficam privados (`SELF_ONLY`).
   - Instagram: continua não implementado (exige conta profissional e hospedagem HTTPS do MP4).
 - **Testes reais:** nada disso foi testado com contas reais nesta sessão. Os testes usam respostas simuladas da Twitch e mídia sintética própria, com FFmpeg real.
+
+## v0.11.0 — gravação de live em tempo real e marcação de trecho
+- **Gravar a live em tempo real** (`clipforge/live_recorder.py`, opção na aba Atividade, `TWITCH_LIVE_RECORD=1`, que liga também o download público):
+  - quando um streamer **autorizado** entra ao vivo, o yt-dlp grava a live pública desde aquele momento (até 1080p, no máximo `TWITCH_RECORD_MAX_MINUTES`, padrão 240);
+  - quando a live termina, a gravação passa por um remux sem reencode para MP4, ganha um manifesto de direitos (`download_method=live_recording_yt_dlp`) e vai para o AutoClip;
+  - quem foi gravado não tem a VOD baixada de novo;
+  - se a gravação falhar, o monitor tenta a VOD.
+  - Não é oficial (risco perante os Termos da Twitch, assumido pelo proprietário), e lives de outros streamers nunca são gravadas.
+- **Marcar trecho no vídeo**: no Exportar, os botões "⏱ Marcar no vídeo" usam o tempo atual do player como início ou fim.
