@@ -1,5 +1,7 @@
 # GTA-6-clips — Operação Astra
 
+**v0.10.0:** aba **Atividade** (histórico e fila de downloads com status, erro e modo automático/manual, falhas das últimas 24 h, botão **Verificar agora**); **monitor de lives da Twitch** para streamers autorizados, que baixa a VOD ao fim da live (opcional) e manda ao AutoClip; **Cortes do AutoClip** configuráveis (cortes por vídeo, enquadramento por rosto ou centro, legenda com fonte, tamanho, cores e posição); **exportação** com formato, resolução, qualidade, trecho e metadados de origem e autoria, sem perda quando possível e sem alterar o corte original. Veja [V010_AUTOMACAO.md](docs/V010_AUTOMACAO.md).
+
 **v0.9.2:** a atualização pelo app não renomeia mais a pasta baixada (o Windows negava com WinError 5 logo após o autoteste, normalmente por causa do antivírus). A versão nova é extraída direto na pasta final, e as tentativas antigas são limpas.
 
 **v0.9.1:** corrige a atualização pelo app recusada com "A nova versão falhou na validação". O autoteste herdava as configurações reais do usuário (Twitch, YouTube e downloads ligados) e o Windows não liberava arquivos abertos no fim. Agora o teste roda isolado, não falha só por limpeza de pasta temporária e, se for interrompido, mostra a etapa e o erro.

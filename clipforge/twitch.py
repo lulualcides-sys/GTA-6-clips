@@ -136,6 +136,13 @@ class TwitchClient:
         ids = [i for i in ids if str(i).isdigit()][:100]
         return list(self._get("users", {"id": ids}).get("data", [])) if ids else []
 
+    def get_latest_vod(self, user_id: str) -> dict | None:
+        """Última gravação de live (Get Videos type=archive) pela API oficial."""
+        if not str(user_id).isdigit():
+            return None
+        data = self._get("videos", {"user_id": str(user_id), "type": "archive", "first": 1}).get("data", [])
+        return data[0] if data else None
+
     def get_streams(self, broadcaster_ids: list[str]) -> list[dict]:
         """Polling leve; ausência na resposta indica offline, não falha de rede."""
         return list(self._get("streams", {"user_id": broadcaster_ids[:100], "first": 100}).get("data", []))

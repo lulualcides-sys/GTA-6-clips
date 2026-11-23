@@ -1,7 +1,7 @@
 /* Navegação por abas: cada seção ocupa uma tela, sem rolar a página inteira. */
 "use strict";
 (function () {
-  const VIEWS = ["inicio", "clipes", "radar", "youtube", "publicar", "ajustes"];
+  const VIEWS = ["inicio", "clipes", "radar", "youtube", "atividade", "publicar", "ajustes"];
   const tabs = Array.from(document.querySelectorAll(".app-tab[data-view]"));
   const views = Array.from(document.querySelectorAll(".view[data-view]"));
   if (!tabs.length || !views.length) return;

@@ -12,6 +12,7 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 
+from .ingest_log import record
 from .twitch_download import DownloadError
 from .youtube_radar import (YouTubeAPI, YouTubeError, api_key, authorized_sources,
                             eligible_for_autoclip, video_row)
@@ -40,6 +41,7 @@ class YouTubeAutoIngest:
         self.last_checked = 0
         self.last_eligible = 0
         self._thread = None
+        self.trigger = "automatico"  # "manual" quando o proprietário clica em Verificar agora
 
     def _gta6_only(self) -> bool:
         value = os.getenv("YOUTUBE_AUTO_GTA6_ONLY", "1").strip().lower()
@@ -155,6 +157,9 @@ class YouTubeAutoIngest:
                     continue
                 if self.next_retry.get(vid, 0) > time.monotonic():
                     continue
+                record(self.runtime, "start", "youtube", "video", row["channel_id"], vid,
+                       source_name=str(sources[row["channel_id"]].get("creator", "")),
+                       title=row["title"], trigger=self.trigger)
                 try:
                     self.attempted += 1
                     self.downloader(vid, row["channel_id"], sources[row["channel_id"]], incoming,
@@ -162,12 +167,15 @@ class YouTubeAutoIngest:
                     result = self.runtime.scan()  # única autoridade que enfileira o AutoClip
                     if not result["added"]:
                         self.last_error = "Download recebido, mas a ingestão rejeitou a mídia."
+                        record(self.runtime, "finish", "youtube", vid, "failed", self.last_error)
                     else:
                         self.processed += 1
                         quota -= 1
+                        record(self.runtime, "finish", "youtube", vid, "done")
                 except (DownloadError, OSError, ValueError) as exc:
                     self.last_error = str(exc)[:190]
                     self.next_retry[vid] = time.monotonic() + 6 * 3600
+                    record(self.runtime, "finish", "youtube", vid, "failed", self.last_error)
         except YouTubeError as exc:
             self.last_error = "YouTube: " + str(exc)[:160]
         except (OSError, ValueError, TypeError, KeyError) as exc:
@@ -175,3 +183,4 @@ class YouTubeAutoIngest:
         finally:
             with self.lock:
                 self.running = False
+                self.trigger = "automatico"

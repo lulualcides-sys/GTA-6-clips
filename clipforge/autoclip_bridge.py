@@ -63,6 +63,16 @@ class AutoClipBridge:
         external = shutil.which(configured)
         return [external] if external else None
 
+    def custom_captions_supported(self) -> bool:
+        """Só o runner empacotado registra a legenda personalizada (nexus_custom)."""
+        bundled = self._bundled_runtime()
+        if not bundled:
+            return False
+        try:
+            return "NEXUS_CAPTION_STYLE" in Path(bundled[1]).read_text(encoding="utf-8")
+        except OSError:
+            return False
+
     def binary(self):
         command = self._command()
         return command[0] if command else None
@@ -215,10 +225,12 @@ class AutoClipBridge:
             with self.lock:
                 self.jobs[clip_id]["status"] = "running"
                 self._save()
-            env = {**os.environ, "AUTOCLIP_HOME": str(self.home)}
+            from . import autoclip_settings
+            settings = autoclip_settings.load(self.store.root)
+            options, extra_env = autoclip_settings.cli_args(settings, self.custom_captions_supported())
+            env = {**os.environ, "AUTOCLIP_HOME": str(self.home), **extra_env}
             result = subprocess.run(
-                [*self._command(), "clip", source, "--max-clips", "3",
-                 "--ratio", "9:16", "--style", "boxed", *provider_options],
+                [*self._command(), "clip", source, *options, *provider_options],
                 env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT, text=True, errors="replace",
                 timeout=timeout, check=False
@@ -230,7 +242,7 @@ class AutoClipBridge:
             suggestions = []
             for directory in sorted(after):
                 for file in sorted(directory.glob("*.mp4")):
-                    if file.is_file() and not file.is_symlink() and len(suggestions) < 3:
+                    if file.is_file() and not file.is_symlink() and len(suggestions) < settings["max_clips"]:
                         suggestions.append(str(file.relative_to(self.exports)))
             if not suggestions:
                 raise RuntimeError("AutoClip finalizou sem novos MP4s na pasta de exportação.")
@@ -259,6 +271,8 @@ class AutoClipBridge:
         except (OSError, subprocess.SubprocessError, RuntimeError, ValueError, PermissionError) as exc:
             with self.lock:
                 self.jobs[clip_id] = {"status": "failed", "suggestions": [],
+                                      "finished_at": __import__("datetime").datetime.now(
+                                          __import__("datetime").timezone.utc).isoformat(timespec="seconds"),
                                       "error": str(exc)[:180]}
                 self._save()
         finally:

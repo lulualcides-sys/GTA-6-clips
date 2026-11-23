@@ -126,6 +126,16 @@ Travas obrigatórias do download (não oficial; pode violar os Termos do YouTube
 
 Nunca baixar de canal não autorizado nem burlar paywall/DRM. O Deno (runtime JS exigido pelo yt-dlp para o YouTube) é empacotado no `autoclip_runtime/` com versão e SHA-256 fixados em `tools/build_autoclip_runtime.py`, e o yt-dlp-ejs vem via `yt-dlp[default]`. Cookies: `YOUTUBE_COOKIES_BROWSER` (recomendar conta Google secundária e Firefox). Timeout do AutoClip escala com `source_duration_sec` (2x, de 30 min até 3 h). A ingestão não relê arquivos inalterados (impressão digital caminho/tamanho/mtime), para não reler GBs a cada varredura. Nada é aprovado ou publicado automaticamente.
 
+## v0.10.0 (23/11/2026, pedido do usuário): histórico, lives, AutoClip configurável, exportação
+
+Ver `docs/V010_AUTOMACAO.md`.
+- `ingest_log.py`: todo download (Twitch/YouTube/VOD) registra status, erro e modo (`automatico`/`manual`). Novos downloaders devem chamar `ingest_log.record`.
+- `live_monitor.py`: só consulta streamers autorizados (Get Streams oficial) e baixa a VOD ao fim da live apenas com `TWITCH_LIVE_VOD_DOWNLOAD=1` e `TWITCH_PUBLIC_DOWNLOAD=1`. Não gravar a live em tempo real sem novo pedido.
+- `autoclip_settings.py`: opções viram argumentos reais da CLI. A legenda personalizada é registrada pelo `RUNNER_SOURCE` (gera o `nexus_autoclip_runner.py` do build) como preset `nexus_custom`.
+- `exporter.py`: **exceção autorizada à regra SOMENTE AUTOCLIP**. A conversão (formato, resolução, qualidade, trecho) gera **cópias** em `data/exports`; o MP4 do AutoClip nunca é alterado. Metadados só para organização e procedência; é proibido adicionar remoção de origem ou qualquer mecanismo para enganar detectores de conteúdo duplicado.
+- `notifications.py`: só falhas reais; marcar automático/manual.
+- Conexões SQLite novas devem ser **fechadas** (no Windows, arquivo aberto quebra o autoteste e as atualizações).
+
 ## AutoClip e Postiz (integração opt-in, 16/11/2026)
 
 Consultar `docs/AUTOCLIP_POSTIZ_RUNTIME.md`. A ponte AutoClip via CLI gera até 3 prévias isoladas de fonte autorizada e permite importação manual para a biblioteca, criando novo clipe pendente de revisão (não altera original/edições/aprovações). A integração Postiz adiciona destinos privados à fila existente, mas depende de API key, IDs dos canais e opt-in; **não é postagem comprovada**. Não instalar AutoClip automaticamente no EXE (Python 3.11/12, dependências pesadas) e não copiar Postiz AGPL para este repositório. Preservar worker, deduplicação e validação de direitos; usar somente um publicador por canal. Testes obrigatórios: `tests/test_autoclip_postiz.py`, suíte geral e fumaça de navegador/Windows antes do lançamento. O usuário solicitou os dois dentro do Nexus; conclusão parcial precisa distinguir interface/código integrado de serviço local instalado/contas conectadas.

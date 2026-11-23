@@ -33,6 +33,8 @@ CONFIG_KEYS = frozenset({
     "TWITCH_CLIENT_ID", "TWITCH_CLIENT_SECRET", "TWITCH_GAME_ID",
     "TWITCH_USER_ACCESS_TOKEN", "TWITCH_REFRESH_TOKEN", "TWITCH_EDITOR_ID",
     "TWITCH_AUTO_DOWNLOAD", "TWITCH_AUTO_BATCH", "TWITCH_PUBLIC_DOWNLOAD",
+    "TWITCH_LIVE_MONITOR", "TWITCH_LIVE_VOD_DOWNLOAD", "TWITCH_LIVE_POLL_SECONDS",
+    "TWITCH_VOD_MAX_MINUTES",
     "TWITCH_AUTO_MIN_SCORE", "TWITCH_AUTO_GTA6_ONLY",
     "TWITCH_AUTO_PER_CREATOR", "TWITCH_GTA6_BATCH",
     "TWITCH_GTA6_WINDOW_HOURS",
@@ -75,6 +77,10 @@ TWITCH_AUTO_DOWNLOAD=1
 # 1 = sem acesso de editor, baixa o clipe PUBLICO via yt-dlp, somente de streamers
 # autorizados no Radar. NAO oficial: pode violar os Termos da Twitch (risco seu).
 TWITCH_PUBLIC_DOWNLOAD=0
+# Lives de streamers autorizados: monitor (API oficial) e download da VOD ao fim da live
+TWITCH_LIVE_MONITOR=1
+TWITCH_LIVE_VOD_DOWNLOAD=0
+TWITCH_VOD_MAX_MINUTES=180
 # Ate 12 downloads autorizados por busca; apenas candidatos com nota alta
 TWITCH_AUTO_BATCH=5
 # Depois da virada GTA VI: prioridade maxima (ate 12 downloads autorizados por rodada)

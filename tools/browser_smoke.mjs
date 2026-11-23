@@ -61,16 +61,26 @@ try {
   assert(((await page.locator("#youtube-pipeline").textContent())||"").includes("conecte a chave"));
   assert.equal(await page.locator("#youtube-run").isDisabled(),true,"Sem chave/autorização não pode baixar");
   // Layout por abas: 6 seções, cada uma cabe na tela sem rolar a página inteira.
-  assert.equal(await page.locator(".app-tab[data-view]").count(),6);
+  assert.equal(await page.locator(".app-tab[data-view]").count(),7);
   assert.equal(await page.locator("#production-workspace").count(),1);
   assert.equal(await page.locator("#twitch-monitor").count(),1);
-  for (const view of ["inicio","clipes","radar","youtube","publicar","ajustes"]) {
+  for (const view of ["inicio","clipes","radar","youtube","atividade","publicar","ajustes"]) {
     await page.locator(`.app-tab[data-view="${view}"]`).click();
     assert.equal(await page.locator(`.view[data-view="${view}"]`).isVisible(),true,view+" visível");
     assert.equal(await page.locator(".view:not([hidden])").count(),1,"Somente uma aba visível");
     const overflow=await page.evaluate(()=>document.documentElement.scrollHeight-window.innerHeight);
     assert(overflow<=2,`Aba ${view} não pode rolar a página no desktop (${overflow}px)`);
   }
+  // Atividade: histórico real (vazio), lives e falhas carregados da API.
+  await page.locator('.app-tab[data-view="atividade"]').click();
+  await page.waitForFunction(()=>document.querySelector("#ingest-summary").textContent.includes("Concluídos"),null,{timeout:20000});
+  await page.waitForFunction(()=>document.querySelectorAll("#notify-rows li").length>0,null,{timeout:20000});
+  // AutoClip: configurações reais salvas e relidas.
+  await page.locator('.app-tab[data-view="ajustes"]').click();
+  await page.waitForFunction(()=>document.querySelectorAll("#acs-preset option").length===5,null,{timeout:20000});
+  await page.locator("#acs-max").fill("5");
+  await page.locator("#acs-form button[type=submit]").click();
+  await page.waitForFunction(()=>document.querySelector("#acs-state").textContent.includes("Salvo"),null,{timeout:20000});
   await page.locator('.app-tab[data-view="inicio"]').click();
   const themeApplied=await page.locator(".panel").first().evaluate(node=>
     getComputedStyle(node).borderRadius

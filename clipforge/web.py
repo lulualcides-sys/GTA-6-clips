@@ -51,6 +51,13 @@ def make_handler(runtime: Runtime):
                 runtime.autoclip_bridge = AutoClipBridge(runtime.store)
         return runtime.autoclip_bridge
 
+    def exporter():
+        with runtime.store.lock:
+            if not hasattr(runtime, "exporter"):
+                from .exporter import Exporter
+                runtime.exporter = Exporter(runtime.store)
+        return runtime.exporter
+
     def local_ai():
         with runtime.store.lock:
             if not hasattr(runtime, "local_ai"):
@@ -184,6 +191,7 @@ def make_handler(runtime: Runtime):
                       "/styles.css": ("styles.css", "text/css; charset=utf-8"),
                       "/candidates.js": ("candidates.js", "text/javascript; charset=utf-8"),
                       "/viral.js": ("viral.js", "text/javascript; charset=utf-8"),
+                      "/activity.js": ("activity.js", "text/javascript; charset=utf-8"),
                       "/youtube.js": ("youtube.js", "text/javascript; charset=utf-8"),
                       "/agents.js": ("agents.js", "text/javascript; charset=utf-8"),
                       "/agents.css": ("agents.css", "text/css; charset=utf-8"),
@@ -230,6 +238,34 @@ def make_handler(runtime: Runtime):
                 return self._reply(200, runtime.youtube_auto.status())
             if route == "/api/twitch/streamers":
                 return self._reply(200, {"streamers": runtime.twitch.list_streamers()})
+            if route == "/api/ingest/history":
+                query = parse_qs(urlsplit(self.path).query)
+                status = query.get("status", [""])[0] or None
+                return self._reply(200, {"items": runtime.ingest_log.list(150, status),
+                                         "counts": runtime.ingest_log.counts(),
+                                         "twitch": runtime.twitch_auto.status(),
+                                         "youtube": runtime.youtube_auto.status()})
+            if route == "/api/live":
+                return self._reply(200, runtime.live_monitor.status())
+            if route == "/api/notifications":
+                from .notifications import collect
+                return self._reply(200, collect(runtime, publishing()))
+            if route == "/api/autoclip/settings":
+                from . import autoclip_settings as acs
+                return self._reply(200, {"settings": acs.load(runtime.store.root),
+                                         "presets": acs.PRESETS, "fonts": list(acs.FONTS),
+                                         "framing": acs.FRAMING,
+                                         "custom_supported": autoclip().custom_captions_supported()})
+            if route == "/api/exports":
+                return self._reply(200, {"exports": exporter().list()})
+            if route.startswith("/api/exports/"):
+                try:
+                    file = exporter().path(route.rsplit("/", 1)[1])
+                except ValueError as exc:
+                    return self._reply(404, {"error": str(exc)})
+                mime = {"mp4": "video/mp4", "mov": "video/quicktime", "webm": "video/webm"}.get(
+                    file.suffix.lstrip("."), "application/octet-stream")
+                return self._file(file, mime)
             if route == "/api/autoclip":
                 local_ai()  # Liga o início automático do Ollama ao AutoClip.
                 return self._reply(200, autoclip().status())
@@ -387,6 +423,62 @@ def make_handler(runtime: Runtime):
                     return self._reply(403, {"error": "Somente o computador testa conexões"})
                 from .connection_check import check_all
                 return self._reply(200, check_all(runtime))
+            if route == "/api/ingest/run":
+                if not self._owner_auth():
+                    return self._reply(403, {"error": "Somente o computador inicia verificações"})
+                import threading as _threading
+                runtime.twitch_auto.trigger = "manual"
+                runtime.youtube_auto.trigger = "manual"
+                started = {"twitch": runtime.twitch_auto.kick(), "youtube": runtime.youtube_auto.kick()}
+                for name, worker in (("twitch", runtime.twitch_auto), ("youtube", runtime.youtube_auto)):
+                    if not started[name]:
+                        worker.trigger = "automatico"  # nada iniciou: não marcar a próxima rodada
+                _threading.Thread(target=runtime.live_monitor.check, args=("manual",),
+                                  daemon=True, name="live-check-manual").start()
+                started["lives"] = True
+                return self._reply(202, {"started": started})
+            if route == "/api/live/settings":
+                if not self._owner_auth():
+                    return self._reply(403, {"error": "Somente o computador altera o monitor de lives"})
+                try:
+                    body = self._body()
+                    if not isinstance(body, dict) or set(body) - {"vod_download", "public_download"} \
+                            or any(not isinstance(v, bool) for v in body.values()):
+                        raise ValueError("Envie vod_download/public_download como true/false")
+                    updates = {}
+                    if "vod_download" in body:
+                        updates["TWITCH_LIVE_VOD_DOWNLOAD"] = "1" if body["vod_download"] else "0"
+                    if "public_download" in body:
+                        updates["TWITCH_PUBLIC_DOWNLOAD"] = "1" if body["public_download"] else "0"
+                    from .twitch_oauth import save_private_config
+                    save_private_config(runtime.store.root.parent, updates)
+                    return self._reply(200, runtime.live_monitor.status())
+                except (ValueError, OSError) as exc:
+                    return self._reply(400, {"error": str(exc)[:200]})
+            if route == "/api/autoclip/settings":
+                if not self._owner_auth():
+                    return self._reply(403, {"error": "Somente o computador altera o AutoClip"})
+                from . import autoclip_settings as acs
+                try:
+                    return self._reply(200, {"settings": acs.save(runtime.store.root, self._body())})
+                except ValueError as exc:
+                    return self._reply(400, {"error": str(exc)[:200]})
+            if route.startswith("/api/exports/") and route.endswith("/delete"):
+                if not self._owner_auth():
+                    return self._reply(403, {"error": "Somente o computador apaga exportações"})
+                try:
+                    exporter().delete(route.split("/")[3])
+                    return self._reply(200, {"deleted": True})
+                except (ValueError, OSError) as exc:
+                    return self._reply(404, {"error": str(exc)[:200]})
+            parts = route.strip("/").split("/")
+            if len(parts) == 4 and parts[:2] == ["api", "clips"] and parts[3] == "export":
+                if not self._owner_auth():
+                    return self._reply(403, {"error": "Somente o computador exporta"})
+                try:
+                    return self._reply(200, exporter().export(parts[2], self._body()))
+                except ValueError as exc:
+                    return self._reply(400, {"error": str(exc)[:220]})
             if route == "/api/local-ai/prepare":
                 if not self._owner_auth():
                     return self._reply(403, {"error": "Somente o computador pode instalar a IA local"})

@@ -8,6 +8,7 @@
 <button type="button" class="app-tab" data-view="clipes"><span class="tab-icon" aria-hidden="true">▶</span><span class="tab-label">Clipes</span><span class="tab-badge" id="tab-badge-clipes" hidden></span></button>
 <button type="button" class="app-tab" data-view="radar"><span class="tab-icon" aria-hidden="true">◎</span><span class="tab-label">Radar viral</span></button>
 <button type="button" class="app-tab" data-view="youtube"><span class="tab-icon" aria-hidden="true">▷</span><span class="tab-label">YouTube</span></button>
+<button type="button" class="app-tab" data-view="atividade"><span class="tab-icon" aria-hidden="true">≡</span><span class="tab-label">Atividade</span><span class="tab-badge warn" id="tab-badge-atividade" hidden></span></button>
 <button type="button" class="app-tab" data-view="publicar"><span class="tab-icon" aria-hidden="true">↑</span><span class="tab-label">Publicar</span></button>
 <button type="button" class="app-tab" data-view="ajustes"><span class="tab-icon" aria-hidden="true">⚙</span><span class="tab-label">Ajustes</span><span class="tab-badge warn" id="tab-badge-ajustes" hidden>!</span></button>
 </nav>
@@ -100,6 +101,18 @@
 <label>Região da ação: x, y, largura, altura (pixels)<input id="edit-action" placeholder="400, 0, 1008, 1080"></label><p class="hint">Preset Shorts: informe ação e facecam da fonte. Confira o impacto e a reação na prévia; não há rastreamento automático. Mantém áudio original, título conferido e crédito.</p>
 <button class="btn primary" type="submit">Salvar ajustes</button></fieldset></form>
 <p id="edit-state" class="hint">Edição manual desativada: somente o AutoClip gera novos vídeos. As sugestões seguem para revisão e aprovação.</p>
+<details id="export-box" open><summary>Exportar corte</summary>
+<form id="export-form" class="edit-grid">
+<label>Formato<select id="exp-format"><option value="mp4">MP4 (H.264)</option><option value="mov">MOV</option><option value="webm">WebM (VP9)</option></select></label>
+<label>Resolução<select id="exp-res"><option value="original">Original</option><option value="1080x1920">1080×1920</option><option value="720x1280">720×1280</option><option value="540x960">540×960</option></select></label>
+<label>Qualidade<select id="exp-quality"><option value="original">Original (sem perda quando possível)</option><option value="alta">Alta</option><option value="media">Média</option><option value="leve">Leve</option></select></label>
+<label>Início (s)<input id="exp-start" type="number" min="0" step="0.1" value="0"></label>
+<label>Fim (s, vazio = até o final)<input id="exp-end" type="number" min="0" step="0.1"></label>
+<label>Título (metadados)<input id="exp-title" maxlength="120"></label>
+<button type="submit" class="btn secondary" id="exp-run" disabled>Exportar cópia</button>
+</form>
+<p class="hint">O corte original do AutoClip não é alterado. Criador, link de origem e direitos vão nos metadados.</p>
+<p id="exp-state" class="hint" aria-live="polite"></p><ul id="exp-list" class="viral-list"></ul></details>
 <details><summary>Aprovação em lote</summary><div id="batch-clips" class="batch-clips"></div><button id="approve-batch" class="btn secondary" type="button">Aprovar selecionados</button></details>
 </section>
 </section>
@@ -173,8 +186,38 @@
   <p class="hint">Retenção somente quando a plataforma disponibilizar OAuth e endpoint adequados. Nenhum valor é estimado.</p>
 </section>
 </div></div>
+<div class="view view-split view-atividade" data-view="atividade" hidden>
+<section class="panel" id="ingest-panel" aria-label="Histórico de downloads"><div class="panel-head"><div><p class="eyebrow">RADAR · FILA E HISTÓRICO</p><h2>Downloads e lives</h2></div><button id="ingest-run" type="button" class="btn secondary">↻ Verificar agora</button></div>
+<p id="ingest-summary" class="hint" aria-live="polite">Carregando…</p>
+<div class="local-ai-row"><label class="check-label">Filtrar <select id="ingest-filter"><option value="">Todos</option><option value="downloading">Baixando</option><option value="done">Concluídos</option><option value="failed">Falhas</option></select></label></div>
+<div class="table-wrap"><table class="data-table"><thead><tr><th>Quando</th><th>Origem</th><th>Item</th><th>Status</th><th>Modo</th></tr></thead><tbody id="ingest-rows"></tbody></table></div>
+<h3>Lives monitoradas (Twitch)</h3><div class="local-ai-row"><label class="check-label"><input type="checkbox" id="live-vod"> Baixar a VOD quando a live terminar e mandar ao AutoClip (não oficial; só streamers autorizados)</label></div><p id="live-summary" class="hint">Carregando…</p><ul id="live-rows" class="viral-list"></ul>
+</section>
+<section class="panel" id="notify-panel" aria-label="Falhas"><div class="panel-head"><div><p class="eyebrow">ÚLTIMAS 24 HORAS</p><h2>Falhas e avisos</h2></div></div>
+<p class="hint">Downloads, edições AutoClip, publicações e automações. <b>Automático</b> = feito pelo app sozinho; <b>Manual</b> = acionado por você.</p>
+<ul id="notify-rows" class="viral-list" aria-live="polite"></ul></section>
+</div>
 <div class="view view-ajustes" data-view="ajustes" hidden>
 <section class="panel settings-card"><div class="panel-head"><div><p class="eyebrow">EDIÇÃO</p><h2>IA do AutoClip</h2></div></div><div id="local-ai" class="local-ai"><strong>IA do AutoClip</strong><p id="local-ai-status" class="hint" aria-live="polite">Verificando IA local...</p><div class="local-ai-row"><select id="local-ai-model" aria-label="Modelo de IA local"></select><button id="local-ai-prepare" class="btn secondary" type="button" disabled>Preparar IA do AutoClip</button></div><progress id="local-ai-progress" max="1" value="0" hidden></progress></div></section>
+<section class="panel settings-card" id="autoclip-settings"><div class="panel-head"><div><p class="eyebrow">EDIÇÃO AUTOMÁTICA</p><h2>Cortes do AutoClip</h2></div></div>
+<form id="acs-form" class="edit-grid">
+<label>Cortes por vídeo<input id="acs-max" type="number" min="1" max="8" required></label>
+<label>Enquadramento<select id="acs-framing"></select></label>
+<label>Legenda<select id="acs-preset"></select></label>
+<label>Fonte<select id="acs-font"></select></label>
+<label>Tamanho (% da altura)<input id="acs-size" type="number" min="2.5" max="9" step="0.1"></label>
+<label>Posição (% do rodapé)<input id="acs-position" type="number" min="5" max="45"></label>
+<label>Cor do texto<input id="acs-primary" type="color"></label>
+<label>Cor da palavra falada<input id="acs-accent" type="color"></label>
+<label>Contorno<input id="acs-outline" type="color"></label>
+<label>Palavras por linha<input id="acs-words" type="number" min="2" max="8"></label>
+<label class="check-label"><input id="acs-boxed" type="checkbox"> Fundo em caixa</label>
+<label class="check-label"><input id="acs-caps" type="checkbox"> MAIÚSCULAS</label>
+<label class="check-label"><input id="acs-noaccent" type="checkbox"> Sem destaque da palavra</label>
+<button type="submit" class="btn primary">Salvar configurações</button>
+</form>
+<div class="caption-preview" id="acs-preview" aria-hidden="true"><span id="acs-preview-text">ISSO FOI INSANO</span></div>
+<p id="acs-state" class="hint" aria-live="polite"></p></section>
 <section class="panel settings-card"><div class="panel-head"><div><p class="eyebrow">CONTAS</p><h2>Conexões</h2></div></div><div class="local-ai-row"><button id="connections-check" type="button" class="btn secondary">Testar conexões (Twitch, YouTube, TikTok, Postiz)</button></div><ul id="connections-result" class="connections-result" aria-live="polite"></ul>
 </section>
 <section id="desktop-toolbar" class="desktop-toolbar panel" hidden aria-label="Controles do aplicativo Windows">
@@ -212,4 +255,4 @@
 </dialog>
 <div id="message" class="toast" role="status" aria-live="polite" hidden></div>
 <dialog id="login-modal"><form method="dialog" id="login-form"><p class="eyebrow">ACESSO RESTRITO</p><h2>Token do painel</h2><p class="hint">Informe DASHBOARD_TOKEN. Salvo apenas nesta aba.</p><input id="token" type="password" autocomplete="off" placeholder="Token" required><div class="dialog-actions"><button class="btn primary" type="submit">Entrar</button></div></form></dialog>
-<script src="/app.js" defer></script><script src="/shell.js" defer></script><script src="/editor.js" defer></script><script src="/candidates.js" defer></script><script src="/viral.js" defer></script><script src="/youtube.js" defer></script><script src="/agents.js" defer></script><script src="/editorial.js" defer></script></body></html>
+<script src="/app.js" defer></script><script src="/shell.js" defer></script><script src="/editor.js" defer></script><script src="/candidates.js" defer></script><script src="/viral.js" defer></script><script src="/activity.js" defer></script><script src="/youtube.js" defer></script><script src="/agents.js" defer></script><script src="/editorial.js" defer></script></body></html>
