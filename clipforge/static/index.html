@@ -14,6 +14,7 @@
 </nav>
 <main class="shell app-main">
 <div class="view view-inicio" data-view="inicio">
+<section class="panel readiness" id="readiness" aria-label="O que falta para funcionar"><div class="readiness-head"><strong id="readiness-title">Verificando o que falta…</strong><span id="readiness-progress" class="tag muted"></span></div><ol id="readiness-steps" class="readiness-steps"></ol></section>
 <section class="stats"><article class="stat"><small>ENCONTRADOS</small><strong id="stat-total">0</strong><span>arquivos válidos</span></article><article class="stat"><small>PROCESSANDO</small><strong id="stat-progress">0</strong><span>fila de trabalho</span></article><article class="stat"><small>EM REVISÃO</small><strong id="stat-ready">0</strong><span>vídeos aguardando</span></article><article class="stat"><small>APROVADOS</small><strong id="stat-approved">0</strong><span>não publicados</span></article></section>
 <section class="mission-wrap" id="agent-control" aria-label="Central de agentes e automações">
   <div class="mission-hero">
@@ -255,4 +256,4 @@
 </dialog>
 <div id="message" class="toast" role="status" aria-live="polite" hidden></div>
 <dialog id="login-modal"><form method="dialog" id="login-form"><p class="eyebrow">ACESSO RESTRITO</p><h2>Token do painel</h2><p class="hint">Informe DASHBOARD_TOKEN. Salvo apenas nesta aba.</p><input id="token" type="password" autocomplete="off" placeholder="Token" required><div class="dialog-actions"><button class="btn primary" type="submit">Entrar</button></div></form></dialog>
-<script src="/app.js" defer></script><script src="/shell.js" defer></script><script src="/editor.js" defer></script><script src="/candidates.js" defer></script><script src="/viral.js" defer></script><script src="/activity.js" defer></script><script src="/youtube.js" defer></script><script src="/agents.js" defer></script><script src="/editorial.js" defer></script></body></html>
+<script src="/app.js" defer></script><script src="/shell.js" defer></script><script src="/editor.js" defer></script><script src="/candidates.js" defer></script><script src="/viral.js" defer></script><script src="/activity.js" defer></script><script src="/readiness.js" defer></script><script src="/youtube.js" defer></script><script src="/agents.js" defer></script><script src="/editorial.js" defer></script></body></html>

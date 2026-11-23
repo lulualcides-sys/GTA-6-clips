@@ -192,6 +192,7 @@ def make_handler(runtime: Runtime):
                       "/candidates.js": ("candidates.js", "text/javascript; charset=utf-8"),
                       "/viral.js": ("viral.js", "text/javascript; charset=utf-8"),
                       "/activity.js": ("activity.js", "text/javascript; charset=utf-8"),
+                      "/readiness.js": ("readiness.js", "text/javascript; charset=utf-8"),
                       "/youtube.js": ("youtube.js", "text/javascript; charset=utf-8"),
                       "/agents.js": ("agents.js", "text/javascript; charset=utf-8"),
                       "/agents.css": ("agents.css", "text/css; charset=utf-8"),
@@ -247,6 +248,9 @@ def make_handler(runtime: Runtime):
                                          "youtube": runtime.youtube_auto.status()})
             if route == "/api/live":
                 return self._reply(200, runtime.live_monitor.status())
+            if route == "/api/readiness":
+                from .readiness import check
+                return self._reply(200, check(runtime, publishing(), local_ai()))
             if route == "/api/notifications":
                 from .notifications import collect
                 return self._reply(200, collect(runtime, publishing()))

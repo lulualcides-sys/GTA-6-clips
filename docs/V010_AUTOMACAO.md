@@ -81,3 +81,9 @@ A detecção de melhores momentos, os vários cortes por vídeo, o formato 9:16,
   - **Importar só este trecho:** início e fim (de 10 a 60 s), digitados ou marcados com "⏱" no player da sugestão. O recorte vira um arquivo novo; a sugestão original não muda, e a legenda já vem gravada pelo AutoClip.
   - **Refazer cortes com as configurações atuais:** roda o AutoClip de novo com o estilo de legenda, a quantidade e o enquadramento definidos em Ajustes. Os cortes já importados não mudam.
 - Sem nenhuma dependência paga. Tudo reaproveita FFmpeg, yt-dlp, AutoClip e Whisper, que são open source e já vêm no app.
+
+## v0.13.0 — checklist "O que falta para funcionar"
+`clipforge/readiness.py` + `GET /api/readiness` + `static/readiness.js`, no topo do Painel.
+- Mostra o estado **real** de cada etapa, em ordem: motor AutoClip, IA local, Twitch/YouTube conectado, canais autorizados, download ligado, primeiro vídeo baixado, cortes prontos e publicação (opcional).
+- Destaca o primeiro passo que está travando.
+- Os botões chamam a API real (preparar IA, ligar download, verificar agora) ou abrem a aba certa.
