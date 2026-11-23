@@ -249,7 +249,36 @@ async function refreshAutoclip(){
         finally{importButton.disabled=false;}
       });
       results.appendChild(importButton);
+      /* Ajustar trecho da sugestão antes de importar (10–60 s). */
+      const trim=el("div","local-ai-row suggestion-trim");
+      const startIn=el("input");startIn.type="number";startIn.min="0";startIn.step="0.1";startIn.placeholder="início (s)";startIn.setAttribute("aria-label","Início do trecho da sugestão "+(index+1));
+      const endIn=el("input");endIn.type="number";endIn.min="0";endIn.step="0.1";endIn.placeholder="fim (s)";endIn.setAttribute("aria-label","Fim do trecho da sugestão "+(index+1));
+      const mark=(input)=>{const pl=byId("autoclip-preview");if(pl.hidden||!pl.duration){toast("Assista à sugestão primeiro para marcar no vídeo.");return;}input.value=pl.currentTime.toFixed(1);};
+      const markStart=el("button","btn text-btn","⏱ início");markStart.type="button";markStart.addEventListener("click",()=>mark(startIn));
+      const markEnd=el("button","btn text-btn","⏱ fim");markEnd.type="button";markEnd.addEventListener("click",()=>mark(endIn));
+      const trimButton=el("button","btn secondary","Importar só este trecho");trimButton.type="button";
+      trimButton.addEventListener("click",async()=>{
+        if(!endIn.value){toast("Defina o fim do trecho (10 a 60 s).");return;}
+        trimButton.disabled=true;
+        try{
+          const result=await api("/api/clips/"+selected+"/autoclip-import/"+index,"POST",false,{start:Number(startIn.value||0),end:Number(endIn.value)});
+          activeId=result.clip_id;toast("Trecho da sugestão importado para revisão.");clearAutoclipPreview();await refresh(false);
+        }catch(err){toast("Trecho: "+err.message);}
+        finally{trimButton.disabled=false;}
+      });
+      [startIn,markStart,endIn,markEnd,trimButton].forEach(n=>trim.appendChild(n));
+      results.appendChild(trim);
     });
+    if(job&&["complete","failed","interrupted"].includes(job.status)){
+      const redo=el("button","btn secondary","↻ Refazer cortes com as configurações atuais");redo.type="button";
+      redo.title="Usa os ajustes de Ajustes → Cortes do AutoClip (estilo de legenda, quantidade, enquadramento).";
+      redo.addEventListener("click",async()=>{
+        redo.disabled=true;
+        try{await api("/api/clips/"+selected+"/autoclip-redo","POST");toast("AutoClip vai refazer os cortes desta fonte.");await refreshAutoclip();}
+        catch(err){toast("Refazer: "+err.message);redo.disabled=false;}
+      });
+      results.appendChild(redo);
+    }
     if(!clipsToPreview.length)clearAutoclipPreview();
   }catch(e){
     stateNode.textContent="AutoClip: "+e.message;

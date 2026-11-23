@@ -79,11 +79,10 @@ def main():
     ], check=True, timeout=1800)
     deno = bundle_deno(target)
 
-    (target / "nexus_autoclip_runner.py").write_text(
-        "from autoclip.cli import app\n"
-        "if __name__ == '__main__':\n"
-        "    app()\n", encoding="utf-8"
-    )
+    # Runner registra a legenda personalizada do painel como preset "nexus_custom".
+    sys.path.insert(0, str(project))
+    from clipforge.autoclip_settings import RUNNER_SOURCE
+    (target / "nexus_autoclip_runner.py").write_text(RUNNER_SOURCE, encoding="utf-8")
     url = (f"https://raw.githubusercontent.com/artbyjazi/autoclip/"
            f"{AUTOCLIP_COMMIT}/LICENSE")
     with urllib.request.urlopen(url, timeout=30) as response:
@@ -130,6 +129,17 @@ def main():
     subprocess.run([str(target / "python.exe"),
                     str(target / "nexus_autoclip_runner.py"), "styles"],
                    check=True, env=env, timeout=100)
+    # Legenda personalizada do painel precisa virar preset real do AutoClip.
+    from clipforge.autoclip_settings import DEFAULTS, caption_style_spec
+    import json as _json
+    custom_env = {**env, "NEXUS_CAPTION_STYLE": _json.dumps(caption_style_spec(DEFAULTS))}
+    listing = subprocess.run([str(target / "python.exe"),
+                              str(target / "nexus_autoclip_runner.py"), "styles"],
+                             check=True, env=custom_env, timeout=100,
+                             capture_output=True, text=True).stdout
+    if "nexus_custom" not in listing:
+        raise SystemExit("Runner did not register the custom caption preset")
+    print("CUSTOM CAPTION PRESET OK")
     count = sum(f.stat().st_size for f in target.rglob("*") if f.is_file())
     if count < 50_000_000:
         raise SystemExit("Bundled AutoClip runtime unexpectedly small")

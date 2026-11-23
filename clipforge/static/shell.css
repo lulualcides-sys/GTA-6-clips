@@ -141,3 +141,25 @@
 #youtube-settings-modal .check-label {display:flex;gap:10px;align-items:center;margin:6px 0}
 #youtube-settings-modal input[type=checkbox] {width:auto;margin:0}
 .desktop-update-status{white-space:normal;max-width:100%;overflow-wrap:anywhere}
+
+/* Atividade: tabela do histórico e lista de falhas */
+.table-wrap {overflow:auto;max-height:42vh;border:1px solid #2c3f58;border-radius:10px;margin:8px 0 14px}
+.data-table {width:100%;border-collapse:collapse;font-size:12px}
+.data-table th {position:sticky;top:0;background:#16243a;text-align:left;padding:8px;color:#9fb2c9;font-weight:700}
+.data-table td {padding:7px 8px;border-top:1px solid #22324a;vertical-align:top;overflow-wrap:anywhere}
+.data-table td.bad, .viral-list .bad {color:#ff8a8a}
+.view-atividade h3 {font-size:14px;margin:10px 0 6px}
+/* AutoClip: prévia aproximada da legenda */
+.caption-preview {position:relative;height:150px;margin-top:10px;border-radius:10px;overflow:hidden;
+  background:linear-gradient(160deg,#2b3d55,#0d1522)}
+.caption-preview span {position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;
+  font-weight:800;padding:2px 8px;border-radius:4px;letter-spacing:.02em}
+#autoclip-settings .edit-grid label {margin:4px 0}
+#autoclip-settings input[type=color] {width:100%;height:34px;padding:2px}
+#export-box .edit-grid label {margin:4px 0}
+@media (min-width: 900px) {
+  .view-ajustes #autoclip-settings {grid-row:span 2}
+}
+#autoclip-settings .edit-grid label:not(.check-label), #export-box .edit-grid label:not(.check-label) {display:grid;gap:4px;align-content:start}
+#autoclip-settings .edit-grid input:not([type=checkbox]), #autoclip-settings .edit-grid select {width:100%}
+.suggestion-trim input {width:92px}

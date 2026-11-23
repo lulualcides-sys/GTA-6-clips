@@ -63,6 +63,16 @@ class AutoClipBridge:
         external = shutil.which(configured)
         return [external] if external else None
 
+    def custom_captions_supported(self) -> bool:
+        """Só o runner empacotado registra a legenda personalizada (nexus_custom)."""
+        bundled = self._bundled_runtime()
+        if not bundled:
+            return False
+        try:
+            return "NEXUS_CAPTION_STYLE" in Path(bundled[1]).read_text(encoding="utf-8")
+        except OSError:
+            return False
+
     def binary(self):
         command = self._command()
         return command[0] if command else None
@@ -215,10 +225,12 @@ class AutoClipBridge:
             with self.lock:
                 self.jobs[clip_id]["status"] = "running"
                 self._save()
-            env = {**os.environ, "AUTOCLIP_HOME": str(self.home)}
+            from . import autoclip_settings
+            settings = autoclip_settings.load(self.store.root)
+            options, extra_env = autoclip_settings.cli_args(settings, self.custom_captions_supported())
+            env = {**os.environ, "AUTOCLIP_HOME": str(self.home), **extra_env}
             result = subprocess.run(
-                [*self._command(), "clip", source, "--max-clips", "3",
-                 "--ratio", "9:16", "--style", "boxed", *provider_options],
+                [*self._command(), "clip", source, *options, *provider_options],
                 env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT, text=True, errors="replace",
                 timeout=timeout, check=False
@@ -230,7 +242,7 @@ class AutoClipBridge:
             suggestions = []
             for directory in sorted(after):
                 for file in sorted(directory.glob("*.mp4")):
-                    if file.is_file() and not file.is_symlink() and len(suggestions) < 3:
+                    if file.is_file() and not file.is_symlink() and len(suggestions) < settings["max_clips"]:
                         suggestions.append(str(file.relative_to(self.exports)))
             if not suggestions:
                 raise RuntimeError("AutoClip finalizou sem novos MP4s na pasta de exportação.")
@@ -259,6 +271,8 @@ class AutoClipBridge:
         except (OSError, subprocess.SubprocessError, RuntimeError, ValueError, PermissionError) as exc:
             with self.lock:
                 self.jobs[clip_id] = {"status": "failed", "suggestions": [],
+                                      "finished_at": __import__("datetime").datetime.now(
+                                          __import__("datetime").timezone.utc).isoformat(timespec="seconds"),
                                       "error": str(exc)[:180]}
                 self._save()
         finally:
@@ -266,9 +280,51 @@ class AutoClipBridge:
                 self.active = None
                 self._start_next_locked()
 
-    def import_suggestion(self, clip_id, index):
-        """Copia proposta para ingestão normal e exige nova revisão Nexus."""
+    def redo(self, clip_id):
+        """Refaz os cortes com as configurações atuais (estilo, quantidade, enquadramento).
+        Sugestões antigas continuam no disco; cortes já importados não mudam."""
+        with self.lock:
+            prior = self.jobs.get(clip_id, {})
+            if prior.get("status") in {"queued", "running"}:
+                raise ValueError("Esta fonte já está sendo editada pelo AutoClip.")
+            self.jobs.pop(clip_id, None)
+            self._save()
+        return self.queue(clip_id)
+
+    def trim_suggestion(self, clip_id, index, start, end):
+        """Recorta a sugestão (o vídeo do AutoClip, com legenda já gravada) antes de importar."""
         candidate = self.preview(clip_id, index)
+        from .core import duration_of, probe
+        total = duration_of(probe(candidate))
+        try:
+            start, end = float(start), float(end)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Início/fim devem ser números") from exc
+        end = min(end, total)
+        if start < 0 or not 10 <= end - start <= 60:
+            raise ValueError("O trecho precisa ter entre 10 e 60 segundos dentro da sugestão.")
+        folder = self.exports / "trimmed"
+        folder.mkdir(parents=True, exist_ok=True)
+        target = folder / f"{clip_id}-{index}-{start:.1f}-{end:.1f}.mp4"
+        if not target.is_file():
+            partial = target.with_suffix(".partial.mp4")
+            result = subprocess.run(
+                ["ffmpeg", "-y", "-v", "error", "-ss", f"{start:.3f}", "-to", f"{end:.3f}",
+                 "-i", str(candidate), "-map", "0:v:0", "-map", "0:a?", "-map_metadata", "0",
+                 "-c:v", "libx264", "-preset", "slow", "-crf", "18", "-pix_fmt", "yuv420p",
+                 "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(partial)],
+                stdin=subprocess.DEVNULL, capture_output=True, text=True, errors="replace",
+                timeout=1800, check=False)
+            if result.returncode != 0:
+                partial.unlink(missing_ok=True)
+                raise ValueError("FFmpeg não conseguiu recortar a sugestão.")
+            partial.replace(target)
+        return target
+
+    def import_suggestion(self, clip_id, index, trim=None):
+        """Copia proposta para ingestão normal e exige nova revisão Nexus."""
+        candidate = (self.trim_suggestion(clip_id, index, trim.get("start", 0), trim.get("end"))
+                     if trim else self.preview(clip_id, index))
         self._source(clip_id)  # Revalida SHA/direitos da mídia de origem.
         original = self.store.get(clip_id)
         from .core import duration_of, probe

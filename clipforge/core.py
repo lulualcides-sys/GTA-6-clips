@@ -406,11 +406,15 @@ class Runtime:
         self.captions.on_complete = self.editorial.queue
         self.performance = PerformanceMetrics(self.store)
         self.autoclip_bridge.on_import = self.editorial.queue
+        from .ingest_log import IngestLog
+        self.ingest_log = IngestLog(self.store.database, self.store.lock)
         from .twitch_auto import TwitchAutoIngest
         self.twitch_auto = TwitchAutoIngest(self)
         self.twitch.on_refreshed = self.twitch_auto.kick
         from .youtube_auto import YouTubeAutoIngest
         self.youtube_auto = YouTubeAutoIngest(self)
+        from .live_monitor import TwitchLiveMonitor
+        self.live_monitor = TwitchLiveMonitor(self)
         # Jobs herdados de FFmpeg NÃO podem ser retomados: preservamos fontes
         # e MP4s existentes, e falhamos fechado em vez de renderizar novamente.
         with self.store.lock, self.store._db() as db:
@@ -492,6 +496,8 @@ class Runtime:
         threading.Thread(target=loop, name="clip-scanner", daemon=True).start()
         # YouTube: só age com download ligado, chave, canais autorizados e IA pronta.
         self.youtube_auto.start_polling()
+        # Lives da Twitch: só consulta streamers autorizados (API oficial Get Streams).
+        self.live_monitor.start_polling()
         if os.getenv("NEXUS_PERFORMANCE_POLL", "1") == "1":
             def metrics_loop():
                 while True:

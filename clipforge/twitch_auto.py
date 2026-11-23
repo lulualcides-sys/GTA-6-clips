@@ -14,6 +14,7 @@ from pathlib import Path
 
 from .twitch_download import DownloadError, download_clip
 from .curation import ranked_shortlist
+from .ingest_log import record
 
 
 class TwitchAutoIngest:
@@ -27,6 +28,7 @@ class TwitchAutoIngest:
         self.attempted = 0
         self.last_candidates_scanned = 0
         self.last_quality_passed = 0
+        self.trigger = "automatico"  # "manual" quando o proprietário clica em Verificar agora
 
     def status(self):
         enabled = os.getenv("TWITCH_AUTO_DOWNLOAD", "1") == "1"
@@ -179,9 +181,12 @@ class TwitchAutoIngest:
                     continue
                 if self.next_retry.get(clip_id, 0) > time.monotonic():
                     continue
+                source = sources[owner_id]
+                record(self.runtime, "start", "twitch", "clip", owner_id, clip_id,
+                       source_name=source.get("creator", ""), title=str(candidate.get("title", "")),
+                       trigger=self.trigger)
                 try:
                     self.attempted += 1
-                    source = sources[owner_id]
                     proof = {**source, "duration_sec": 35}
                     # 1º: API oficial (dono/editor). Se a Twitch recusar e o
                     # proprietário ativou TWITCH_PUBLIC_DOWNLOAD=1, baixa o clipe
@@ -203,15 +208,19 @@ class TwitchAutoIngest:
                     # scan() is the ONLY authority that queues AutoClip.
                     if not result["added"]:
                         self.last_error = "Download recebido, mas mídia rejeitada pela ingestão."
+                        record(self.runtime, "finish", "twitch", clip_id, "failed", self.last_error)
                     else:
                         self.processed += 1
                         quota -= 1
                         self.last_error = None
+                        record(self.runtime, "finish", "twitch", clip_id, "done")
                 except (DownloadError, OSError, ValueError) as exc:
                     self.last_error = str(exc)[:190]
                     self.next_retry[clip_id] = time.monotonic() + 900
+                    record(self.runtime, "finish", "twitch", clip_id, "failed", self.last_error)
         except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
             self.last_error = "Busca automática: " + str(exc)[:150]
         finally:
             with self.lock:
                 self.running = False
+                self.trigger = "automatico"
