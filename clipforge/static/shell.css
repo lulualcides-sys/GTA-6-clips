@@ -162,3 +162,4 @@
 }
 #autoclip-settings .edit-grid label:not(.check-label), #export-box .edit-grid label:not(.check-label) {display:grid;gap:4px;align-content:start}
 #autoclip-settings .edit-grid input:not([type=checkbox]), #autoclip-settings .edit-grid select {width:100%}
+.suggestion-trim input {width:92px}

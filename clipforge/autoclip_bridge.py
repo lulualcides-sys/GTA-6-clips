@@ -280,9 +280,51 @@ class AutoClipBridge:
                 self.active = None
                 self._start_next_locked()
 
-    def import_suggestion(self, clip_id, index):
-        """Copia proposta para ingestão normal e exige nova revisão Nexus."""
+    def redo(self, clip_id):
+        """Refaz os cortes com as configurações atuais (estilo, quantidade, enquadramento).
+        Sugestões antigas continuam no disco; cortes já importados não mudam."""
+        with self.lock:
+            prior = self.jobs.get(clip_id, {})
+            if prior.get("status") in {"queued", "running"}:
+                raise ValueError("Esta fonte já está sendo editada pelo AutoClip.")
+            self.jobs.pop(clip_id, None)
+            self._save()
+        return self.queue(clip_id)
+
+    def trim_suggestion(self, clip_id, index, start, end):
+        """Recorta a sugestão (o vídeo do AutoClip, com legenda já gravada) antes de importar."""
         candidate = self.preview(clip_id, index)
+        from .core import duration_of, probe
+        total = duration_of(probe(candidate))
+        try:
+            start, end = float(start), float(end)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Início/fim devem ser números") from exc
+        end = min(end, total)
+        if start < 0 or not 10 <= end - start <= 60:
+            raise ValueError("O trecho precisa ter entre 10 e 60 segundos dentro da sugestão.")
+        folder = self.exports / "trimmed"
+        folder.mkdir(parents=True, exist_ok=True)
+        target = folder / f"{clip_id}-{index}-{start:.1f}-{end:.1f}.mp4"
+        if not target.is_file():
+            partial = target.with_suffix(".partial.mp4")
+            result = subprocess.run(
+                ["ffmpeg", "-y", "-v", "error", "-ss", f"{start:.3f}", "-to", f"{end:.3f}",
+                 "-i", str(candidate), "-map", "0:v:0", "-map", "0:a?", "-map_metadata", "0",
+                 "-c:v", "libx264", "-preset", "slow", "-crf", "18", "-pix_fmt", "yuv420p",
+                 "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(partial)],
+                stdin=subprocess.DEVNULL, capture_output=True, text=True, errors="replace",
+                timeout=1800, check=False)
+            if result.returncode != 0:
+                partial.unlink(missing_ok=True)
+                raise ValueError("FFmpeg não conseguiu recortar a sugestão.")
+            partial.replace(target)
+        return target
+
+    def import_suggestion(self, clip_id, index, trim=None):
+        """Copia proposta para ingestão normal e exige nova revisão Nexus."""
+        candidate = (self.trim_suggestion(clip_id, index, trim.get("start", 0), trim.get("end"))
+                     if trim else self.preview(clip_id, index))
         self._source(clip_id)  # Revalida SHA/direitos da mídia de origem.
         original = self.store.get(clip_id)
         from .core import duration_of, probe

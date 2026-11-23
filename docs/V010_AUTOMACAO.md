@@ -70,3 +70,14 @@ A detecção de melhores momentos, os vários cortes por vídeo, o formato 9:16,
   - se a gravação falhar, o monitor tenta a VOD.
   - Não é oficial (risco perante os Termos da Twitch, assumido pelo proprietário), e lives de outros streamers nunca são gravadas.
 - **Marcar trecho no vídeo**: no Exportar, os botões "⏱ Marcar no vídeo" usam o tempo atual do player como início ou fim.
+
+## v0.12.0 — erros claros, notificação do Windows e edição das sugestões
+- **Erros em português** (`humanize_ytdlp_error`): "só para inscritos", "removido pelo streamer", "mais longo que o limite ou ainda ao vivo", "bloqueado agora (403)", "muitas requisições", "falha de rede", "privado" e "bloqueado no país", tanto para Twitch quanto para YouTube. Erros desconhecidos mostram o texto original.
+- **Notificação nativa do Windows** (`clipforge/desktop_notify.py`): toast WinRT pelo PowerShell que já vem no Windows. É grátis e não instala nada.
+  - Avisa só falhas **novas** (download, AutoClip, publicação, automação), diz se a ação foi automática ou manual e envia no máximo 3 por rodada.
+  - O texto vai por variáveis de ambiente, nunca dentro do comando.
+  - Desliga com `NEXUS_WINDOWS_NOTIFY=0`.
+- **Editar sugestões antes de importar** (aba Clipes, resultados do AutoClip):
+  - **Importar só este trecho:** início e fim (de 10 a 60 s), digitados ou marcados com "⏱" no player da sugestão. O recorte vira um arquivo novo; a sugestão original não muda, e a legenda já vem gravada pelo AutoClip.
+  - **Refazer cortes com as configurações atuais:** roda o AutoClip de novo com o estilo de legenda, a quantidade e o enquadramento definidos em Ajustes. Os cortes já importados não mudam.
+- Sem nenhuma dependência paga. Tudo reaproveita FFmpeg, yt-dlp, AutoClip e Whisper, que são open source e já vêm no app.

@@ -1,5 +1,7 @@
 # GTA-6-clips — Operação Astra
 
+**v0.12.0:** erros de download explicados em português; **notificação nativa do Windows** quando algo falha (grátis, sem instalar nada); sugestões do AutoClip podem ser **recortadas antes de importar** e **refeitas** com as configurações atuais.
+
 **v0.11.0:** **gravação da live em tempo real** de streamers autorizados (opcional, aba Atividade); ao fim da live, a gravação vai para o AutoClip. No Exportar, o início e o fim do trecho podem ser marcados tocando o vídeo.
 
 **v0.10.0:** aba **Atividade** (histórico e fila de downloads com status, erro e modo automático/manual, falhas das últimas 24 h, botão **Verificar agora**); **monitor de lives da Twitch** para streamers autorizados, que baixa a VOD ao fim da live (opcional) e manda ao AutoClip; **Cortes do AutoClip** configuráveis (cortes por vídeo, enquadramento por rosto ou centro, legenda com fonte, tamanho, cores e posição); **exportação** com formato, resolução, qualidade, trecho e metadados de origem e autoria, sem perda quando possível e sem alterar o corte original. Veja [V010_AUTOMACAO.md](docs/V010_AUTOMACAO.md).

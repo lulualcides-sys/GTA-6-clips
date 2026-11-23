@@ -82,8 +82,8 @@ def _explain(stderr: str) -> str:
         return "Vídeo exclusivo para membros/pagos: bloqueado."
     if "drm" in low:
         return "Vídeo com DRM: bloqueado."
-    tail = text.splitlines()[-1:] or [""]
-    return "yt-dlp falhou: " + tail[0][:150]
+    from .public_clip_download import humanize_ytdlp_error
+    return humanize_ytdlp_error(text).replace("A Twitch", "O YouTube")
 
 
 def download_youtube_video(video_id: str, channel_id: str, manifest: dict, incoming: Path, *,

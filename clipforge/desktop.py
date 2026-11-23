@@ -34,7 +34,7 @@ CONFIG_KEYS = frozenset({
     "TWITCH_USER_ACCESS_TOKEN", "TWITCH_REFRESH_TOKEN", "TWITCH_EDITOR_ID",
     "TWITCH_AUTO_DOWNLOAD", "TWITCH_AUTO_BATCH", "TWITCH_PUBLIC_DOWNLOAD",
     "TWITCH_LIVE_MONITOR", "TWITCH_LIVE_VOD_DOWNLOAD", "TWITCH_LIVE_POLL_SECONDS",
-    "TWITCH_LIVE_RECORD", "TWITCH_RECORD_MAX_MINUTES",
+    "TWITCH_LIVE_RECORD", "TWITCH_RECORD_MAX_MINUTES", "NEXUS_WINDOWS_NOTIFY",
     "TWITCH_VOD_MAX_MINUTES",
     "TWITCH_AUTO_MIN_SCORE", "TWITCH_AUTO_GTA6_ONLY",
     "TWITCH_AUTO_PER_CREATOR", "TWITCH_GTA6_BATCH",
@@ -631,6 +631,9 @@ def run_desktop() -> None:
 
     token = secrets.token_urlsafe(32)
     server, runtime, thread = start_backend(home / "data", token)
+    # Falhas novas viram notificação nativa do Windows (grátis, sem instalar nada).
+    from .desktop_notify import WindowsNotifier
+    WindowsNotifier(runtime).start()
     url = (f"http://127.0.0.1:{server.server_port}/"
            f"#desktop-token={quote(token, safe='')}")
     try:

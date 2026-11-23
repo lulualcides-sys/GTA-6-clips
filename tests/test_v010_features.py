@@ -355,3 +355,68 @@ class LiveRecorderTest(unittest.TestCase):
         client.get_latest_vod.assert_not_called()
         self.assertEqual(runtime.ingest_log.list()[0]["kind"], "live")
         self.assertTrue((self.root / "incoming" / "twitch-live-77.mp4").is_file())
+
+
+class FriendlyErrorsTest(unittest.TestCase):
+    def test_known_errors_are_translated(self):
+        from clipforge.public_clip_download import humanize_ytdlp_error as h
+        self.assertIn("inscritos", h("ERROR: [twitch:vod] 123: This video is only available to subscribers"))
+        self.assertIn("removido", h("ERROR: Video 123 does not exist"))
+        self.assertIn("limite", h("[download] VOD does not pass filter (duration <= 600), skipping"))
+        self.assertIn("403", h("ERROR: HTTP Error 403: Forbidden"))
+        self.assertTrue(h("ERROR: algo novo").startswith("Download falhou: ERROR: algo novo"))
+
+
+class WindowsNotifierTest(unittest.TestCase):
+    def test_only_new_failures_and_text_via_env(self):
+        from clipforge.desktop_notify import WindowsNotifier
+        items = [{"area": "download", "platform": "twitch", "title": "Clipe", "message": "403", "at": "1", "automatic": True}]
+        run = Mock(return_value=SimpleNamespace(returncode=0))
+        n = WindowsNotifier(SimpleNamespace(), run=run, collect=lambda rt, pub: {"items": list(items)},
+                            platform="win32")
+        self.assertEqual(n.tick(), 0, "primeira leitura só marca o que já existia")
+        items.append({"area": "publicacao", "platform": "youtube", "title": "Corte'; rm -rf", "message": "quota",
+                      "at": "2", "automatic": False})
+        self.assertEqual(n.tick(), 1)
+        cmd, kwargs = run.call_args.args[0], run.call_args.kwargs
+        self.assertNotIn("rm -rf", " ".join(cmd), "texto nunca entra no comando")
+        self.assertIn("rm -rf", kwargs["env"]["NEXUS_TOAST_BODY"])
+        self.assertIn("(manual)", kwargs["env"]["NEXUS_TOAST_TITLE"])
+        self.assertEqual(n.tick(), 0)
+
+    def test_disabled_off_windows_or_by_env(self):
+        from clipforge.desktop_notify import WindowsNotifier
+        self.assertFalse(WindowsNotifier(SimpleNamespace(), collect=lambda *a: {"items": []}, platform="linux").enabled())
+        with patch.dict(os.environ, {"NEXUS_WINDOWS_NOTIFY": "0"}):
+            self.assertFalse(WindowsNotifier(SimpleNamespace(), collect=lambda *a: {"items": []}, platform="win32").enabled())
+
+
+class SuggestionEditTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        from clipforge.autoclip_bridge import AutoClipBridge
+        root = Path(self.tmp.name)
+        self.bridge = AutoClipBridge(SimpleNamespace(root=root, incoming=root / "incoming"))
+        out = self.bridge.exports / "job1"
+        out.mkdir(parents=True)
+        make_video(out / "clip1.mp4", seconds=30, size="360x640")
+        self.bridge.jobs["c1"] = {"status": "complete", "suggestions": ["job1/clip1.mp4"], "imports": []}
+
+    def test_trim_creates_new_file_and_keeps_original(self):
+        original = (self.bridge.exports / "job1" / "clip1.mp4").read_bytes()
+        target = self.bridge.trim_suggestion("c1", 0, 5, 20)
+        from clipforge.core import duration_of, probe
+        self.assertAlmostEqual(duration_of(probe(target)), 15, delta=0.5)
+        self.assertEqual((self.bridge.exports / "job1" / "clip1.mp4").read_bytes(), original)
+        for start, end in ((0, 5), (25, 90), (-1, 15)):
+            with self.assertRaises(ValueError):
+                self.bridge.trim_suggestion("c1", 0, start, end)
+
+    def test_redo_requeues_and_blocks_running(self):
+        self.bridge.queue = Mock(return_value={"status": "queued"})
+        self.assertEqual(self.bridge.redo("c1"), {"status": "queued"})
+        self.assertNotIn("c1", self.bridge.jobs)
+        self.bridge.jobs["c1"] = {"status": "running"}
+        with self.assertRaises(ValueError):
+            self.bridge.redo("c1")

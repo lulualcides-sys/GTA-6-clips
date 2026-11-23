@@ -42,6 +42,30 @@ def yt_dlp_command() -> list[str] | None:
     return None
 
 
+_FRIENDLY = (
+    (("subscriber", "sub-only", "inscritos"), "Conteúdo só para inscritos do canal; não dá para baixar."),
+    (("does not pass filter", "does not match filter", "skipping"), "Ignorado: mais longo que o limite configurado ou ainda ao vivo."),
+    (("is offline", "not currently live"), "O streamer não está ao vivo."),
+    (("does not exist", "not available", "has been deleted", "unavailable", "removed"),
+     "O vídeo/VOD não existe mais ou foi removido pelo streamer."),
+    (("private",), "O vídeo é privado."),
+    (("geo", "country"), "Bloqueado para o seu país."),
+    (("http error 403", "forbidden"), "A Twitch bloqueou o acesso agora (403); o app tenta de novo mais tarde."),
+    (("http error 429", "too many requests"), "Muitas requisições; o app espera e tenta de novo mais tarde."),
+    (("timed out", "connection", "network", "temporary failure"), "Falha de rede; o app tenta de novo mais tarde."),
+)
+
+
+def humanize_ytdlp_error(stderr: str) -> str:
+    """Traduz o erro técnico do yt-dlp para uma explicação curta em português."""
+    text = (stderr or "").lower()
+    for needles, message in _FRIENDLY:
+        if any(n in text for n in needles):
+            return message
+    tail = (stderr or "").strip().splitlines()[-1:] or [""]
+    return "Download falhou: " + (tail[0][:150] or "erro desconhecido do yt-dlp")
+
+
 def download_public_clip(clip_id: str, broadcaster_id: str, manifest: dict, incoming: Path,
                          *, run=subprocess.run, command: list[str] | None = None) -> Path:
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,180}", clip_id or ""):
@@ -111,8 +135,7 @@ def _download(url: str, stem: str, item_id: str, broadcaster_id: str, manifest: 
         except (OSError, subprocess.SubprocessError) as exc:
             raise DownloadError("yt-dlp não executou ou excedeu o tempo") from exc
         if result.returncode != 0:
-            tail = (result.stderr or "").strip().splitlines()[-1:] or [""]
-            raise DownloadError("yt-dlp falhou: " + tail[0][:150])
+            raise DownloadError(humanize_ytdlp_error(result.stderr or ""))
         files = [p for p in out.iterdir() if p.is_file() and not p.is_symlink()
                  and not p.name.endswith((".part", ".ytdl"))]
         if len(files) != 1:
